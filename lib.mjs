@@ -46,6 +46,38 @@ export function parseBackup(text) {
   return d;
 }
 
+// Rarity per species. Custom species are 'raro'; her past pets are always 'legendario'.
+const TIERS = {
+  común: ['gato', 'perro', 'pájaro', 'paloma', 'gallina', 'pez', 'ratón', 'vaca', 'oveja', 'caballo', 'cerdo', 'caracol', 'abeja', UNKNOWN],
+  raro: ['conejo', 'pato', 'ardilla', 'cabra', 'tortuga', 'rana', 'mariposa', 'lagartija'],
+  épico: ['zorro', 'búho', 'erizo', 'ciervo', 'jabalí', 'mono'],
+  legendario: ['elefante', 'oso', 'cebra', 'jirafa'],
+};
+export const RARITIES = Object.keys(TIERS);
+export const RARITY_LABEL = { común: 'Común', raro: '★ Raro', épico: '★★ Épico', legendario: '★★★ Legendario' };
+const TIER_OF = Object.fromEntries(Object.entries(TIERS).flatMap(([t, list]) => list.map(s => [s, t])));
+export const rarityOf = species => TIER_OF[species] ?? 'raro';
+export const rarityFor = a => (a.memory ? 'legendario' : rarityOf(a.species));
+
+// Album: one slot per known species (by rarity, then name) plus any custom species already caught.
+export function albumSlots(animals) {
+  const known = Object.keys(EMOJI).filter(s => s !== UNKNOWN)
+    .sort((x, y) => RARITIES.indexOf(rarityOf(x)) - RARITIES.indexOf(rarityOf(y)) || x.localeCompare(y));
+  const custom = [...new Set(animals.map(a => a.species))].filter(s => s !== UNKNOWN && !known.includes(s)).sort();
+  return [...known, ...custom].map(species => {
+    const mine = animals.filter(a => a.species === species);
+    return { species, emoji: emojiFor(species), rarity: rarityOf(species), count: mine.length, latest: mine[0] ?? null };
+  });
+}
+
+// Trading-card personality: 3 random traits with 1-3 stars. All editable on the back of the card.
+export const TRAITS = ['Dormilón', 'Glotón', 'Juguetón', 'Mimoso', 'Curioso', 'Valiente', 'Tímido', 'Travieso',
+  'Elegante', 'Gruñón', 'Presumido', 'Aventurero', 'Cariñoso', 'Charlatán', 'Despistado', 'Veloz'];
+export function randomTraits(rnd = Math.random) {
+  const pool = [...TRAITS];
+  return Array.from({ length: 3 }, () => ({ name: pool.splice(Math.floor(rnd() * pool.length), 1)[0], stars: 1 + Math.floor(rnd() * 3) }));
+}
+
 export const cleanSpecies = s => s.trim().toLowerCase() || UNKNOWN;
 
 const TITLE = ['Don', 'Doña', 'Capitán', 'Princesa', 'Profe', 'Mini', 'Sir', 'Lady', 'Bebé', 'Señorito', 'Gran', 'Pequeño'];

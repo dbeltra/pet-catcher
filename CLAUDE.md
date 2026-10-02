@@ -89,7 +89,7 @@ where unsupported, e.g. iOS < 18). `type` goes to `html[data-vt]`, and `style.cs
 | type | when | animation |
 |---|---|---|
 | `open` / `close` | open / close a card | the tile (`card`) grows into the big card with an overshoot; its sticker (`sticker`) flies on top with a wiggle; the card contents then pop in one by one (`rise`). Closing: the contents first drop away (`.leaving`, 150 ms), then the plain card shrinks into the tile with less bounce |
-| `to-map` / `to-grid` | tab switch | `main` (`content`) swings out to one side and bounces in from the other; the yellow tab pill (`tab-on`) slides |
+| `slide-left` / `slide-right` | tab switch (direction from the order in `TABS`) | `main` (`content`) swings out to one side and bounces in from the other; the yellow tab pill (`tab-on`) slides |
 | `filter` | filter chip | the grid or map shrinks away and pops back |
 
 Each animal has a fixed pastel (`pastelFor(id)`, a hash of the id), used by its tile **and** its big card,
@@ -142,6 +142,17 @@ lookups one at a time for records that have `location` but no `place`.
   store to `pet-catcher-YYYY-MM-DD.json`, through the share sheet when possible (iOS standalone downloads are
   unreliable), else a download. "📂 Restaurar" merges by id (never deletes); `parseBackup` validates.
 
+- **Album** (tab `📖 Álbum`, between Colección and Mapa): `albumSlots()` gives one slot per known species,
+  grouped by rarity, plus caught custom species; a progress bar "N / M especies". Missing slots show a grey
+  emoji and "???"; a caught slot shows its newest sticker and opens the collection filtered to it.
+- **Rarity** (`rarityOf` / `rarityFor`): común, raro (blue frame), épico (gold frame + soft shine), legendario
+  (holographic). Custom species are raro; her Recuerdos are always legendario. The shine is a rainbow
+  `::after` that follows the phone tilt (`deviceorientation` → `--hx/--hy`, class `html.tilt`) or drifts.
+  Use normal blending: `color-dodge` washes out to white on the pastels.
+- **Traits** ("🔄 Rasgos" flips the card): 3 random `TRAITS` with 1-3 stars on each new catch and memory.
+  All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
+  the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper.
+
 ## Data model
 
 IndexedDB database `pet-catcher`, **version 2**: object store `animals` (keyPath `id`) and `meta`
@@ -159,7 +170,8 @@ Every record goes through `normalize()` on read, which fills fields added later.
   location: { lat, lon } | null,     // for the map
   fav: false, note: '',
   memory: false,                     // true for her past pets (SEEDS)
-  traits: [], visits: [],            // reserved for the next versions
+  traits: [{ name: 'Dormilón', stars: 1..3 }],
+  visits: [],                        // reserved for the next version
 }
 ```
 
@@ -196,9 +208,11 @@ a file picker, not the camera. To test on the phone, use the GitHub Pages URL (t
 - `node test.mjs`: pure logic. Fast. Run it after any change to `lib.mjs`.
 - `./e2e/run.sh`: the real app in headless Chrome. It downloads a cat photo once (to `e2e/cat.jpg`,
   gitignored), fakes a position in Sitges, puts the photo into the file input, waits for the preview
-  and the real place lookup, clicks "¡Me lo quedo!", checks that the gallery has one tile, opens the map
-  tab and checks for one pin. It prints `OK species=gato ... place=Sitges, Garraf ... tiles=1 pins=1` and
-  exits 0, or `FAIL ... timeout at <step>`. `harness.html` needs its `<meta charset>`: without it "¡" breaks the button lookup.
+  and the real place lookup, clicks "¡Me lo quedo!", opens the map tab and checks for one pin. It also
+  dismisses the birthday overlay, checks both memories and that they have no "Liberar", favourites the
+  catch, and does a backup → restore round trip (the share sheet is replaced by a capture). It prints
+  `OK bday=... memories=2 memoryRelease=false ... pins=1 backup=3 tiles=4` and exits 0, or `FAIL ... timeout at <step>`.
+  Each later version adds its own checks to the same line. `harness.html` needs its `<meta charset>`: without it "¡" breaks the button lookup.
   It needs network (the first run downloads the models) and Google Chrome in `/Applications`.
   The harness reports back by requesting `/result?<message>`, which shows up in the server log.
 - Screenshot of the running app: start Chrome with `--remote-debugging-port` and call

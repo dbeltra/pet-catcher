@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { COCO_ES, EMOJI, UNKNOWN, SEEDS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { COCO_ES, EMOJI, UNKNOWN, SEEDS, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -59,7 +59,7 @@ async function ensureMemories() {
   const have = new Set((await getAll()).map(a => a.id));
   for (const s of SEEDS) if (!have.has(s.id)) {
     const sticker = await (await fetch(s.file)).blob();
-    await put(normalize({ id: s.id, name: s.name, species: s.species, sticker, memory: true, fav: true, takenAt: null, place: null, location: null }));
+    await put(normalize({ id: s.id, name: s.name, species: s.species, sticker, memory: true, fav: true, takenAt: null, place: null, location: null, traits: randomTraits() }));
   }
 }
 
@@ -189,6 +189,8 @@ function renderCard(a, actions, save = () => {}) {
   const q = s => card.querySelector(s);
   card.style.setProperty('--pastel', pastelFor(a.id)); // same colour as its tile
   card.classList.toggle('memory', a.memory);
+  card.dataset.rarity = rarityFor(a);
+  q('.rarity').textContent = RARITY_LABEL[rarityFor(a)];
   q('.sticker').src = blobUrl(a.sticker);
   tag(card, true);
   q('.name').value = a.name;
@@ -205,22 +207,69 @@ function renderCard(a, actions, save = () => {}) {
   paintFav();
   fav.onclick = () => { a.fav = !a.fav; paintFav(); save(); };
   q('.name').onchange = () => { a.name = q('.name').value.trim() || a.name; q('.name').value = a.name; save(); };
-  q('.species').onchange = () => { a.species = cleanSpecies(q('.species').value); save(); };
+  q('.species').onchange = () => {
+    a.species = cleanSpecies(q('.species').value);
+    card.dataset.rarity = rarityFor(a);
+    q('.rarity').textContent = RARITY_LABEL[rarityFor(a)];
+    save();
+  };
   q('.note').onchange = () => { a.note = q('.note').value.trim(); save(); };
-  q('.actions').append(...actions);
+  q('.actions').append(button('🔄 Rasgos', () => flip(card, a, save)), ...actions);
   $('#card').replaceChildren(card);
   fillSpeciesList();
   return { where: q('.where'), sticker: q('.sticker') };
 }
 
+// Card flip: turn to 90°, swap faces, turn back from -90°. The back lists the traits, all editable.
+async function flip(card, a, save) {
+  const turn = (from, to) => card.animate([{ transform: `perspective(900px) rotateY(${from}deg)` }, { transform: `perspective(900px) rotateY(${to}deg)` }],
+    { duration: 170, easing: from === 0 ? 'ease-in' : 'cubic-bezier(.34, 1.56, .64, 1)' }).finished;
+  await turn(0, 90);
+  const back = !card.classList.contains('show-back');
+  card.classList.toggle('show-back', back);
+  if (back) renderTraits(card, a, save);
+  await turn(-90, 0);
+}
+
+function renderTraits(card, a, save) {
+  const list = card.querySelector('.traits');
+  card.querySelector('.back h3').textContent = `Así es ${a.name}`;
+  const star = (t, n) => {
+    const b = button(n <= t.stars ? '★' : '☆', () => { t.stars = n; save(); renderTraits(card, a, save); }, 'star');
+    b.setAttribute('aria-label', `${n} estrellas`);
+    return b;
+  };
+  list.replaceChildren(...a.traits.map((t, i) => {
+    const row = document.createElement('li');
+    const name = Object.assign(document.createElement('input'), { value: t.name, maxLength: 20, ariaLabel: 'Rasgo' });
+    name.setAttribute('list', 'traits-list');
+    name.onchange = () => { t.name = name.value.trim() || t.name; name.value = t.name; save(); };
+    row.append(name, star(t, 1), star(t, 2), star(t, 3),
+      button('✕', () => { a.traits.splice(i, 1); save(); renderTraits(card, a, save); }, 'drop'));
+    return row;
+  }));
+  if (!a.traits.length) list.replaceChildren(Object.assign(document.createElement('li'), { className: 'none', textContent: 'Todavía sin rasgos (・・ )' }));
+  card.querySelector('.add-trait').onclick = () => {
+    const used = new Set(a.traits.map(t => t.name));
+    a.traits.push({ name: TRAITS.find(t => !used.has(t)) ?? 'Especial', stars: 2 });
+    save();
+    renderTraits(card, a, save);
+    list.querySelector('li:last-child input')?.select();
+  };
+  card.querySelector('.unflip').onclick = () => flip(card, a, save);
+}
+
 const FAV = 'fav'; // filter value for favourites; species are stored lowercase Spanish, so no clash with a real one
 let filter = null; // species (or FAV) shown in the list and the map, null = all
-let tab = 'grid'; // 'grid' | 'map'
+const TABS = ['grid', 'album', 'map'];
+let tab = 'grid';
 
-for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => {
-  if (tab === b.dataset.tab) return;
-  transition(() => { tab = b.dataset.tab; return renderList(); }, tab === 'grid' ? 'to-map' : 'to-grid');
-};
+function goTab(to) {
+  if (tab === to) return;
+  const dir = TABS.indexOf(to) > TABS.indexOf(tab) ? 'slide-left' : 'slide-right';
+  return transition(() => { tab = to; return renderList(); }, dir);
+}
+for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => goTab(b.dataset.tab);
 
 let map, pins;
 async function renderMap(animals) {
@@ -254,7 +303,7 @@ async function renderList() {
 
   $('#count').textContent = all.length ? `${all.length} ${all.length === 1 ? 'atrapado' : 'atrapados'}` : '';
   $('#empty').hidden = all.length > 0;
-  $('#filters').hidden = counts.length < 2 && !favs;
+  $('#filters').hidden = tab === 'album' || (counts.length < 2 && !favs);
   const chip = (label, value) => button(label, () => transition(() => { filter = value; return renderList(); }, 'filter'),
     `chip${filter === value ? ' on' : ''}`);
   $('#filters').replaceChildren(chip(`✨ Todos ${all.length}`, null),
@@ -263,7 +312,9 @@ async function renderList() {
 
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === tab);
   $('#grid').hidden = tab !== 'grid';
+  $('#album').hidden = tab !== 'album';
   $('#map-wrap').hidden = tab !== 'map';
+  if (tab === 'album') renderAlbum(all);
   const shown = all.filter(a => !filter || (filter === FAV ? a.fav : a.species === filter));
   if (tab === 'map') await renderMap(shown); // awaited so a transition snapshots the pins
 
@@ -272,6 +323,7 @@ async function renderList() {
     el.querySelector('img').src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
+    el.dataset.rarity = rarityFor(a);
     el.querySelector('.heart').hidden = !a.fav;
     el.classList.toggle('memory', a.memory);
     el.dataset.id = a.id;
@@ -285,8 +337,34 @@ async function renderList() {
   (async () => { for (const a of all) if (await resolvePlace(a)) await put(a); })();
 }
 
+// Album: progress, then one slot per species. A caught slot shows the newest sticker; tapping it
+// opens the collection filtered to that species.
+function renderAlbum(all) {
+  const slots = albumSlots(all);
+  const got = slots.filter(s => s.count).length;
+  $('#album-progress').textContent = `${got} / ${slots.length} especies`;
+  $('#album-bar').style.setProperty('--p', `${(got / slots.length) * 100}%`);
+  $('#album-grid').replaceChildren(...slots.map(s => {
+    const el = $('#slot-tpl').content.firstElementChild.cloneNode(true);
+    el.dataset.rarity = s.rarity;
+    el.classList.toggle('got', !!s.count);
+    if (s.latest) {
+      el.querySelector('img').src = blobUrl(s.latest.sticker);
+      el.querySelector('.n').textContent = `×${s.count}`;
+      el.onclick = () => { filter = s.species; goTab('grid'); };
+    } else {
+      el.querySelector('img').remove();
+      el.querySelector('.n').remove();
+      el.disabled = true;
+    }
+    el.querySelector('.emoji').textContent = s.emoji;
+    el.querySelector('.label').textContent = s.count ? s.species : '???';
+    return el;
+  }));
+}
+
 // View Transitions. `type` sets html[data-vt], which style.css uses to pick the animation
-// (open / close = a card, to-map / to-grid, filter). Without the API (iOS < 18) views just swap.
+// (open / close = a card, slide-left / slide-right = tabs, filter). Without the API (iOS < 18) views just swap.
 async function transition(fn, type) {
   if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return fn();
   if (type) document.documentElement.dataset.vt = type;
@@ -390,7 +468,7 @@ async function onPhoto(file) {
   const takenAt = Date.now();
   try {
     const cut = await stickerFrom(file);
-    const a = normalize({ id: crypto.randomUUID(), name: randomName(), species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where });
+    const a = normalize({ id: crypto.randomUUID(), name: randomName(), species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits() });
     const placed = resolvePlace(a);
     const showPreview = () => {
       const f = renderCard(a, [
@@ -491,9 +569,24 @@ $('#bday button').onclick = () => {
 };
 $('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title
 
+// ---------- holographic tilt ----------
+// Rare cards shine with a rainbow that follows the phone's tilt. Without sensor data it drifts by itself.
+let tiltFrame;
+addEventListener('deviceorientation', e => {
+  if (e.gamma == null || tiltFrame) return;
+  tiltFrame = requestAnimationFrame(() => {
+    tiltFrame = null;
+    const root = document.documentElement;
+    root.classList.add('tilt');
+    root.style.setProperty('--hx', `${50 + Math.max(-45, Math.min(45, e.gamma)) * 1.1}%`);
+    root.style.setProperty('--hy', `${50 + Math.max(-45, Math.min(45, e.beta - 45)) * 1.1}%`);
+  });
+});
+
 // ---------- start ----------
 
 $('#version').textContent = `v${self.VERSION}`;
+$('#traits-list').replaceChildren(...TRAITS.map(t => new Option(t)));
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }); // else GitHub Pages' 10 min HTTP cache delays updates
 let seen = false;
 try { seen = localStorage.getItem('bday-seen') === '1'; } catch {}

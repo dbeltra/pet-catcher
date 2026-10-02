@@ -24,6 +24,7 @@
     <p class="tagline">¡atrápalos a todos! <span id="count"></span></p>
     <nav id="tabs">
       <button data-tab="grid">🗂️ Colección</button>
+      <button data-tab="album">📖 Álbum</button>
       <button data-tab="map">🗺️ Mapa</button>
     </nav>
   </header>
@@ -36,6 +37,10 @@
         <p>Todavía no has atrapado ningún bichito.<br>¡Sal a buscar uno!</p>
       </div>
       <div id="grid"></div>
+      <div id="album" hidden>
+        <div class="progress"><span id="album-progress"></span><div id="album-bar"></div></div>
+        <div id="album-grid"></div>
+      </div>
       <div id="map-wrap" hidden>
         <div id="map"></div>
         <p id="map-empty" hidden>Aún no hay capturas con ubicación (・_・;)</p>
@@ -73,9 +78,14 @@
   </label>
 
   <datalist id="species-list"></datalist>
+  <datalist id="traits-list"></datalist>
 
   <template id="tile-tpl">
     <button class="tile"><span class="ribbon">Recuerdo</span><span class="heart" hidden>❤️</span><span class="pic"><img alt=""></span><span class="name"></span><span class="meta"></span></button>
+  </template>
+
+  <template id="slot-tpl">
+    <button class="slot"><img alt=""><span class="emoji"></span><span class="label"></span><span class="n"></span></button>
   </template>
 
   <template id="card-tpl">
@@ -87,10 +97,17 @@
         <span class="emoji" aria-hidden="true"></span>
         <input class="species" list="species-list" maxlength="30" aria-label="Especie" autocomplete="off">
       </label>
+      <p class="rarity"></p>
       <p class="when"></p>
       <p class="where"></p>
       <textarea class="note" rows="2" maxlength="300" placeholder="Escribe una nota… ✏️"></textarea>
       <div class="actions"></div>
+      <div class="back">
+        <h3></h3>
+        <ul class="traits"></ul>
+        <button class="add-trait">＋ Añadir rasgo</button>
+        <div class="actions"><button class="unflip">🔄 Volver a la foto</button></div>
+      </div>
     </article>
   </template>
 </body>

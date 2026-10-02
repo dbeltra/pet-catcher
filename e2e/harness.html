@@ -62,7 +62,29 @@ f.onload = async () => {
     d.querySelector('#tabs [data-tab=grid]').click();
     await wait('restore', () => names(d).includes('Restaurado'), 10000);
 
-    log(`OK bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    // Album: gato and perro caught (memories count too).
+    d.querySelector('#tabs [data-tab=album]').click();
+    await wait('album', () => !d.querySelector('#album').hidden && d.querySelectorAll('.slot').length, 10000);
+    const album = d.querySelector('#album-progress').textContent;
+
+    // Rarity and traits: Kurko is legendary; flip his card, set a trait to 3 stars, add one.
+    d.querySelector('#tabs [data-tab=grid]').click();
+    await wait('grid again', () => !d.querySelector('#grid').hidden && names(d).includes('Kurko'), 10000);
+    await sleep(800);
+    [...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Kurko').click();
+    await wait('kurko card', () => btn(d, '🔄 Rasgos'));
+    const rarity = d.querySelector('.card').dataset.rarity;
+    btn(d, '🔄 Rasgos').click();
+    await wait('flip', () => d.querySelector('.card.show-back'), 5000);
+    const before = d.querySelectorAll('.traits li').length;
+    d.querySelectorAll('.traits li')[0].querySelectorAll('.star')[2].click();
+    d.querySelector('.add-trait').click();
+    const traits = d.querySelectorAll('.traits li').length;
+    const stars = d.querySelectorAll('.traits li')[0].textContent.split('★').length - 1;
+    btn(d, 'Volver').click();
+    await wait('back from kurko', () => !d.querySelector('#list').hidden, 5000);
+
+    log(`OK album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };
