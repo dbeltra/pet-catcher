@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName(() => 0), 'Don Galleta');
 assert.match(randomName(), /^\S+ \S+$/);
 
 assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, note: '', traits: [], visits: [], memory: false, shiny: false, id: 'x' });
+assert.ok(SEEDS.every(s => s.place === 'Martos, Jaén' && Math.abs(s.location.lat - 37.7197) < 1e-3 && Math.abs(s.location.lon + 3.9697) < 1e-3));
 assert.equal(rollShiny(() => SHINY_CHANCE - 0.001), true);
 assert.equal(rollShiny(() => SHINY_CHANCE), false);
 

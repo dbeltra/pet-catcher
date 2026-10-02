@@ -141,8 +141,9 @@ lookups one at a time for records that have `location` but no `place`.
   Its button also asks for `DeviceOrientationEvent.requestPermission()` (iOS needs a tap for the holo tilt).
 - **Recuerdos (her past pets):** `SEEDS` in `lib.mjs` (Kurko 🐶 perro, Kiffy 🐱 gato) with fixed ids
   `seed-kurko` / `seed-kiffy`. `ensureMemories()` re-adds any that is missing on **every** start, so they can
-  never be lost; the card has no "Liberar" button. They have `memory: true`, `fav: true`, no date or place
-  (the card says "Un recuerdo para siempre"), a golden glowing frame and a "Recuerdo" ribbon, and sort first.
+  never be lost; the card has no "Liberar" button. They have `memory: true`, `fav: true`, no date (the card says
+  "Un recuerdo para siempre"), and the place where they lived: Martos, Jaén (37.7197, -3.9697, set in `SEEDS`;
+  `ensureMemories` also gives it to older memories without a location), so they show on the map, a golden glowing frame and a "Recuerdo" ribbon, and sort first.
   Their stickers are `seed/kurko.png` / `seed/kiffy.png`, cut from David's photos with the app's own pipeline
   (v0.11.2; Kurko is cropped as a bust because the segmenter took his owner's lap too). Each seed has a `photo`
   version; `ensureMemories()` gives a memory a newer seed photo (`seedPhoto` < `photo`) unless it was changed

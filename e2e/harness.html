@@ -83,7 +83,7 @@ f.onload = async () => {
     const hearts = [...d.querySelectorAll('.tile .heart')].filter(h => !h.hidden).length;
     d.querySelector('#tabs [data-tab=map]').click();
     await wait('map', () => d.querySelectorAll('.pin').length, 20000);
-    const pins = d.querySelectorAll('.pin').length;
+    const pins = d.querySelectorAll('.pin').length; // the catch, its 2 visits, and Kurko + Kiffy in Martos
 
     // Backup → restore round trip (the share sheet is replaced by a capture).
     let saved;

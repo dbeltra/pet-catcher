@@ -61,10 +61,11 @@ async function ensureMemories() {
   const have = new Map((await getAll()).map(a => [a.id, a]));
   for (const s of SEEDS) {
     const a = have.get(s.id);
+    if (a && !a.location) await put(Object.assign(a, { location: s.location, place: s.place })); // memories from before v0.11.3
     if (a && (a.customPhoto || (a.seedPhoto ?? 1) >= s.photo)) continue;
     const sticker = await (await fetch(s.file)).blob();
     await put(a ? { ...a, sticker, seedPhoto: s.photo }
-      : normalize({ id: s.id, name: s.name, species: s.species, sticker, seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: null, location: null, traits: randomTraits() }));
+      : normalize({ id: s.id, name: s.name, species: s.species, sticker, seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: s.place, location: s.location, traits: randomTraits() }));
   }
 }
 

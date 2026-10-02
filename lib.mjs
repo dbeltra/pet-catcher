@@ -30,11 +30,13 @@ export const SHINY_CHANCE = 1 / 15;
 export const rollShiny = (rnd = Math.random) => rnd() < SHINY_CHANCE;
 
 // Her past pets ("recuerdos"). Fixed ids: re-added on every start if missing, never deletable, and a
-// restore never duplicates them. Memories have no catch date or place.
+// restore never duplicates them. Memories have no catch date; their place is where they lived.
 // `photo` counts versions of the seed file: 1 = the emoji placeholder, 2 = the real photo (v0.11.2).
+// Both lived in Martos (Jaén).
+const MARTOS = { location: { lat: 37.719658366690034, lon: -3.9696664869193734 }, place: 'Martos, Jaén' };
 export const SEEDS = [
-  { id: 'seed-kurko', name: 'Kurko', species: 'perro', file: 'seed/kurko.png', photo: 2 },
-  { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', file: 'seed/kiffy.png', photo: 2 },
+  { id: 'seed-kurko', name: 'Kurko', species: 'perro', file: 'seed/kurko.png', photo: 2, ...MARTOS },
+  { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', file: 'seed/kiffy.png', photo: 2, ...MARTOS },
 ];
 
 // Memories first, then newest first.
