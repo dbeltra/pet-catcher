@@ -153,6 +153,15 @@ lookups one at a time for records that have `location` but no `place`.
   All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper.
 
+- **Achievements** (`ACHIEVEMENTS` in `lib.mjs`, 16, feminine forms because they are for Mari): shown under
+  the album as badges. `checkAchievements()` runs after a keep, a visit, a card edit and a restore; it
+  compares with `meta.unlocked` and celebrates new ones with a toast + confetti burst. The very first run only
+  records the baseline (no toast during the birthday). Her Recuerdos never count as catches.
+- **Re-encounters** (`visits`): "👀 ¡Lo he vuelto a ver!" on a card adds a visit (now, here); "🔁 Ya lo tenía"
+  in a new catch's preview opens a picker, and the catch's time and place become a visit of the chosen animal
+  (no new card). The card shows "Visto N veces · la última…", the tile "👀N", the map a smaller pin per visit.
+  Visit places resolve like catches (`resolvePlace` on the visit; `renderList` retries).
+
 ## Data model
 
 IndexedDB database `pet-catcher`, **version 2**: object store `animals` (keyPath `id`) and `meta`
@@ -171,7 +180,7 @@ Every record goes through `normalize()` on read, which fills fields added later.
   fav: false, note: '',
   memory: false,                     // true for her past pets (SEEDS)
   traits: [{ name: 'Dormilón', stars: 1..3 }],
-  visits: [],                        // reserved for the next version
+  visits: [{ at, location, place }], // re-encounters
 }
 ```
 

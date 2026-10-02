@@ -78,6 +78,37 @@ export function randomTraits(rnd = Math.random) {
   return Array.from({ length: 3 }, () => ({ name: pool.splice(Math.floor(rnd() * pool.length), 1)[0], stars: 1 + Math.floor(rnd() * 3) }));
 }
 
+// Re-encounters: each visit is { at, location, place }. The catch itself counts as the first sighting.
+export const timesSeen = a => 1 + a.visits.length;
+export const lastSeen = a => Math.max(a.takenAt ?? 0, ...a.visits.map(v => v.at));
+
+// Achievements (feminine forms: they are for Mari). Her Recuerdos never count as catches.
+const hour = t => new Date(t).getHours();
+const catches = all => all.filter(a => !a.memory);
+const sightings = all => catches(all).flatMap(a => [a.takenAt, ...a.visits.map(v => v.at)]).filter(Boolean);
+const places = all => new Set(catches(all).flatMap(a => [a.place, ...a.visits.map(v => v.place)]).filter(Boolean));
+const speciesCount = all => new Set(catches(all).map(a => a.species).filter(s => s !== UNKNOWN)).size;
+const ofSpecies = (all, s) => catches(all).filter(a => a.species === s).length;
+export const ACHIEVEMENTS = [
+  { id: 'first', emoji: '🐾', title: 'Primera captura', desc: 'Atrapa tu primer bichito', test: all => catches(all).length >= 1 },
+  { id: 'ten', emoji: '🏅', title: 'Coleccionista', desc: '10 capturas', test: all => catches(all).length >= 10 },
+  { id: 'fifty', emoji: '🏆', title: 'Gran coleccionista', desc: '50 capturas', test: all => catches(all).length >= 50 },
+  { id: 'variety', emoji: '🌈', title: 'Variedad', desc: '5 especies distintas', test: all => speciesCount(all) >= 5 },
+  { id: 'half', emoji: '📖', title: 'Medio álbum', desc: '15 especies distintas', test: all => speciesCount(all) >= 15 },
+  { id: 'cats', emoji: '🐱', title: 'Amiga de los gatos', desc: '5 gatos', test: all => ofSpecies(all, 'gato') >= 5 },
+  { id: 'dogs', emoji: '🐶', title: 'Amiga de los perros', desc: '5 perros', test: all => ofSpecies(all, 'perro') >= 5 },
+  { id: 'epic', emoji: '✨', title: 'Épica', desc: 'Atrapa un bichito épico', test: all => catches(all).some(a => rarityOf(a.species) === 'épico') },
+  { id: 'legend', emoji: '🌟', title: 'Leyenda', desc: 'Atrapa un bichito legendario', test: all => catches(all).some(a => rarityOf(a.species) === 'legendario') },
+  { id: 'mystery', emoji: '❓', title: 'Misterio', desc: 'Un bichito que nadie conoce', test: all => catches(all).some(a => a.species === UNKNOWN) },
+  { id: 'night', emoji: '🌙', title: 'Cazadora nocturna', desc: 'Una captura entre las 22 y las 6', test: all => sightings(all).some(t => hour(t) >= 22 || hour(t) < 6) },
+  { id: 'early', emoji: '🌅', title: 'Madrugadora', desc: 'Una captura entre las 6 y las 8', test: all => sightings(all).some(t => hour(t) >= 6 && hour(t) < 8) },
+  { id: 'travel', emoji: '🧭', title: 'Viajera', desc: 'Capturas en 3 lugares', test: all => places(all).size >= 3 },
+  { id: 'world', emoji: '✈️', title: 'Trotamundos', desc: 'Capturas en 10 lugares', test: all => places(all).size >= 10 },
+  { id: 'loyal', emoji: '🔁', title: 'Amiga fiel', desc: 'Ve al mismo bichito 3 veces', test: all => catches(all).some(a => timesSeen(a) >= 3) },
+  { id: 'heart', emoji: '💖', title: 'Corazón blando', desc: '5 favoritos', test: all => all.filter(a => a.fav).length >= 5 },
+];
+export const unlockedIds = all => ACHIEVEMENTS.filter(x => x.test(all)).map(x => x.id);
+
 export const cleanSpecies = s => s.trim().toLowerCase() || UNKNOWN;
 
 const TITLE = ['Don', 'Doña', 'Capitán', 'Princesa', 'Profe', 'Mini', 'Sir', 'Lady', 'Bebé', 'Señorito', 'Gran', 'Pequeño'];

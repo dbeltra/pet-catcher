@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { COCO_ES, EMOJI, UNKNOWN, SEEDS, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { COCO_ES, EMOJI, UNKNOWN, SEEDS, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -201,6 +201,12 @@ function renderCard(a, actions, save = () => {}) {
   q('.when').textContent = a.memory ? 'Un recuerdo para siempre' : fmtWhen(a.takenAt);
   q('.where').textContent = fmtWhere(a);
   q('.where').hidden = a.memory && !a.place;
+  q('.seen').hidden = !a.visits.length;
+  if (a.visits.length) {
+    const last = a.visits.reduce((x, y) => (y.at > x.at ? y : x));
+    q('.seen').textContent = `Visto ${timesSeen(a)} veces · la última el ${new Date(lastSeen(a)).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
+      + (last.place ? ` en ${last.place}` : '');
+  }
   q('.note').value = a.note;
   const fav = q('.fav');
   const paintFav = () => { fav.textContent = a.fav ? '❤️' : '🤍'; fav.classList.toggle('on', a.fav); };
@@ -283,14 +289,18 @@ async function renderMap(animals) {
   map.invalidateSize(); // the map was hidden, Leaflet must measure it again
   pins.clearLayers();
   // ponytail: catches at the same spot stack on top of each other; add marker clustering if that gets crowded
-  const placed = animals.filter(a => a.location);
-  for (const a of placed) {
-    const icon = L.divIcon({ className: 'pin', html: `<img src="${blobUrl(a.sticker)}" data-id="${a.id}" alt="">`, iconSize: [56, 56], iconAnchor: [28, 52] });
-    L.marker([a.location.lat, a.location.lon], { icon, title: a.name })
+  // One pin per catch, and a smaller one per re-encounter. All open the same card.
+  const spots = animals.flatMap(a => [
+    ...(a.location ? [{ a, loc: a.location, size: 56 }] : []),
+    ...a.visits.filter(v => v.location).map(v => ({ a, loc: v.location, size: 40 })),
+  ]);
+  for (const { a, loc, size } of spots) {
+    const icon = L.divIcon({ className: 'pin', html: `<img src="${blobUrl(a.sticker)}" data-id="${a.id}" alt="">`, iconSize: [size, size], iconAnchor: [size / 2, size - 4] });
+    L.marker([loc.lat, loc.lon], { icon, title: a.name, zIndexOffset: size })
       .on('click', e => openDetail(a, e.target.getElement().querySelector('img'))).addTo(pins);
   }
-  $('#map-empty').hidden = placed.length > 0;
-  if (placed.length) map.fitBounds(placed.map(a => [a.location.lat, a.location.lon]), { padding: [48, 48], maxZoom: 16 });
+  $('#map-empty').hidden = spots.length > 0;
+  if (spots.length) map.fitBounds(spots.map(s => [s.loc.lat, s.loc.lon]), { padding: [48, 48], maxZoom: 16 });
   else map.setView([40.4, -3.7], 5);
 }
 
@@ -322,7 +332,7 @@ async function renderList() {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
     el.querySelector('img').src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
-    el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
+    el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
     el.dataset.rarity = rarityFor(a);
     el.querySelector('.heart').hidden = !a.fav;
     el.classList.toggle('memory', a.memory);
@@ -334,7 +344,13 @@ async function renderList() {
 
   // Name the places of catches made without signal. One at a time: Nominatim allows 1 request/s.
   // Not awaited, so a view transition never waits on the network.
-  (async () => { for (const a of all) if (await resolvePlace(a)) await put(a); })();
+  (async () => {
+    for (const a of all) {
+      let changed = await resolvePlace(a);
+      for (const v of a.visits) changed = (await resolvePlace(v)) || changed;
+      if (changed) await put(a);
+    }
+  })();
 }
 
 // Album: progress, then one slot per species. A caught slot shows the newest sticker; tapping it
@@ -344,6 +360,16 @@ function renderAlbum(all) {
   const got = slots.filter(s => s.count).length;
   $('#album-progress').textContent = `${got} / ${slots.length} especies`;
   $('#album-bar').style.setProperty('--p', `${(got / slots.length) * 100}%`);
+  const unlocked = new Set(unlockedIds(all));
+  $('#badges-title').textContent = `🏅 Logros ${unlocked.size} / ${ACHIEVEMENTS.length}`;
+  $('#badges').replaceChildren(...ACHIEVEMENTS.map(x => {
+    const el = $('#badge-tpl').content.firstElementChild.cloneNode(true);
+    el.classList.toggle('got', unlocked.has(x.id));
+    el.querySelector('.emoji').textContent = x.emoji;
+    el.querySelector('.title').textContent = x.title;
+    el.querySelector('.desc').textContent = x.desc;
+    return el;
+  }));
   $('#album-grid').replaceChildren(...slots.map(s => {
     const el = $('#slot-tpl').content.firstElementChild.cloneNode(true);
     el.dataset.rarity = s.rarity;
@@ -408,6 +434,7 @@ async function backToList(id) {
 function detailCard(a) {
   return renderCard(a, [
     button('Volver', () => backToList(a.id)),
+    ...(a.memory ? [] : [button('👀 ¡Lo he vuelto a ver!', () => seenAgain(a))]),
     button('📷 Cambiar foto', () => { rephotoTarget = a; $('#refile').click(); }),
     // Memories (her past pets) cannot be released.
     ...(a.memory ? [] : [button('Liberar', async () => {
@@ -415,7 +442,46 @@ function detailCard(a) {
       await remove(a.id);
       backToList();
     }, 'danger')]),
-  ], () => put(a));
+  ], async () => { await put(a); checkAchievements(); });
+}
+
+// Re-encounter without a photo: the visit is now and here.
+async function seenAgain(a) {
+  toast('📍 Apuntando dónde lo has visto…');
+  const visit = { at: Date.now(), location: await getLocation(), place: null };
+  await resolvePlace(visit); // if it fails, renderList retries it
+  a.visits.push(visit);
+  await put(a);
+  toast(`👀 ¡${a.name}, visto ${timesSeen(a)} veces!`);
+  detailCard(a);
+  checkAchievements();
+}
+
+// "Ya lo tenía": the new photo is an animal already in the collection. Its time and place become a visit.
+async function pickExisting(caught, placed, back) {
+  const others = (await getAll()).filter(a => !a.memory).sort((x, y) => (y.species === caught.species) - (x.species === caught.species) || byNewest(x, y));
+  status('¿Cuál es? Toca a tu bichito 👇');
+  const grid = Object.assign(document.createElement('div'), { className: 'pick' });
+  grid.append(...others.map(a => {
+    const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
+    el.querySelector('img').src = blobUrl(a.sticker);
+    el.querySelector('.name').textContent = a.name;
+    el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
+    el.querySelector('.heart').hidden = !a.fav;
+    el.dataset.rarity = rarityFor(a);
+    el.style.setProperty('--pastel', pastelFor(a.id));
+    el.onclick = async () => {
+      await placed;
+      a.visits.push({ at: caught.takenAt, location: caught.location, place: caught.place });
+      await put(a);
+      toast(`👀 ¡${a.name}, visto ${timesSeen(a)} veces!`);
+      backToList(a.id);
+      checkAchievements();
+    };
+    return el;
+  }));
+  if (!others.length) grid.append(Object.assign(document.createElement('p'), { textContent: 'Todavía no tienes ninguno (・・ )' }));
+  $('#card').replaceChildren(grid, button('Cancelar', () => { status(''); back(); }));
 }
 
 // from: the tile or pin image that was tapped.
@@ -473,6 +539,7 @@ async function onPhoto(file) {
     const showPreview = () => {
       const f = renderCard(a, [
         button('Descartar', () => backToList()),
+        button('🔁 Ya lo tenía', () => pickExisting(a, placed, showPreview)),
         button('Recortar otra vez', async () => {
           $('#card').replaceChildren();
           a.sticker = await cut.recut();
@@ -481,7 +548,8 @@ async function onPhoto(file) {
         button('¡Me lo quedo! ⭐', async () => {
           await put(a); // if the place lookup is still running, renderList retries it
           navigator.storage?.persist?.();
-          backToList(a.id);
+          await backToList(a.id);
+          checkAchievements();
         }, 'primary'),
       ]);
       placed.then(ok => { f.where.textContent = ok || !a.location ? fmtWhere(a) : 'Sin conexión: le pondré nombre más tarde 📡'; });
@@ -540,15 +608,15 @@ $('#restore').onchange = async e => {
     for (const [k, v] of Object.entries(data.meta ?? {})) await setMeta(k, v);
     await renderList();
     toast(`¡Listo! ${data.animals.length} bichitos recuperados 🐾`);
+    checkAchievements();
   } catch (err) { toast(err.message); }
 };
 
 // ---------- birthday surprise ----------
 
-function confetti() {
+function confetti(box = $('#confetti'), n = 90) {
   const colors = ['#f7d98b', '#ffb27a', '#9fd8b4', '#9cc7f0', '#f5a3b5', '#c9b6f2'];
-  const box = $('#confetti');
-  box.replaceChildren(...Array.from({ length: 90 }, () => {
+  box.replaceChildren(...Array.from({ length: n }, () => {
     const c = document.createElement('i');
     c.style.cssText = `--x:${Math.random() * 100}vw;--d:${2.5 + Math.random() * 2.5}s;--delay:${Math.random() * 1.5}s;`
       + `--r:${Math.random() * 720 - 360}deg;--drift:${Math.random() * 30 - 15}vw;background:${colors[Math.floor(Math.random() * colors.length)]}`;
@@ -568,6 +636,20 @@ $('#bday button').onclick = () => {
   $('#confetti').replaceChildren();
 };
 $('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title
+
+// ---------- achievements ----------
+// The first run only records what is already unlocked (her Recuerdos), so nothing pops during the birthday.
+async function checkAchievements() {
+  const now = unlockedIds(await getAll());
+  const before = await getMeta('unlocked');
+  await setMeta('unlocked', now);
+  if (!before) return;
+  const fresh = ACHIEVEMENTS.filter(x => now.includes(x.id) && !before.includes(x.id));
+  if (!fresh.length) return;
+  toast(`🏅 ¡Logro desbloqueado! ${fresh.map(x => `${x.emoji} ${x.title}`).join(' · ')}`);
+  confetti($('#burst'), 60);
+  setTimeout(() => $('#burst').replaceChildren(), 4500);
+}
 
 // ---------- holographic tilt ----------
 // Rare cards shine with a rainbow that follows the phone's tilt. Without sensor data it drifts by itself.
@@ -591,4 +673,4 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { up
 let seen = false;
 try { seen = localStorage.getItem('bday-seen') === '1'; } catch {}
 if (!seen || new URLSearchParams(location.search).has('cumple')) showBirthday();
-ensureMemories().catch(console.error).finally(renderList);
+ensureMemories().catch(console.error).finally(() => { renderList(); checkAchievements(); });

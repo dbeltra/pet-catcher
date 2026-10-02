@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName(() => 0), 'Don Galleta');
 assert.match(randomName(), /^\S+ \S+$/);
@@ -27,6 +27,20 @@ const tr = randomTraits();
 assert.equal(tr.length, 3);
 assert.equal(new Set(tr.map(t => t.name)).size, 3);
 assert.ok(tr.every(t => TRAITS.includes(t.name) && t.stars >= 1 && t.stars <= 3));
+
+const at = h => new Date(2026, 9, 2, h).getTime();
+const cat = (o = {}) => normalize({ id: Math.random().toString(), species: 'gato', takenAt: at(12), ...o });
+assert.deepEqual(unlockedIds([cat({ memory: true, takenAt: null })]), []); // memories never count
+assert.deepEqual(unlockedIds([cat()]), ['first']);
+assert.ok(unlockedIds([cat({ takenAt: at(23) })]).includes('night'));
+assert.ok(unlockedIds([cat({ visits: [{ at: at(7) }] })]).includes('early')); // visits count as sightings
+assert.ok(unlockedIds([cat({ species: 'ciervo' })]).includes('epic'));
+assert.ok(unlockedIds(['a', 'b', 'c'].map(p => cat({ place: p }))).includes('travel'));
+assert.ok(unlockedIds([cat({ visits: [{ at: 1 }, { at: 2 }] })]).includes('loyal'));
+assert.ok(unlockedIds(Array.from({ length: 5 }, () => cat())).includes('cats'));
+assert.equal(new Set(ACHIEVEMENTS.map(x => x.id)).size, ACHIEVEMENTS.length);
+assert.equal(timesSeen(cat({ visits: [{ at: 1 }] })), 2);
+assert.equal(lastSeen(cat({ takenAt: 5, visits: [{ at: 9 }, { at: 7 }] })), 9);
 
 assert.equal(pastelFor('abc'), pastelFor('abc'));
 assert.ok(PASTELS.includes(pastelFor(crypto.randomUUID())));

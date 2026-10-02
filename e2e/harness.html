@@ -44,6 +44,26 @@ f.onload = async () => {
     const info = `species=${d.querySelector('.species').value} sticker=${c.width}x${c.height} transparent=${(clear / (px.length / 4) * 100).toFixed(0)}% place=${where.textContent}`;
     keep.click();
     await wait('gallery', () => d.querySelectorAll('.tile').length === 3, 10000);
+    const firstBadge = await wait('first badge toast', () => d.querySelector('#toast').textContent.includes('Primera captura') && 'yes', 8000);
+
+    // Seen again from the card (no photo).
+    [...d.querySelectorAll('.tile')].find(t => !t.classList.contains('memory')).click();
+    await wait('cat card', () => btn(d, '👀'));
+    btn(d, '👀').click();
+    await wait('seen again', () => !d.querySelector('.card .seen').hidden && d.querySelector('.card .seen').textContent.includes('2 veces'), 15000);
+    btn(d, 'Volver').click();
+    await wait('back 2', () => !d.querySelector('#list').hidden, 5000);
+    await sleep(600);
+
+    // A second photo of the same cat: "Ya lo tenía" adds a visit instead of a new card.
+    const dt2 = new DataTransfer(); dt2.items.add(new File([blob], 'cat2.jpg', { type: 'image/jpeg' })); // a FileList can be assigned only once
+    input.files = dt2.files; input.dispatchEvent(new Event('change'));
+    await wait('preview 2', () => btn(d, '🔁 Ya lo tenía'));
+    btn(d, '🔁 Ya lo tenía').click();
+    await wait('picker', () => d.querySelector('.pick .tile'));
+    d.querySelector('.pick .tile').click();
+    await wait('visit 2', () => !d.querySelector('#list').hidden && d.querySelector('.tile:not(.memory) .meta').textContent.includes('👀3'), 15000);
+    const loyal = await wait('loyal toast', () => d.querySelector('#toast').textContent.includes('Amiga fiel') && 'yes', 8000).catch(() => 'no');
     const hearts = [...d.querySelectorAll('.tile .heart')].filter(h => !h.hidden).length;
     d.querySelector('#tabs [data-tab=map]').click();
     await wait('map', () => d.querySelectorAll('.pin').length, 20000);
@@ -66,6 +86,7 @@ f.onload = async () => {
     d.querySelector('#tabs [data-tab=album]').click();
     await wait('album', () => !d.querySelector('#album').hidden && d.querySelectorAll('.slot').length, 10000);
     const album = d.querySelector('#album-progress').textContent;
+    const badges = d.querySelector('#badges-title').textContent;
 
     // Rarity and traits: Kurko is legendary; flip his card, set a trait to 3 stars, add one.
     d.querySelector('#tabs [data-tab=grid]').click();
@@ -84,7 +105,7 @@ f.onload = async () => {
     btn(d, 'Volver').click();
     await wait('back from kurko', () => !d.querySelector('#list').hidden, 5000);
 
-    log(`OK album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    log(`OK firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };
