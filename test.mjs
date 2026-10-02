@@ -26,7 +26,7 @@ assert.deepEqual([...new Set(slots.map(s => s.rarity))], RARITIES); // grouped b
 const tr = randomTraits();
 assert.equal(tr.length, 3);
 assert.equal(new Set(tr.map(t => t.name)).size, 3);
-assert.ok(tr.every(t => TRAITS.includes(t.name) && t.stars >= 1 && t.stars <= 3));
+assert.ok(tr.every(t => TRAITS.includes(t.name) && t.stars >= 1 && t.stars <= 5));
 
 const at = h => new Date(2026, 9, 2, h).getTime();
 const cat = (o = {}) => normalize({ id: Math.random().toString(), species: 'gato', takenAt: at(12), ...o });

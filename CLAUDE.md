@@ -104,6 +104,9 @@ Rules that keep it working:
 - `renderList` must not await network work (the Nominatim retries run un-awaited), or the screen freezes
   during the transition.
 - `renderList` awaits `renderMap`, so the map tab snapshot already has its pins.
+- Closing must start at once: the browser freezes the old screen until the update callback is done. So
+  `backToList` rebuilds the list and decodes every tile image *before* the transition (except on the map tab),
+  then hides the card's text (`.leaving`, no fade) and starts it. Measured: shrink starts ~35 ms after the text goes.
 - Anti-flicker rules from v0.5.2 (David saw flicker in v0.5.0):
   - The big card stays fully opaque during the morph; only the small tile fades on top of it.
     Cross-fading both left see-through frames.
@@ -149,9 +152,11 @@ lookups one at a time for records that have `location` but no `place`.
   emoji and "???"; a caught slot shows its newest sticker and opens the collection filtered to it.
 - **Rarity** (`rarityOf` / `rarityFor`): común, raro (blue frame), épico (gold frame + soft shine), legendario
   (holographic). Custom species are raro; her Recuerdos are always legendario. The shine is a rainbow
-  `::after` that follows the phone tilt (`deviceorientation` → `--hx/--hy`, class `html.tilt`) or drifts.
+  layer that follows the phone tilt (`deviceorientation` → `--hx/--hy`, class `html.tilt`) or drifts. On tiles and
+  cards it is a real element (`.foil`), so it gets its own view-transition-name and flies above the sticker
+  during open/close (as a `::after` of the card it vanished behind the flying sticker). Album slots use `::after`.
   Use normal blending: `color-dodge` washes out to white on the pastels.
-- **Traits** ("🔄 Rasgos" flips the card): 3 random `TRAITS` with 1-3 stars on each new catch and memory.
+- **Traits** (flip the card): 3 random `TRAITS` with 1-5 stars on each new catch and memory.
   All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper. The card keeps the front's
   The back also holds the note. `evenFaces()` gives both faces the height of the taller one (measured by

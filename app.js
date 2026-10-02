@@ -318,7 +318,7 @@ function renderTraits(card, a, save) {
     const name = Object.assign(document.createElement('input'), { value: t.name, maxLength: 20, ariaLabel: 'Rasgo' });
     name.setAttribute('list', 'traits-list');
     name.onchange = () => { t.name = name.value.trim() || t.name; name.value = t.name; save(); };
-    const stars = [1, 2, 3].map(n => {
+    const stars = [1, 2, 3, 4, 5].map(n => {
       const b = button('', () => { t.stars = n; paint(); save(); }, 'star');
       b.setAttribute('aria-label', `${n} estrellas`);
       return b;
@@ -332,7 +332,7 @@ function renderTraits(card, a, save) {
   empty();
   card.querySelector('.add-trait').onclick = () => {
     const used = new Set(a.traits.map(t => t.name));
-    const t = { name: TRAITS.find(n => !used.has(n)) ?? 'Especial', stars: 2 };
+    const t = { name: TRAITS.find(n => !used.has(n)) ?? 'Especial', stars: 3 };
     a.traits.push(t);
     list.querySelector('.none')?.remove();
     const li = row(t, true);
@@ -478,12 +478,15 @@ async function transition(fn, type) {
   delete document.documentElement.dataset.vt;
 }
 
-// A tile (or the big card) morphs as `card`, its sticker as `sticker`; a map pin has only a sticker.
-// Only one visible element may hold each name, so names are set just for the transition.
+// A tile (or the big card) morphs as `card`, its sticker as `sticker` and its foil as `foil`; a map pin has
+// only a sticker. Only one visible element may hold each name, so names are set just for the transition.
 function tag(el, on) {
   if (!el) return;
   const img = el.tagName === 'IMG' ? el : el.querySelector('img');
-  if (img !== el) el.style.viewTransitionName = on ? 'card' : '';
+  if (img !== el) {
+    el.style.viewTransitionName = on ? 'card' : '';
+    el.querySelector(':scope > .foil').style.viewTransitionName = on ? 'foil' : '';
+  }
   img.style.viewTransitionName = on ? 'sticker' : '';
 }
 const decoded = el => (el?.tagName === 'IMG' ? el : el?.querySelector('img'))?.decode().catch(() => {});
@@ -492,17 +495,21 @@ let listScroll = 0;
 
 // id: the animal whose tile (or map pin) the card shrinks back into.
 async function backToList(id) {
-  // First the card's contents drop away, so the shrinking card is just its colour and sticker
-  // (a scaled-down snapshot of the text and buttons looked messy).
-  const card = $('#view:not([hidden]) .card');
-  if (card && document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    card.classList.add('leaving');
-    await new Promise(r => setTimeout(r, 150));
+  // The browser freezes the old screen until the update below is done, which looked like a stop before the
+  // shrink. So the list is rebuilt and the target decoded first, while still hidden. (The map needs to be
+  // visible to lay out, so on that tab it still renders inside the update.)
+  if (tab !== 'map') {
+    await renderList();
+    // every tile image, not just the target: undecoded images made the first paint of the list slow
+    await Promise.all([...$('#grid').querySelectorAll('img')].map(i => i.decode().catch(() => {})));
   }
+  // The card's text and buttons go at once, so the shrinking card is just its colour, sticker and foil
+  // (a scaled-down snapshot of the text looked messy; a 150 ms fade first also felt like a stop).
+  $('#view:not([hidden]) .card')?.classList.add('leaving');
   let target;
   await transition(async () => {
     showView('list');
-    await renderList();
+    if (tab === 'map') await renderList();
     scrollTo(0, listScroll);
     target = id && document.querySelector(`.tile[data-id="${id}"], .pin img[data-id="${id}"]`);
     tag(target, true);

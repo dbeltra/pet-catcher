@@ -70,12 +70,12 @@ export function albumSlots(animals) {
   });
 }
 
-// Trading-card personality: 3 random traits with 1-3 stars. All editable on the back of the card.
+// Trading-card personality: 3 random traits with 1-5 stars. All editable on the back of the card.
 export const TRAITS = ['Dormilón', 'Glotón', 'Juguetón', 'Mimoso', 'Curioso', 'Valiente', 'Tímido', 'Travieso',
   'Elegante', 'Gruñón', 'Presumido', 'Aventurero', 'Cariñoso', 'Charlatán', 'Despistado', 'Veloz'];
 export function randomTraits(rnd = Math.random) {
   const pool = [...TRAITS];
-  return Array.from({ length: 3 }, () => ({ name: pool.splice(Math.floor(rnd() * pool.length), 1)[0], stars: 1 + Math.floor(rnd() * 3) }));
+  return Array.from({ length: 3 }, () => ({ name: pool.splice(Math.floor(rnd() * pool.length), 1)[0], stars: 1 + Math.floor(rnd() * 5) }));
 }
 
 // Re-encounters: each visit is { at, location, place }. The catch itself counts as the first sighting.
