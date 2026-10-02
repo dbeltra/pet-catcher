@@ -143,9 +143,10 @@ lookups one at a time for records that have `location` but no `place`.
   `seed-kurko` / `seed-kiffy`. `ensureMemories()` re-adds any that is missing on **every** start, so they can
   never be lost; the card has no "Liberar" button. They have `memory: true`, `fav: true`, no date or place
   (the card says "Un recuerdo para siempre"), a golden glowing frame and a "Recuerdo" ribbon, and sort first.
-  Their stickers are `seed/kurko.png` / `seed/kiffy.png`, **placeholder emoji for now**: David will send real
-  photos. Replacing the files only helps phones that have not opened the app yet; on an existing phone use
-  "📷 Cambiar foto" on the card (runs the same detect + cutout pipeline, keeps everything else).
+  Their stickers are `seed/kurko.png` / `seed/kiffy.png`, cut from David's photos with the app's own pipeline
+  (v0.11.2; Kurko is cropped as a bust because the segmenter took his owner's lap too). Each seed has a `photo`
+  version; `ensureMemories()` gives a memory a newer seed photo (`seedPhoto` < `photo`) unless it was changed
+  by hand ("📷 Foto" sets `customPhoto`). To ship a new seed photo: replace the file and bump its `photo`.
 - **Favourites and notes:** ❤️ button on the card, a note textarea; the "❤️ Favoritos" filter chip (`FAV`).
 - **Settings** ("⚙️ Ajustes" link next to the version at the bottom of the list; a native `<dialog>`; David
   did not want it in a primary spot): backup, restore, "🎂 Ver la felicitación", version.
@@ -214,6 +215,7 @@ Every record goes through `normalize()` on read, which fills fields added later.
   location: { lat, lon } | null,     // for the map
   fav: false, note: '',
   memory: false,                     // true for her past pets (SEEDS)
+  seedPhoto: 2, customPhoto: false,  // memories only: which seed photo it shows / photo changed by hand
   traits: [{ name: 'Dormilón', stars: 1..3 }],
   visits: [{ at, location, place }], // re-encounters
 }

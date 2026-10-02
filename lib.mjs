@@ -31,9 +31,10 @@ export const rollShiny = (rnd = Math.random) => rnd() < SHINY_CHANCE;
 
 // Her past pets ("recuerdos"). Fixed ids: re-added on every start if missing, never deletable, and a
 // restore never duplicates them. Memories have no catch date or place.
+// `photo` counts versions of the seed file: 1 = the emoji placeholder, 2 = the real photo (v0.11.2).
 export const SEEDS = [
-  { id: 'seed-kurko', name: 'Kurko', species: 'perro', file: 'seed/kurko.png' },
-  { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', file: 'seed/kiffy.png' },
+  { id: 'seed-kurko', name: 'Kurko', species: 'perro', file: 'seed/kurko.png', photo: 2 },
+  { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', file: 'seed/kiffy.png', photo: 2 },
 ];
 
 // Memories first, then newest first.

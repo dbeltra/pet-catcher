@@ -55,11 +55,16 @@ async function getAllMeta() {
 }
 
 // Her past pets are part of the app: any that is missing (first open, cleared data) comes back.
+// A memory still showing an older seed photo (the emoji placeholder) gets the new one, unless the photo was
+// changed by hand ("📷 Foto" sets `customPhoto`).
 async function ensureMemories() {
-  const have = new Set((await getAll()).map(a => a.id));
-  for (const s of SEEDS) if (!have.has(s.id)) {
+  const have = new Map((await getAll()).map(a => [a.id, a]));
+  for (const s of SEEDS) {
+    const a = have.get(s.id);
+    if (a && (a.customPhoto || (a.seedPhoto ?? 1) >= s.photo)) continue;
     const sticker = await (await fetch(s.file)).blob();
-    await put(normalize({ id: s.id, name: s.name, species: s.species, sticker, memory: true, fav: true, takenAt: null, place: null, location: null, traits: randomTraits() }));
+    await put(a ? { ...a, sticker, seedPhoto: s.photo }
+      : normalize({ id: s.id, name: s.name, species: s.species, sticker, seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: null, location: null, traits: randomTraits() }));
   }
 }
 
@@ -684,6 +689,7 @@ async function rePhoto(a, file) {
   showView('view');
   try {
     a.sticker = (await stickerFrom(file)).sticker;
+    a.customPhoto = true; // a later seed photo never overwrites this
     await put(a);
     detailCard(a);
   } catch (e) { failed(e); }
