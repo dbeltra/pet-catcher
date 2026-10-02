@@ -151,7 +151,7 @@ export function placeName(r) {
   const town = a.city ?? a.town ?? a.village ?? a.municipality;
   const first = r.name || town || a.county || a.state;
   if (!first) return null;
-  const second = [town, a.county, a.state_district, a.state].find(v => v && v !== first);
+  const second = [town, a.county, a.province, a.state_district, a.state].find(v => v && v !== first);
   return second ? `${first}, ${second}` : first;
 }
 
@@ -187,4 +187,48 @@ export function applyMask(rgba, W, H, mask, w, h, fg) {
       if (mask[row + Math.floor(x * w / W)] !== fg) rgba[(y * W + x) * 4 + 3] = 0;
     }
   }
+}
+
+// Photo date (DateTimeOriginal, else DateTime) and GPS position from a JPEG's EXIF. Each is null when missing
+// (phones often strip GPS from gallery picks). Never throws: a broken EXIF just gives nulls.
+export function readExif(buf) {
+  const out = { takenAt: null, location: null };
+  try {
+    const v = new DataView(buf);
+    if (v.getUint16(0) !== 0xFFD8) return out;
+    for (let p = 2; p + 10 < v.byteLength;) {
+      const marker = v.getUint16(p);
+      if (marker === 0xFFE1 && v.getUint32(p + 4) === 0x45786966) return readTiff(v, p + 10, out); // "Exif"
+      if ((marker & 0xFF00) !== 0xFF00 || marker === 0xFFDA) break; // start of image data: no EXIF
+      p += 2 + v.getUint16(p + 2);
+    }
+  } catch {}
+  return out;
+}
+
+function readTiff(v, t, out) {
+  const le = v.getUint16(t) === 0x4949; // "II" = little endian
+  const u16 = o => v.getUint16(t + o, le), u32 = o => v.getUint32(t + o, le);
+  const ifd = o => {
+    const tags = {};
+    for (let i = 0, n = u16(o); i < n; i++) { const e = o + 2 + i * 12; tags[u16(e)] = { count: u32(e + 4), at: e + 8 }; }
+    return tags;
+  };
+  const ascii = tag => {
+    const off = tag.count > 4 ? u32(tag.at) : tag.at;
+    return Array.from({ length: tag.count - 1 }, (_, i) => String.fromCharCode(v.getUint8(t + off + i))).join('');
+  };
+  const dms = tag => { const off = u32(tag.at), r = i => u32(off + i * 8) / u32(off + i * 8 + 4); return r(0) + r(1) / 60 + r(2) / 3600; };
+  const ifd0 = ifd(u32(4));
+  const exif = ifd0[0x8769] ? ifd(u32(ifd0[0x8769].at)) : {};
+  const date = exif[0x9003] ?? ifd0[0x0132];
+  const m = date && ascii(date).match(/^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/);
+  if (m) out.takenAt = new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
+  const gps = ifd0[0x8825] ? ifd(u32(ifd0[0x8825].at)) : {};
+  if (gps[2] && gps[4]) {
+    const lat = dms(gps[2]) * (gps[1] && ascii(gps[1]) === 'S' ? -1 : 1);
+    const lon = dms(gps[4]) * (gps[3] && ascii(gps[3]) === 'W' ? -1 : 1);
+    if (lat || lon) out.location = { lat, lon };
+  }
+  return out;
 }

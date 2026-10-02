@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -162,7 +162,7 @@ const freeUrls = () => { urls.forEach(URL.revokeObjectURL); urls = []; };
 
 const status = t => { $('#status').textContent = t; $('#status').hidden = !t; };
 const fmtWhen = t => new Date(t).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' });
-const fmtWhere = a => a.place ?? (a.location ? 'Buscando el nombre del lugar…' : 'Lugar desconocido');
+const fmtWhere = a => a.place ?? (a.location ? 'Buscando el nombre del lugar…' : 'Elegir lugar');
 
 let toastTimer;
 function toast(text) {
@@ -219,7 +219,16 @@ function renderCard(a, actions, save = () => {}, close = null) {
   fitSpecies();
   q('.when').textContent = a.memory ? 'Un recuerdo para siempre' : fmtWhen(a.takenAt);
   q('.where').textContent = fmtWhere(a);
-  q('.where').hidden = a.memory && !a.place;
+  // Tap the place to set it by hand on a map (a gallery photo often has none, or it may be wrong).
+  q('.where').onclick = async () => {
+    const ll = await pickLocation(a.location);
+    if (!ll) return;
+    Object.assign(a, { location: ll, place: null });
+    q('.where').textContent = fmtWhere(a);
+    await resolvePlace(a); // if it fails, renderList retries it
+    q('.where').textContent = fmtWhere(a);
+    save();
+  };
   q('.seen').hidden = !a.visits.length;
   if (a.visits.length) {
     const last = a.visits.reduce((x, y) => (y.at > x.at ? y : x));
@@ -379,13 +388,57 @@ function goTab(to) {
 }
 for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => goTab(b.dataset.tab);
 
+const leaflet = () => import('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet-src.esm.js');
+const osmTiles = L => L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' });
+
+// Location picker (a dialog with a map): tap to place the pin, search a place name, or use the phone's position.
+// Resolves to { lat, lon }, or null when cancelled.
+let pickMap, pickPin;
+async function pickLocation(start) {
+  const L = await leaflet();
+  const dlg = $('#locpick');
+  dlg.showModal();
+  if (!pickMap) {
+    pickMap = L.map('pickmap', { zoomControl: false });
+    osmTiles(L).addTo(pickMap);
+    pickPin = L.marker([0, 0], { icon: L.divIcon({ className: 'loc-pin', html: '📍', iconSize: [40, 40], iconAnchor: [20, 38] }) });
+    pickMap.on('click', e => pickPin.setLatLng(e.latlng).addTo(pickMap));
+  }
+  pickMap.invalidateSize(); // the dialog just opened: Leaflet must measure it
+  const place = (lat, lon, zoom) => { pickMap.setView([lat, lon], zoom); pickPin.setLatLng([lat, lon]).addTo(pickMap); };
+  pickPin.remove();
+  $('#loc-q').value = '';
+  if (start) place(start.lat, start.lon, 15); else pickMap.setView([40.2, -3.7], 5);
+  $('#loc-me').onclick = async () => {
+    const p = await getLocation();
+    p ? place(p.lat, p.lon, 16) : toast('No he podido saber dónde estás 📡');
+  };
+  $('#loc-search').onsubmit = async e => {
+    e.preventDefault();
+    try {
+      const r = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=es&q=${encodeURIComponent($('#loc-q').value)}`,
+        { signal: AbortSignal.timeout(8000) })).json();
+      r[0] ? place(+r[0].lat, +r[0].lon, 14) : toast('No encuentro ese sitio (・・ )');
+    } catch { toast('Sin conexión: toca el mapa para elegir el sitio'); }
+  };
+  return new Promise(res => {
+    const done = v => { dlg.onclose = null; dlg.close(); res(v); };
+    $('#loc-ok').onclick = () => {
+      const ll = pickMap.hasLayer(pickPin) && pickPin.getLatLng();
+      ll ? done({ lat: ll.lat, lon: ll.lng }) : toast('Toca el mapa para poner el sitio 👆');
+    };
+    $('#loc-cancel').onclick = () => done(null);
+    dlg.onclose = () => res(null); // Escape / back
+  });
+}
+
 let map, pins;
 async function renderMap(animals) {
-  const L = await import('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet-src.esm.js');
+  const L = await leaflet();
   if (!map) {
     map = L.map('map', { zoomControl: false });
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+    osmTiles(L).addTo(map);
     pins = L.layerGroup().addTo(map);
   }
   map.invalidateSize(); // the map was hidden, Leaflet must measure it again
@@ -656,10 +709,13 @@ function failed(e) {
   $('#card').replaceChildren(button('Volver', () => backToList()));
 }
 
-async function onPhoto(file) {
+// fromGallery: the date and place come from the photo (EXIF), not from now and here. Without GPS in the
+// photo the card says "Elegir lugar" and she taps it to set the place by hand.
+async function onPhoto(file, fromGallery = false) {
   showView('view');
-  const where = getLocation(); // ask early, it runs while the models work
-  const takenAt = Date.now();
+  const exif = fromGallery ? readExif(await file.arrayBuffer()) : null;
+  const where = fromGallery ? Promise.resolve(exif.location) : getLocation(); // ask early, it runs while the models work
+  const takenAt = fromGallery ? exif.takenAt ?? file.lastModified ?? Date.now() : Date.now();
   try {
     const cut = await stickerFrom(file);
     const a = normalize({ id: crypto.randomUUID(), name: randomName(), species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits(), shiny: rollShiny() });
@@ -710,6 +766,7 @@ const onFile = fn => e => {
   if (file) fn(file);
 };
 $('#file').onchange = onFile(onPhoto);
+$('#gallery-file').onchange = onFile(file => onPhoto(file, true));
 $('#refile').onchange = onFile(file => rePhoto(rephotoTarget, file));
 
 // ---------- backup / restore ----------

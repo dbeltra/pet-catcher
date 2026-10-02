@@ -141,7 +141,26 @@ f.onload = async () => {
     w.history.back();
     await wait('back from kurko', () => !d.querySelector('#list').hidden, 5000);
 
-    const summary = `order="${order}" restoredNo=${[...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Restaurado').querySelector('.no').textContent}`;
+    // Gallery import: the date comes from the photo (cat.jpg's EXIF says 31 Jan 2009); it has no GPS, so the
+    // place is set by hand: search "Martos" in the picker, save.
+    const dt3 = new DataTransfer(); dt3.items.add(new File([blob], 'gallery.jpg', { type: 'image/jpeg' }));
+    const gal = d.querySelector('#gallery-file'); gal.files = dt3.files; gal.dispatchEvent(new Event('change'));
+    await wait('gallery preview', () => btn(d, '¡Me lo quedo!'));
+    const galleryWhen = d.querySelector('.card .when').textContent;
+    const noPlace = d.querySelector('.card .where').textContent;
+    d.querySelector('.card .where').click();
+    await wait('picker', () => d.querySelector('#locpick').open, 10000);
+    d.querySelector('#loc-q').value = 'Martos, Jaén';
+    d.querySelector('#loc-search button').click();
+    await wait('search', () => d.querySelector('.loc-pin'), 15000);
+    d.querySelector('#loc-ok').click();
+    await wait('picked place', () => d.querySelector('.card .where').textContent.includes('Martos'), 15000);
+    const gallery = `when="${galleryWhen}" before="${noPlace}" after="${d.querySelector('.card .where').textContent}"`;
+    btn(d, 'Descartar').click();
+    await wait('discarded', () => !d.querySelector('#list').hidden, 5000);
+    await sleep(500);
+
+    const summary = `gallery[${gallery}] order="${order}" restoredNo=${[...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Restaurado').querySelector('.no').textContent}`;
 
     // Reset: everything goes, the app starts like the first day (birthday, only Kurko and Kiffy).
     const reloaded = new Promise(r => f.addEventListener('load', r, { once: true }));

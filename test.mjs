@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName(() => 0), 'Don Galleta');
 assert.match(randomName(), /^\S+ \S+$/);
@@ -71,6 +71,7 @@ assert.equal(placeName({ name: 'Sitges', address: { town: 'Sitges', county: 'Gar
 assert.equal(placeName({ name: 'Carxol', address: { hamlet: 'Carxol', village: 'Begues', county: 'Bajo Llobregat' } }), 'Carxol, Begues');
 assert.equal(placeName({ name: 'Sol', address: { quarter: 'Sol', city: 'Madrid', state: 'Comunidad de Madrid' } }), 'Sol, Madrid');
 assert.equal(placeName({ name: '', address: { county: 'Garraf', state: 'Cataluña' } }), 'Garraf, Cataluña');
+assert.equal(placeName({ name: 'Martos', address: { town: 'Martos', province: 'Jaén', state: 'Andalucía' } }), 'Martos, Jaén');
 assert.equal(placeName({ error: 'Unable to geocode' }), null);
 
 assert.deepEqual(speciesCounts([{ species: 'gato' }, { species: 'perro' }, { species: 'gato' }, { species: 'ciervo' }]),
@@ -104,5 +105,26 @@ assert.equal(alpha(0, 0), 0);
 assert.equal(alpha(2, 2), 255);
 assert.equal(alpha(5, 5), 255);
 assert.equal(alpha(6, 5), 0);
+
+// A hand-made little-endian JPEG: IFD0 → Exif IFD (DateTimeOriginal) and GPS IFD (37°43'10.8"N 3°58'10.8"W).
+{
+  const tiff = [];
+  const w16 = (o, x) => { tiff[o] = x & 255; tiff[o + 1] = x >> 8; };
+  const w32 = (o, x) => { for (let i = 0; i < 4; i++) tiff[o + i] = (x >>> (8 * i)) & 255; };
+  const entry = (o, tag, type, count, value) => { w16(o, tag); w16(o + 2, type); w32(o + 4, count); w32(o + 8, value); };
+  w16(0, 0x4949); w16(2, 42); w32(4, 8);
+  w16(8, 2); entry(10, 0x8769, 4, 1, 38); entry(22, 0x8825, 4, 1, 56); w32(34, 0);  // IFD0 at 8
+  w16(38, 1); entry(40, 0x9003, 2, 20, 120); w32(52, 0);                           // Exif IFD at 38
+  w16(56, 4); entry(58, 1, 2, 2, 0x4e); entry(70, 2, 5, 3, 160); entry(82, 3, 2, 2, 0x57); entry(94, 4, 5, 3, 184); w32(106, 0); // GPS IFD at 56
+  [...'2024:05:17 21:30:05\0'].forEach((c, i) => { tiff[120 + i] = c.charCodeAt(0); });
+  [[37, 1], [43, 1], [108, 10], [3, 1], [58, 1], [108, 10]].forEach(([n, d], i) => { w32(160 + i * 8, n); w32(164 + i * 8, d); });
+  const body = [...'Exif\0\0'].map(c => c.charCodeAt(0)).concat(Array.from({ length: 208 }, (_, i) => tiff[i] ?? 0));
+  const jpeg = Uint8Array.from([0xFF, 0xD8, 0xFF, 0xE1, (body.length + 2) >> 8, (body.length + 2) & 255, ...body, 0xFF, 0xD9]);
+  const x = readExif(jpeg.buffer);
+  assert.equal(x.takenAt, new Date(2024, 4, 17, 21, 30, 5).getTime());
+  assert.ok(Math.abs(x.location.lat - 37.7197) < 1e-3 && Math.abs(x.location.lon + 3.9697) < 1e-3, JSON.stringify(x.location));
+  assert.deepEqual(readExif(Uint8Array.from([0xFF, 0xD8, 0xFF, 0xDA, 0, 2, 0, 0, 0, 0, 0, 0]).buffer), { takenAt: null, location: null });
+  assert.deepEqual(readExif(new ArrayBuffer(4)), { takenAt: null, location: null });
+}
 
 console.log('ok');

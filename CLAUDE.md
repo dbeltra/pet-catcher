@@ -13,7 +13,7 @@ Everything she sees should feel warm and personal; never ship something that can
 
 **The UI language is Spanish.** All visible text, species names and random names are Spanish.
 The look is kawaii but **not girly**: soft butter-yellow accent (`--accent: #f7d98b`) with dark-brown text on it,
-the cream polka-dot background, butter/mint/sky/peach/pistachio pastels, the rounded font Fredoka, kaomoji,
+the light cream polka-dot background (`--bg: #fffdf5`, softer dots since v0.13), butter/mint/sky/peach/pistachio pastels, the rounded font Fredoka, kaomoji,
 ⭐ not hearts, the rolling ✿ next to the title, a highlighter band behind the title, gentle animations.
 David's feedback so far: pink (v0.2) too girly; bright yellow `#ffcf3f` (v0.3.0) too bright; he likes the
 background, the animations and the rolling flower (a ★ there was worse); a 3px offset text-shadow on the
@@ -151,6 +151,14 @@ lookups one at a time for records that have `location` but no `place`.
   version; `ensureMemories()` gives a memory a newer seed photo (`seedPhoto` < `photo`) unless it was changed
   by hand ("📷 Foto" sets `customPhoto`). To ship a new seed photo: replace the file and bump its `photo`.
 - **Favourites and notes:** ❤️ button on the card, a note textarea; the "❤️ Favoritos" filter chip (`FAV`).
+- **Gallery import** (🖼️ next to "¡Atrapar!", an input without `capture`): `onPhoto(file, true)` takes the date
+  and GPS from the photo's EXIF (`readExif` in `lib.mjs`), not now/here. Phones often strip GPS from picked
+  photos; then the place says "Elegir lugar".
+- **Set the place by hand:** tapping the 📍 line of any card opens `pickLocation()` (a `<dialog>` with a Leaflet
+  map): tap to drop the pin, search a name (Nominatim `search`), or "📍 Mi ubicación". The dialog focuses its
+  title, not the search field, so no keyboard pops up.
+- **The catch buttons stay on top** in every transition: `#shoot` has its own view-transition-name (`fab`)
+  with `z-index: 100`.
 - **Collection numbers** (`numberAll`, `fmtNo`): every record gets `no` once, in catch order; the memories
   first (Kurko #001, Kiffy #002, in `SEEDS` order), then by catch time. Shown above the tile name and in the
   card's rarity line. Memories sort by number. A restored new animal whose number is taken gets a fresh one.

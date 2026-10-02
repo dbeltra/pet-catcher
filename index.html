@@ -83,9 +83,22 @@
     </div>
   </div>
 
-  <label id="shoot" class="fab">📸 ¡Atrapar!
-    <input id="file" type="file" accept="image/*" capture="environment" hidden>
-  </label>
+  <div id="shoot">
+    <label class="fab-mini" aria-label="Desde la galería">🖼️<input id="gallery-file" type="file" accept="image/*" hidden></label>
+    <label class="fab">📸 ¡Atrapar!<input id="file" type="file" accept="image/*" capture="environment" hidden></label>
+  </div>
+
+  <dialog id="locpick">
+    <h2 tabindex="-1" autofocus>📍 ¿Dónde fue?</h2> <!-- focus here, not the search field: no keyboard popping up -->
+    <form id="loc-search"><input id="loc-q" placeholder="Busca un pueblo, un parque…" autocomplete="off"><button aria-label="Buscar">🔍</button></form>
+    <div id="pickmap"></div>
+    <p class="hint">Toca el mapa para poner el sitio</p>
+    <div class="loc-actions">
+      <button id="loc-me">📍 Mi ubicación</button>
+      <button id="loc-cancel">Cancelar</button>
+      <button id="loc-ok" class="primary">Guardar</button>
+    </div>
+  </dialog>
 
   <datalist id="species-list"></datalist>
   <datalist id="traits-list"></datalist>
