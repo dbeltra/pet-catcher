@@ -119,7 +119,7 @@ f.onload = async () => {
     d.querySelector('.back h3').click(); // a tap flips back too
     await wait('unflip', () => !d.querySelector('.card.show-back'), 5000);
     await sleep(500);
-    await swipe(w, d.querySelector('.card .note'), 150, 0); // a swipe that starts on a text field flips too
+    await swipe(w, d.querySelector('.card .name'), 150, 0); // a swipe that starts on a text field flips too
     await wait('flip from input', () => d.querySelector('.card.show-back'), 5000);
     await sleep(500);
     d.querySelector('.back h3').click();

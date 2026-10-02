@@ -190,9 +190,6 @@ function renderCard(a, actions, save = () => {}, close = null) {
   const q = s => card.querySelector(s);
   card.style.setProperty('--pastel', pastelFor(a.id)); // same colour as its tile
   card.classList.toggle('memory', a.memory);
-  // The contents pop in once, when the card opens. Left on, the animation replayed on every flip or toggle.
-  card.classList.add('entering');
-  setTimeout(() => card.classList.remove('entering'), 1200);
   card.dataset.rarity = rarityFor(a);
   q('.rarity').textContent = RARITY_LABEL[rarityFor(a)];
   q('.sticker').src = blobUrl(a.sticker);
@@ -201,7 +198,10 @@ function renderCard(a, actions, save = () => {}, close = null) {
   q('.species').value = a.species === UNKNOWN ? '' : a.species;
   q('.species').placeholder = '¿Qué bichito es?';
   q('.emoji').textContent = emojiFor(a.species);
-  q('.species').oninput = () => { q('.emoji').textContent = emojiFor(cleanSpecies(q('.species').value)); };
+  // The species field is as wide as its text, so the emoji and the word sit centred together.
+  const fitSpecies = () => { q('.species').style.width = `${(q('.species').value || q('.species').placeholder).length + 1}ch`; };
+  q('.species').oninput = () => { q('.emoji').textContent = emojiFor(cleanSpecies(q('.species').value)); fitSpecies(); };
+  fitSpecies();
   q('.when').textContent = a.memory ? 'Un recuerdo para siempre' : fmtWhen(a.takenAt);
   q('.where').textContent = fmtWhere(a);
   q('.where').hidden = a.memory && !a.place;
@@ -236,6 +236,8 @@ function renderCard(a, actions, save = () => {}, close = null) {
   const hint = Object.assign(document.createElement('p'), { className: 'swipe-hint',
     textContent: close ? '↔️ Desliza la tarjeta para girarla · ⬇️ para cerrarla' : '↔️ Desliza la tarjeta para ver sus rasgos' });
   $('#card').replaceChildren(card, hint);
+  renderTraits(card, a, save);
+  q('.sticker').addEventListener('load', () => evenFaces(card), { once: true });
   fillSpeciesList();
   return { where: q('.where'), sticker: q('.sticker') };
 }
@@ -279,23 +281,30 @@ function swipes(card, onFlip, onClose) {
   });
 }
 
-// Card flip: turn to 90°, swap faces, turn back from -90°. The back lists the traits, all editable.
-// The card keeps the front's height on both faces, so it does not jump in size.
+// Both faces get the height of the taller one, so the card never changes size when it turns.
+// Measured by switching faces without a paint in between (no flicker). Called on open, image load and trait edits.
+function evenFaces(card) {
+  card.style.minHeight = '';
+  const shown = card.offsetHeight;
+  card.classList.toggle('show-back');
+  const other = card.offsetHeight;
+  card.classList.toggle('show-back');
+  card.style.minHeight = `${Math.max(shown, other)}px`;
+}
+
+// Card flip: turn to 90°, swap faces, turn back from -90°. The back has the traits and the note, all editable.
 // dir: 1 or -1, the way the finger swiped. A swipe hands over the angle it already reached (--turn).
 async function flip(card, a, save, dir = 1) {
   const turn = (from, to) => card.animate([{ transform: `perspective(900px) rotateY(${from}deg)` }, { transform: `perspective(900px) rotateY(${to}deg)` }],
     { duration: 170, easing: to !== 0 ? 'ease-in' : 'cubic-bezier(.34, 1.56, .64, 1)' }).finished;
   const back = !card.classList.contains('show-back');
-  card.classList.remove('entering'); // flipping right after opening must not replay the pop-in
   const start = parseFloat(card.style.getPropertyValue('--turn')) || 0;
   card.style.transform = '';
   card.style.removeProperty('--turn');
-  card.style.minHeight = `${card.offsetHeight}px`;
   await turn(start, 90 * dir);
   card.classList.toggle('show-back', back);
-  if (back) renderTraits(card, a, save);
+  if (back) card.querySelector('.back h3').textContent = `Así es ${a.name}`; // the name may have been edited
   await turn(-90 * dir, 0);
-  if (!back) card.style.minHeight = '';
 }
 
 // Edits change rows in place: rebuilding the list replayed the pop-in and looked like flicker.
@@ -316,7 +325,7 @@ function renderTraits(card, a, save) {
     });
     const paint = () => stars.forEach((b, i) => { b.textContent = i < t.stars ? '★' : '☆'; });
     paint();
-    li.append(name, ...stars, button('✕', () => { a.traits.splice(a.traits.indexOf(t), 1); li.remove(); empty(); save(); }, 'drop'));
+    li.append(name, ...stars, button('✕', () => { a.traits.splice(a.traits.indexOf(t), 1); li.remove(); empty(); evenFaces(card); save(); }, 'drop'));
     return li;
   };
   list.replaceChildren(...a.traits.map(t => row(t)));
@@ -329,9 +338,11 @@ function renderTraits(card, a, save) {
     const li = row(t, true);
     list.append(li);
     li.querySelector('input').select();
+    evenFaces(card);
     save();
   };
   card.querySelector('.back h3').onclick = () => flip(card, a, save);
+  evenFaces(card);
 }
 
 const FAV = 'fav'; // filter value for favourites; species are stored lowercase Spanish, so no clash with a real one

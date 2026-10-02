@@ -183,7 +183,6 @@ html.tilt :is(.tile, .card, .slot.got)::after { animation: none; background-posi
 /* Chrome draws a ▾ on inputs with suggestions (datalist); the suggestions still show while typing */
 .card input::-webkit-calendar-picker-indicator { display: none !important; }
 .card .rarity { font-weight: 600; font-size: .85rem; letter-spacing: .4px; }
-.card[data-rarity="común"] .rarity { display: none; }
 
 /* ---------- recuerdos: her past pets. Golden frame, soft glow, ribbon; they cannot be released ---------- */
 .ribbon {
@@ -226,15 +225,6 @@ html.tilt :is(.tile, .card, .slot.got)::after { animation: none; background-posi
   background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .85), rgba(255, 255, 255, .25) 75%);
 }
 /* The card's contents pop in one after another */
-.card.entering > :not(.sticker-wrap) { animation: rise .5s cubic-bezier(.34, 1.56, .64, 1) both; }
-.card.entering > :nth-child(2) { animation-delay: .12s; }
-.card.entering > :nth-child(3) { animation-delay: .17s; }
-.card.entering > :nth-child(4) { animation-delay: .22s; }
-.card.entering > :nth-child(5) { animation-delay: .27s; }
-.card.entering > :nth-child(6) { animation-delay: .32s; }
-.card.entering > :nth-child(7) { animation-delay: .37s; }
-.card.entering > :nth-child(8) { animation-delay: .42s; }
-.card.entering > :nth-child(9) { animation-delay: .47s; }
 
 .fav {
   position: absolute; z-index: 3; top: 14px; right: 14px; width: 44px; height: 44px; border: 0; border-radius: 50%;
@@ -248,8 +238,9 @@ html.tilt :is(.tile, .card, .slot.got)::after { animation: none; background-posi
 
 /* ---------- back of the card: traits ---------- */
 .card:not(.show-back) .back, .card.show-back > :not(.back) { display: none; }
-.back { width: 100%; padding-top: 30px; }
-.card.show-back .back { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; } /* fills the locked height */
+.back { width: 100%; padding-top: 18px; }
+.back .note { margin-top: 14px; }
+.card.show-back .back { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; } /* fills the locked height */
 .back .traits { align-self: stretch; }
 .back h3 { margin: 0 0 12px; font-size: 1.4rem; }
 .traits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -284,7 +275,7 @@ html.tilt :is(.tile, .card, .slot.got)::after { animation: none; background-posi
 .card .name { font-size: 1.6rem; font-weight: 600; }
 .species-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .species-row .emoji { font-size: 1.4rem; }
-.card .species { font-size: 1.1rem; width: 10em; text-align: left; }
+.card .species { font-size: 1.1rem; text-align: center; border-bottom: 0; padding: 2px 0; }
 .card p { margin: 2px 0; color: rgba(90, 70, 50, .75); }
 .where::before { content: '📍 '; }
 .seen::before { content: '👀 '; }

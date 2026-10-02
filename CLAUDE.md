@@ -154,8 +154,11 @@ lookups one at a time for records that have `location` but no `place`.
 - **Traits** ("🔄 Rasgos" flips the card): 3 random `TRAITS` with 1-3 stars on each new catch and memory.
   All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper. The card keeps the front's
-  height on both faces (`min-height` while the back shows). Edits change rows in place: never rebuild the list.
-  On a flip the rows are simply there; only an added row pops in (`li.new`). A flip also ends `.entering`.
+  The back also holds the note. `evenFaces()` gives both faces the height of the taller one (measured by
+  switching faces without a paint; re-run on image load and trait add/remove), so the card never changes size.
+  Edits change rows in place: never rebuild the list. On a flip the rows are simply there; only an added row
+  pops in (`li.new`). Every card shows its rarity line, "Común" included. The species field has no underline
+  and is as wide as its text, so emoji + word sit centred.
   The ▾ Chrome draws on datalist inputs is hidden (`::-webkit-calendar-picker-indicator`).
 - **Gestures** (`swipes()`, touch events, no buttons for these; they work from anywhere on the card, text fields
   included: a tap still edits, a real swipe flips and closes the keyboard; the hint sits below the card): sideways swipe turns the card with the finger and
@@ -166,8 +169,8 @@ lookups one at a time for records that have `location` but no `place`.
   screen (sticker max 30dvh, one row of short action labels): the app behind never scrolls. Pull-to-refresh is
   off for the whole app (`overscroll-behavior-y: none` on html/body): a pull at the top reloaded the page
   instead of closing the card. Check the fit at 390×760 when adding anything to the card.
-- **No replaying animations:** the card contents pop in only while `.card.entering` is set (1.2 s after open);
-  the ❤️ pop is a Web Animation started by the click. A CSS animation tied to a class that changes later
+- **No pop-in of the card contents on open** (removed in v0.9.3: the staggered rise read as flicker); the card
+  morph and the flying sticker are enough. The ❤️ pop is a Web Animation started by the click. A CSS animation tied to a class that changes later
   replays and looks like flicker (v0.8.0 bug).
 
 - **Achievements** (`ACHIEVEMENTS` in `lib.mjs`, 16, feminine forms because they are for Mari): shown under
