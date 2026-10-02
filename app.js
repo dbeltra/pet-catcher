@@ -167,6 +167,7 @@ function showView(name) {
   $('#view').hidden = name !== 'view';
   $('#shoot').hidden = name !== 'list';
   $('#footer').hidden = name !== 'list';
+  $('#open-settings').hidden = name !== 'list';
   if (name === 'view') { $('#stage').replaceChildren(); $('#card').replaceChildren(); status(''); }
 }
 
@@ -184,11 +185,15 @@ async function fillSpeciesList() {
 }
 
 // Big card, used for the new-catch preview and for the detail view. `save` runs after each edit (detail only).
-function renderCard(a, actions, save = () => {}) {
+// `close`: what a swipe down does (detail only; a new catch is never discarded by a swipe).
+function renderCard(a, actions, save = () => {}, close = null) {
   const card = $('#card-tpl').content.firstElementChild.cloneNode(true);
   const q = s => card.querySelector(s);
   card.style.setProperty('--pastel', pastelFor(a.id)); // same colour as its tile
   card.classList.toggle('memory', a.memory);
+  // The contents pop in once, when the card opens. Left on, the animation replayed on every flip or toggle.
+  card.classList.add('entering');
+  setTimeout(() => card.classList.remove('entering'), 1200);
   card.dataset.rarity = rarityFor(a);
   q('.rarity').textContent = RARITY_LABEL[rarityFor(a)];
   q('.sticker').src = blobUrl(a.sticker);
@@ -211,7 +216,12 @@ function renderCard(a, actions, save = () => {}) {
   const fav = q('.fav');
   const paintFav = () => { fav.textContent = a.fav ? '❤️' : '🤍'; fav.classList.toggle('on', a.fav); };
   paintFav();
-  fav.onclick = () => { a.fav = !a.fav; paintFav(); save(); };
+  fav.onclick = () => {
+    a.fav = !a.fav;
+    paintFav();
+    if (a.fav) fav.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 400, easing: 'cubic-bezier(.34, 1.56, .64, 1)' });
+    save();
+  };
   q('.name').onchange = () => { a.name = q('.name').value.trim() || a.name; q('.name').value = a.name; save(); };
   q('.species').onchange = () => {
     a.species = cleanSpecies(q('.species').value);
@@ -220,49 +230,105 @@ function renderCard(a, actions, save = () => {}) {
     save();
   };
   q('.note').onchange = () => { a.note = q('.note').value.trim(); save(); };
-  q('.actions').append(button('🔄 Rasgos', () => flip(card, a, save)), ...actions);
+  q('.actions').append(...actions);
+  q('.swipe-hint').textContent = close ? '↔️ Desliza para ver sus rasgos · ⬇️ para cerrar' : '↔️ Desliza para ver sus rasgos';
+  q('.sticker-wrap').onclick = () => flip(card, a, save); // tap = the same as a sideways swipe
+  swipes(card, dir => flip(card, a, save, dir), close);
   $('#card').replaceChildren(card);
   fillSpeciesList();
   return { where: q('.where'), sticker: q('.sticker') };
 }
 
-// Card flip: turn to 90°, swap faces, turn back from -90°. The back lists the traits, all editable.
-async function flip(card, a, save) {
-  const turn = (from, to) => card.animate([{ transform: `perspective(900px) rotateY(${from}deg)` }, { transform: `perspective(900px) rotateY(${to}deg)` }],
-    { duration: 170, easing: from === 0 ? 'ease-in' : 'cubic-bezier(.34, 1.56, .64, 1)' }).finished;
-  await turn(0, 90);
-  const back = !card.classList.contains('show-back');
-  card.classList.toggle('show-back', back);
-  if (back) renderTraits(card, a, save);
-  await turn(-90, 0);
+// Touch gestures on the big card. Sideways: the card turns with the finger, past 60 px it flips.
+// Down (only with the page at the top, and only if `onClose`): it follows the finger, past 110 px it closes.
+// Anything else gives the touch back to the browser (scrolling), and inputs keep their own touches.
+function swipes(card, onFlip, onClose) {
+  let x0, y0, dx, dy, mode;
+  const spring = () => {
+    card.animate([{ transform: card.style.transform || 'none' }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.34, 1.56, .64, 1)' });
+    card.style.transform = '';
+    card.style.removeProperty('--turn');
+  };
+  card.addEventListener('touchstart', e => {
+    mode = e.touches.length > 1 || e.target.closest('input, textarea') ? 'off' : null;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = dy = 0;
+  }, { passive: true });
+  card.addEventListener('touchmove', e => {
+    if (mode === 'off') return;
+    dx = e.touches[0].clientX - x0; dy = e.touches[0].clientY - y0;
+    if (!mode && Math.hypot(dx, dy) > 12) {
+      mode = Math.abs(dx) > Math.abs(dy) ? 'flip' : dy > 0 && onClose && scrollY <= 0 ? 'close' : 'off';
+    }
+    if (mode === 'flip') {
+      e.preventDefault();
+      const deg = Math.max(-40, Math.min(40, dx * .3));
+      card.style.setProperty('--turn', deg);
+      card.style.transform = `perspective(900px) rotateY(${deg}deg)`;
+    } else if (mode === 'close') {
+      e.preventDefault(); // also stops pull-to-refresh
+      card.style.transform = `translateY(${dy * .6}px) scale(${1 - Math.min(dy, 300) / 1500})`;
+    }
+  }, { passive: false });
+  card.addEventListener('touchend', () => {
+    const m = mode;
+    mode = null;
+    if (m === 'flip') Math.abs(dx) > 60 ? onFlip(dx > 0 ? 1 : -1) : spring();
+    else if (m === 'close') dy > 110 ? onClose() : spring(); // closing morphs from where the finger left the card
+  });
 }
 
+// Card flip: turn to 90°, swap faces, turn back from -90°. The back lists the traits, all editable.
+// The card keeps the front's height on both faces, so it does not jump in size.
+// dir: 1 or -1, the way the finger swiped. A swipe hands over the angle it already reached (--turn).
+async function flip(card, a, save, dir = 1) {
+  const turn = (from, to) => card.animate([{ transform: `perspective(900px) rotateY(${from}deg)` }, { transform: `perspective(900px) rotateY(${to}deg)` }],
+    { duration: 170, easing: to !== 0 ? 'ease-in' : 'cubic-bezier(.34, 1.56, .64, 1)' }).finished;
+  const back = !card.classList.contains('show-back');
+  const start = parseFloat(card.style.getPropertyValue('--turn')) || 0;
+  card.style.transform = '';
+  card.style.removeProperty('--turn');
+  card.style.minHeight = `${card.offsetHeight}px`;
+  await turn(start, 90 * dir);
+  card.classList.toggle('show-back', back);
+  if (back) renderTraits(card, a, save);
+  await turn(-90 * dir, 0);
+  if (!back) card.style.minHeight = '';
+}
+
+// Edits change rows in place: rebuilding the list replayed the pop-in and looked like flicker.
 function renderTraits(card, a, save) {
   const list = card.querySelector('.traits');
   card.querySelector('.back h3').textContent = `Así es ${a.name}`;
-  const star = (t, n) => {
-    const b = button(n <= t.stars ? '★' : '☆', () => { t.stars = n; save(); renderTraits(card, a, save); }, 'star');
-    b.setAttribute('aria-label', `${n} estrellas`);
-    return b;
-  };
-  list.replaceChildren(...a.traits.map((t, i) => {
-    const row = document.createElement('li');
+  const empty = () => { if (!a.traits.length) list.replaceChildren(Object.assign(document.createElement('li'), { className: 'none', textContent: 'Todavía sin rasgos (・・ )' })); };
+  const row = t => {
+    const li = document.createElement('li');
+    li.className = 'new';
     const name = Object.assign(document.createElement('input'), { value: t.name, maxLength: 20, ariaLabel: 'Rasgo' });
     name.setAttribute('list', 'traits-list');
     name.onchange = () => { t.name = name.value.trim() || t.name; name.value = t.name; save(); };
-    row.append(name, star(t, 1), star(t, 2), star(t, 3),
-      button('✕', () => { a.traits.splice(i, 1); save(); renderTraits(card, a, save); }, 'drop'));
-    return row;
-  }));
-  if (!a.traits.length) list.replaceChildren(Object.assign(document.createElement('li'), { className: 'none', textContent: 'Todavía sin rasgos (・・ )' }));
+    const stars = [1, 2, 3].map(n => {
+      const b = button('', () => { t.stars = n; paint(); save(); }, 'star');
+      b.setAttribute('aria-label', `${n} estrellas`);
+      return b;
+    });
+    const paint = () => stars.forEach((b, i) => { b.textContent = i < t.stars ? '★' : '☆'; });
+    paint();
+    li.append(name, ...stars, button('✕', () => { a.traits.splice(a.traits.indexOf(t), 1); li.remove(); empty(); save(); }, 'drop'));
+    return li;
+  };
+  list.replaceChildren(...a.traits.map(row));
+  empty();
   card.querySelector('.add-trait').onclick = () => {
     const used = new Set(a.traits.map(t => t.name));
-    a.traits.push({ name: TRAITS.find(t => !used.has(t)) ?? 'Especial', stars: 2 });
+    const t = { name: TRAITS.find(n => !used.has(n)) ?? 'Especial', stars: 2 };
+    a.traits.push(t);
+    list.querySelector('.none')?.remove();
+    const li = row(t);
+    list.append(li);
+    li.querySelector('input').select();
     save();
-    renderTraits(card, a, save);
-    list.querySelector('li:last-child input')?.select();
   };
-  card.querySelector('.unflip').onclick = () => flip(card, a, save);
+  card.querySelector('.back h3').onclick = () => flip(card, a, save);
 }
 
 const FAV = 'fav'; // filter value for favourites; species are stored lowercase Spanish, so no clash with a real one
@@ -431,18 +497,27 @@ async function backToList(id) {
   tag(target, false);
 }
 
+// The detail view is a history entry, so the phone's Back gesture closes it, like the swipe down.
+let openId = null;
+addEventListener('popstate', () => {
+  if (!openId) return;
+  const id = openId;
+  openId = null;
+  backToList(id);
+});
+const closeDetail = () => history.back();
+
 function detailCard(a) {
   return renderCard(a, [
-    button('Volver', () => backToList(a.id)),
     ...(a.memory ? [] : [button('👀 ¡Lo he vuelto a ver!', () => seenAgain(a))]),
     button('📷 Cambiar foto', () => { rephotoTarget = a; $('#refile').click(); }),
     // Memories (her past pets) cannot be released.
     ...(a.memory ? [] : [button('Liberar', async () => {
       if (!confirm(`¿Liberar a ${a.name}? Se borrará de tu colección.`)) return;
       await remove(a.id);
-      backToList();
+      closeDetail();
     }, 'danger')]),
-  ], async () => { await put(a); checkAchievements(); });
+  ], async () => { await put(a); checkAchievements(); }, closeDetail);
 }
 
 // Re-encounter without a photo: the visit is now and here.
@@ -487,6 +562,8 @@ async function pickExisting(caught, placed, back) {
 // from: the tile or pin image that was tapped.
 function openDetail(a, from) {
   listScroll = scrollY;
+  if (!openId) history.pushState({ card: a.id }, '');
+  openId = a.id;
   tag(from, true);
   transition(async () => {
     tag(from, false);
@@ -603,6 +680,7 @@ $('#restore').onchange = async e => {
   if (!file) return;
   try {
     const data = parseBackup(await file.text());
+    $('#settings').close();
     if (!confirm(`¿Recuperar ${data.animals.length} bichitos de la copia? Los que ya tienes se quedan.`)) return;
     for (const a of data.animals) await put(normalize({ ...a, sticker: await (await fetch(a.sticker)).blob() }));
     for (const [k, v] of Object.entries(data.meta ?? {})) await setMeta(k, v);
@@ -635,7 +713,11 @@ $('#bday button').onclick = () => {
   $('#bday').hidden = true;
   $('#confetti').replaceChildren();
 };
-$('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title
+$('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title, or "Ver la felicitación" in settings
+
+// ---------- settings ----------
+$('#open-settings').onclick = () => { $('#settings-version').textContent = `Pet Catcher v${self.VERSION}`; $('#settings').showModal(); };
+$('#replay-bday').onclick = () => { $('#settings').close(); showBirthday(); };
 
 // ---------- achievements ----------
 // The first run only records what is already unlocked (her Recuerdos), so nothing pops during the birthday.

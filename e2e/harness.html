@@ -7,6 +7,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const wait = (step, fn, ms = 120000) => new Promise((res, rej) => { const t0 = Date.now(); const i = setInterval(() => { const v = fn(); if (v) { clearInterval(i); res(v); } else if (Date.now() - t0 > ms) { clearInterval(i); rej(new Error(`timeout at ${step} after ${(Date.now() - t0) / 1000}s, status: ` + f.contentDocument.querySelector('#status')?.textContent)); } }, 250); });
 const btn = (d, text) => [...d.querySelectorAll('.actions button')].find(b => b.textContent.startsWith(text));
 const names = d => [...d.querySelectorAll('.tile .name')].map(n => n.textContent);
+// A finger swipe on el, in steps (synthetic touch events).
+async function swipe(w, el, dx, dy) {
+  const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + 120;
+  const t = (cx, cy) => new w.Touch({ identifier: 1, target: el, clientX: cx, clientY: cy });
+  const fire = (type, cx, cy) => el.dispatchEvent(new w.TouchEvent(type, { bubbles: true, cancelable: true, touches: type === 'touchend' ? [] : [t(cx, cy)], changedTouches: [t(cx, cy)] }));
+  fire('touchstart', x, y);
+  for (let i = 1; i <= 8; i++) { fire('touchmove', x + dx * i / 8, y + dy * i / 8); await sleep(16); }
+  fire('touchend', x + dx, y + dy);
+}
 f.onload = async () => {
   f.onload = null;
   try {
@@ -23,9 +32,10 @@ f.onload = async () => {
 
     // A memory cannot be released.
     d.querySelector('.tile.memory').click();
-    await wait('memory card', () => btn(d, 'Volver'));
+    await wait('memory card', () => btn(d, '📷'));
     const memoryRelease = !!btn(d, 'Liberar');
-    btn(d, 'Volver').click();
+    await sleep(700);
+    await swipe(w, d.querySelector('.card'), 0, 200); // swipe down closes
     await wait('back', () => !d.querySelector('#list').hidden && d.querySelectorAll('.tile').length === 2);
 
     // Catch a cat.
@@ -51,7 +61,7 @@ f.onload = async () => {
     await wait('cat card', () => btn(d, '👀'));
     btn(d, '👀').click();
     await wait('seen again', () => !d.querySelector('.card .seen').hidden && d.querySelector('.card .seen').textContent.includes('2 veces'), 15000);
-    btn(d, 'Volver').click();
+    w.history.back(); // the phone's Back gesture closes too
     await wait('back 2', () => !d.querySelector('#list').hidden, 5000);
     await sleep(600);
 
@@ -93,19 +103,26 @@ f.onload = async () => {
     await wait('grid again', () => !d.querySelector('#grid').hidden && names(d).includes('Kurko'), 10000);
     await sleep(800);
     [...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Kurko').click();
-    await wait('kurko card', () => btn(d, '🔄 Rasgos'));
+    await wait('kurko card', () => btn(d, '📷'));
     const rarity = d.querySelector('.card').dataset.rarity;
-    btn(d, '🔄 Rasgos').click();
+    await sleep(700);
+    const hFront = d.querySelector('.card').offsetHeight;
+    await swipe(w, d.querySelector('.card'), -150, 0); // sideways swipe flips
     await wait('flip', () => d.querySelector('.card.show-back'), 5000);
+    await sleep(500);
+    const sameHeight = d.querySelector('.card').offsetHeight === hFront;
     const before = d.querySelectorAll('.traits li').length;
     d.querySelectorAll('.traits li')[0].querySelectorAll('.star')[2].click();
     d.querySelector('.add-trait').click();
     const traits = d.querySelectorAll('.traits li').length;
     const stars = d.querySelectorAll('.traits li')[0].textContent.split('★').length - 1;
-    btn(d, 'Volver').click();
+    d.querySelector('.back h3').click(); // a tap flips back too
+    await wait('unflip', () => !d.querySelector('.card.show-back'), 5000);
+    await sleep(500);
+    w.history.back();
     await wait('back from kurko', () => !d.querySelector('#list').hidden, 5000);
 
-    log(`OK firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    log(`OK swipes=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };

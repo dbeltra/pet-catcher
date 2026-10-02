@@ -139,10 +139,25 @@ h1 {
 }
 
 #footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 28px; color: var(--muted); font-size: .85rem; }
-#footer button, #footer .restore {
-  font: inherit; color: var(--text); background: var(--card); border: 2px solid var(--dots);
-  border-radius: 999px; padding: 6px 12px; cursor: pointer;
+header { position: relative; }
+#open-settings {
+  position: absolute; top: 14px; right: 0; width: 42px; height: 42px; border-radius: 50%; border: 2px solid #fff;
+  background: var(--card); box-shadow: var(--shadow); font-size: 1.2rem; cursor: pointer;
 }
+#settings {
+  border: 4px solid #fff; border-radius: 30px; padding: 22px 20px; width: min(340px, calc(100vw - 32px));
+  background: var(--card); color: var(--text); box-shadow: 0 8px 0 var(--accent-deep), 0 20px 50px rgba(90, 70, 50, .3);
+  text-align: center;
+}
+#settings[open] { display: flex; flex-direction: column; gap: 10px; animation: vt-pop .45s cubic-bezier(.34, 1.56, .64, 1); }
+#settings::backdrop { background: rgba(90, 70, 50, .25); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+#settings h2 { margin: 0 0 4px; font-size: 1.4rem; }
+#settings .hint { margin: 0; color: var(--muted); font-size: .85rem; }
+#settings button, #settings .restore {
+  font: inherit; color: var(--text); background: var(--bg); border: 2px solid var(--dots);
+  border-radius: 999px; padding: 10px 16px; cursor: pointer;
+}
+#settings .close { background: var(--accent); border-color: var(--accent); color: var(--on-accent); box-shadow: 0 4px 0 var(--accent-deep); width: 100%; }
 #version { width: 100%; text-align: center; }
 
 #toast {
@@ -167,6 +182,8 @@ h1 {
 :is(.tile, .card, .slot.got)[data-rarity="épico"]::after { opacity: .55; }
 html.tilt :is(.tile, .card, .slot.got)::after { animation: none; background-position: var(--hx) var(--hy); }
 @keyframes holo-drift { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+.swipe-hint { margin: 14px 0 0 !important; font-size: .78rem; color: rgba(90, 70, 50, .5) !important; }
+.back .swipe-hint { margin-top: 18px !important; }
 .card .rarity { font-weight: 600; font-size: .85rem; letter-spacing: .4px; }
 .card[data-rarity="común"] .rarity { display: none; }
 
@@ -205,22 +222,20 @@ html.tilt :is(.tile, .card, .slot.got)::after { animation: none; background-posi
   background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .85), rgba(255, 255, 255, .25) 75%);
 }
 /* The card's contents pop in one after another */
-.card > :not(.sticker-wrap) { animation: rise .5s cubic-bezier(.34, 1.56, .64, 1) both; }
-.card > :nth-child(2) { animation-delay: .12s; }
-.card > :nth-child(3) { animation-delay: .17s; }
-.card > :nth-child(4) { animation-delay: .22s; }
-.card > :nth-child(5) { animation-delay: .27s; }
-.card > :nth-child(6) { animation-delay: .32s; }
-.card > :nth-child(7) { animation-delay: .37s; }
-.card > :nth-child(8) { animation-delay: .42s; }
-.card > :nth-child(9) { animation-delay: .47s; }
+.card.entering > :not(.sticker-wrap) { animation: rise .5s cubic-bezier(.34, 1.56, .64, 1) both; }
+.card.entering > :nth-child(2) { animation-delay: .12s; }
+.card.entering > :nth-child(3) { animation-delay: .17s; }
+.card.entering > :nth-child(4) { animation-delay: .22s; }
+.card.entering > :nth-child(5) { animation-delay: .27s; }
+.card.entering > :nth-child(6) { animation-delay: .32s; }
+.card.entering > :nth-child(7) { animation-delay: .37s; }
+.card.entering > :nth-child(8) { animation-delay: .42s; }
+.card.entering > :nth-child(9) { animation-delay: .47s; }
 
 .fav {
   position: absolute; z-index: 3; top: 14px; right: 14px; width: 44px; height: 44px; border: 0; border-radius: 50%;
   background: #fff; font-size: 1.4rem; box-shadow: 0 3px 8px rgba(90, 70, 50, .2); cursor: pointer;
 }
-.fav.on { animation: heart-pop .4s cubic-bezier(.34, 1.56, .64, 1); }
-@keyframes heart-pop { 40% { transform: scale(1.35); } }
 .card .note {
   width: 100%; margin-top: 8px; padding: 8px 12px; resize: none; font: inherit; font-size: .95rem; color: var(--ink);
   background: rgba(255, 255, 255, .55); border: 2px dashed rgba(90, 70, 50, .25); border-radius: 14px; text-align: left;
@@ -230,16 +245,18 @@ html.tilt :is(.tile, .card, .slot.got)::after { animation: none; background-posi
 /* ---------- back of the card: traits ---------- */
 .card:not(.show-back) .back, .card.show-back > :not(.back) { display: none; }
 .back { width: 100%; padding-top: 30px; }
+.card.show-back .back { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; } /* fills the locked height */
+.back .traits { align-self: stretch; }
 .back h3 { margin: 0 0 12px; font-size: 1.4rem; }
 .traits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .traits li {
   display: flex; align-items: center; gap: 2px; padding: 6px 6px 6px 12px;
   background: rgba(255, 255, 255, .6); border-radius: 14px;
-  animation: rise .45s cubic-bezier(.34, 1.56, .64, 1) both;
 }
-.traits li:nth-child(2) { animation-delay: .06s; }
-.traits li:nth-child(3) { animation-delay: .12s; }
-.traits li:nth-child(n+4) { animation-delay: .18s; }
+.traits li.new { animation: rise .45s cubic-bezier(.34, 1.56, .64, 1) both; }
+.traits li.new:nth-child(2) { animation-delay: .06s; }
+.traits li.new:nth-child(3) { animation-delay: .12s; }
+.traits li.new:nth-child(n+4) { animation-delay: .18s; }
 .traits li.none { justify-content: center; color: rgba(90, 70, 50, .6); }
 .card .traits input { flex: 1; min-width: 0; text-align: left; font-weight: 600; border-bottom-style: none; }
 .traits .star, .traits .drop { font: inherit; border: 0; background: none; padding: 4px; cursor: pointer; }
