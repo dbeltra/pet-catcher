@@ -131,6 +131,7 @@ h1 {
 .tile .pic { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
 .tile img { display: block; max-width: 100%; max-height: 100%; }
 .tile .name { font-weight: 600; }
+.tile .no { font-size: .7rem; opacity: .55; letter-spacing: .5px; margin-bottom: -4px; }
 .tile .meta { font-size: .85rem; opacity: .75; }
 .tile .heart { position: absolute; z-index: 3; top: 8px; right: 10px; font-size: 1rem; }
 
@@ -155,6 +156,7 @@ h1 {
   font: inherit; color: var(--text); background: var(--bg); border: 2px solid var(--dots);
   border-radius: 999px; padding: 10px 16px; cursor: pointer;
 }
+#settings #reset { color: var(--danger); border-color: var(--danger); background: none; font-size: .9rem; }
 #settings .close { background: var(--accent); border-color: var(--accent); color: var(--on-accent); box-shadow: 0 4px 0 var(--accent-deep); width: 100%; }
 
 #toast {
@@ -183,7 +185,7 @@ h1 {
 html.tilt .foil, html.tilt .slot.got::after { animation: none; background-position: var(--hx) var(--hy); }
 html.tilt .shiny > .foil { animation: shiny-twinkle 1.6s ease-in-out infinite; background-position: 0 0, 0 0, 0 0, var(--hx) var(--hy); }
 /* Text and buttons sit above the foil (it washed them out); the sticker stays under it, which is the foil look */
-.card > :not(.foil, .sticker-wrap, .fav), .tile > :is(.name, .meta) { position: relative; z-index: 3; }
+.card > :not(.foil, .sticker-wrap, .fav), .tile > :is(.no, .name, .meta) { position: relative; z-index: 3; }
 
 /* Shiny: a stronger, full rainbow foil with twinkling sparkles, on any species */
 :is(.tile, .card).shiny > .foil {

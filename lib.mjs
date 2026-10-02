@@ -39,8 +39,20 @@ export const SEEDS = [
   { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', file: 'seed/kiffy.png', photo: 2, ...MARTOS },
 ];
 
-// Memories first, then newest first.
-export const byNewest = (a, b) => (b.memory - a.memory) || ((b.takenAt ?? 0) - (a.takenAt ?? 0));
+// Memories first, in their number order (Kurko, then Kiffy); then newest first.
+export const byNewest = (a, b) => (b.memory - a.memory)
+  || (a.memory ? (a.no ?? 0) - (b.no ?? 0) : (b.takenAt ?? 0) - (a.takenAt ?? 0));
+
+// Collection number, in catch order: the memories first (in SEEDS order), then by catch time.
+// Gives a `no` to every record without one and returns those records (to save).
+export function numberAll(all) {
+  let next = Math.max(0, ...all.map(a => a.no ?? 0)) + 1;
+  const seedOrder = id => SEEDS.findIndex(s => s.id === id);
+  return all.filter(a => !a.no)
+    .sort((x, y) => (y.memory - x.memory) || (seedOrder(x.id) - seedOrder(y.id)) || ((x.takenAt ?? 0) - (y.takenAt ?? 0)))
+    .map(a => Object.assign(a, { no: next++ }));
+}
+export const fmtNo = n => `#${String(n).padStart(3, '0')}`;
 
 // Validates a backup file's text. Throws a message meant for the user.
 export function parseBackup(text) {

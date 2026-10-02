@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<iframe id="f" src="../index.html" style="width:400px;height:800px"></iframe>
+<iframe id="f" src="../index.html?cumple" style="width:400px;height:800px"></iframe>
 <script>
 const log = m => fetch('/result?' + encodeURIComponent(m));
 const f = document.getElementById('f');
@@ -29,6 +29,8 @@ f.onload = async () => {
     const bday = d.querySelector('#bday h2').textContent;
     d.querySelector('#bday button').click();
     await wait('memories', () => names(d).includes('Kurko') && names(d).includes('Kiffy'), 10000);
+    await sleep(300);
+    const order = [...d.querySelectorAll('.tile')].slice(0, 2).map(t => t.querySelector('.no').textContent + ' ' + t.querySelector('.name').textContent).join(', ');
 
     // A memory cannot be released.
     d.querySelector('.tile.memory').click();
@@ -139,7 +141,18 @@ f.onload = async () => {
     w.history.back();
     await wait('back from kurko', () => !d.querySelector('#list').hidden, 5000);
 
-    log(`OK shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    const summary = `order="${order}" restoredNo=${[...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Restaurado').querySelector('.no').textContent}`;
+
+    // Reset: everything goes, the app starts like the first day (birthday, only Kurko and Kiffy).
+    const reloaded = new Promise(r => f.addEventListener('load', r, { once: true }));
+    d.querySelector('#reset').click();
+    await reloaded;
+    const d2 = f.contentDocument;
+    await wait('memories after reset', () => d2.querySelectorAll('.tile').length === 2, 10000);
+    // In a browser tab (not the installed app) the greeting stays hidden, and it was not marked as seen.
+    const reset = `${names(d2).join('+')},greetingInTab=${!d2.querySelector('#bday').hidden},seenFlag=${f.contentWindow.localStorage.getItem('bday-seen')}`;
+
+    log(`OK reset=${reset} ${summary} shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };

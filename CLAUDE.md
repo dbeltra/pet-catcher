@@ -137,7 +137,9 @@ lookups one at a time for records that have `location` but no `place`.
 ## Gift features
 
 - **Birthday surprise:** `#bday` overlay ("¡Feliz cumpleaños Mari! Te quiero ❤️", CSS confetti) shows on the
-  first open (`localStorage` key `bday-seen`). Replay: tap the ✿ next to the title, or open with `?cumple`.
+  first open **of the installed app** (`display-mode: standalone` / `navigator.standalone`), never in a browser
+  tab, so David can install it on her phone without seeing it. It is marked seen (`localStorage` `bday-seen`)
+  only when its button is tapped: closing the app without tapping keeps it for next time. Replay: tap the ✿ next to the title, or open with `?cumple`.
   Its button also asks for `DeviceOrientationEvent.requestPermission()` (iOS needs a tap for the holo tilt).
 - **Recuerdos (her past pets):** `SEEDS` in `lib.mjs` (Kurko 🐶 perro, Kiffy 🐱 gato) with fixed ids
   `seed-kurko` / `seed-kiffy`. `ensureMemories()` re-adds any that is missing on **every** start, so they can
@@ -149,6 +151,11 @@ lookups one at a time for records that have `location` but no `place`.
   version; `ensureMemories()` gives a memory a newer seed photo (`seedPhoto` < `photo`) unless it was changed
   by hand ("📷 Foto" sets `customPhoto`). To ship a new seed photo: replace the file and bump its `photo`.
 - **Favourites and notes:** ❤️ button on the card, a note textarea; the "❤️ Favoritos" filter chip (`FAV`).
+- **Collection numbers** (`numberAll`, `fmtNo`): every record gets `no` once, in catch order; the memories
+  first (Kurko #001, Kiffy #002, in `SEEDS` order), then by catch time. Shown above the tile name and in the
+  card's rarity line. Memories sort by number. A restored new animal whose number is taken gets a fresh one.
+- **Reset** ("🗑️ Restablecer la app" in settings, two confirms): deletes the IndexedDB and localStorage and
+  reloads, so the app starts like the first day. The cached models stay.
 - **Settings** ("⚙️ Ajustes" link next to the version at the bottom of the list; a native `<dialog>`; David
   did not want it in a primary spot): backup, restore, "🎂 Ver la felicitación", version.
 - **Backup / restore** (in settings): "💾 Guardar copia" writes all animals (stickers as data URLs) plus the `meta`
@@ -280,6 +287,8 @@ The home-screen icon is copied at install time. After an icon change, remove the
 Chrome identifies an installed app by it. Twice on David's phone, after an uninstall, Chrome on Android kept a
 stale "already installed" record and only offered a shortcut (v0.5.1: implicit id → `pet-catcher`; v0.11.1:
 `pet-catcher` → `bichidex`). A new id is the only fix that keeps the data: IndexedDB belongs to the origin.
+**Icons carry `?v=N`** in the manifest, the `<link>`s and the SW `SHELL` (like David's scheduler app): bump N
+whenever the icon changes, so Chrome sees a new icon URL and updates the installed app by itself.
 **To get a new name or icon, do not reinstall:** Chrome on Android updates an installed app's name and icon
 from the manifest by itself (it can take up to a day and may ask to confirm).
 

@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
-import { SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName(() => 0), 'Don Galleta');
 assert.match(randomName(), /^\S+ \S+$/);
 
 assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, note: '', traits: [], visits: [], memory: false, shiny: false, id: 'x' });
+{
+  const recs = [{ id: 'c2', takenAt: 20 }, { id: 'seed-kiffy', memory: true }, { id: 'c1', takenAt: 10 }, { id: 'seed-kurko', memory: true }].map(normalize);
+  assert.equal(numberAll(recs).length, 4);
+  assert.deepEqual(Object.fromEntries(recs.map(a => [a.id, a.no])), { 'seed-kurko': 1, 'seed-kiffy': 2, c1: 3, c2: 4 });
+  assert.deepEqual([...recs].sort(byNewest).map(a => a.id), ['seed-kurko', 'seed-kiffy', 'c2', 'c1']);
+  recs.push(normalize({ id: 'c3', takenAt: 30 }));
+  assert.deepEqual(numberAll(recs).map(a => [a.id, a.no]), [['c3', 5]]); // existing numbers never change
+  assert.equal(fmtNo(5), '#005');
+}
 assert.ok(SEEDS.every(s => s.place === 'Martos, Jaén' && Math.abs(s.location.lat - 37.7197) < 1e-3 && Math.abs(s.location.lon + 3.9697) < 1e-3));
 assert.equal(rollShiny(() => SHINY_CHANCE - 0.001), true);
 assert.equal(rollShiny(() => SHINY_CHANCE), false);

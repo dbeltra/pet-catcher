@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { COCO_ES, EMOJI, UNKNOWN, SEEDS, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -67,6 +67,11 @@ async function ensureMemories() {
     await put(a ? { ...a, sticker, seedPhoto: s.photo }
       : normalize({ id: s.id, name: s.name, species: s.species, sticker, seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: s.place, location: s.location, traits: randomTraits() }));
   }
+}
+
+// Every record gets its collection number once (see numberAll). Run on start, after a keep and a restore.
+async function numberRecords() {
+  for (const a of numberAll(await getAll())) await put(a);
 }
 
 // ---------- image work ----------
@@ -198,7 +203,7 @@ function renderCard(a, actions, save = () => {}, close = null) {
   card.classList.toggle('memory', a.memory);
   const paintRarity = () => {
     card.dataset.rarity = rarityFor(a);
-    q('.rarity').textContent = RARITY_LABEL[rarityFor(a)] + (a.shiny ? ' · ✨ Shiny' : '');
+    q('.rarity').textContent = (a.no ? `${fmtNo(a.no)} · ` : '') + RARITY_LABEL[rarityFor(a)] + (a.shiny ? ' · ✨ Shiny' : '');
   };
   card.classList.toggle('shiny', a.shiny);
   paintRarity();
@@ -429,6 +434,7 @@ async function renderList() {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
     el.querySelector('img').src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
+    el.querySelector('.no').textContent = a.no ? fmtNo(a.no) : '';
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.shiny ? ' ✨' : '') + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
     el.dataset.rarity = rarityFor(a);
     el.classList.toggle('shiny', a.shiny);
@@ -669,6 +675,7 @@ async function onPhoto(file) {
         }),
         button('¡Me lo quedo! ⭐', async () => {
           await put(a); // if the place lookup is still running, renderList retries it
+          await numberRecords();
           navigator.storage?.persist?.();
           await backToList(a.id);
           checkAchievements();
@@ -733,7 +740,14 @@ $('#restore').onchange = async e => {
     const data = parseBackup(await file.text());
     $('#settings').close();
     if (!confirm(`¿Recuperar ${data.animals.length} bichitos de la copia? Los que ya tienes se quedan.`)) return;
-    for (const a of data.animals) await put(normalize({ ...a, sticker: await (await fetch(a.sticker)).blob() }));
+    const local = await getAll();
+    const ids = new Set(local.map(a => a.id)), used = new Set(local.map(a => a.no));
+    for (const a of data.animals) {
+      const rec = normalize({ ...a, sticker: await (await fetch(a.sticker)).blob() });
+      if (!ids.has(rec.id) && used.has(rec.no)) delete rec.no; // a new animal whose number is taken here gets a fresh one
+      await put(rec);
+    }
+    await numberRecords();
     for (const [k, v] of Object.entries(data.meta ?? {})) await setMeta(k, v);
     await renderList();
     toast(`¡Listo! ${data.animals.length} bichitos recuperados 🐾`);
@@ -770,6 +784,17 @@ $('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title, 
 $('#open-settings').onclick = () => { $('#settings-version').textContent = `Bichidex v${self.VERSION}`; $('#settings').showModal(); };
 $('#replay-bday').onclick = () => { $('#settings').close(); showBirthday(); };
 
+// Reset ("Restablecer"): deletes everything of hers on this phone and starts like the first day (birthday screen,
+// Kurko and Kiffy back). Two confirmations; the downloaded models stay cached (they are not her data).
+$('#reset').onclick = async () => {
+  if (!confirm('¿Restablecer Bichidex? Se borrarán todos tus bichitos, notas y logros. Kurko y Kiffy volverán.')) return;
+  if (!confirm('¿Seguro del todo? No se puede deshacer.\nSi quieres conservarlos, cancela y guarda antes una copia.')) return;
+  (await db).close();
+  await new Promise(res => { const r = indexedDB.deleteDatabase('pet-catcher'); r.onsuccess = r.onerror = r.onblocked = res; });
+  try { localStorage.clear(); } catch {}
+  location.replace(location.pathname);
+};
+
 // ---------- achievements ----------
 // The first run only records what is already unlocked (her Recuerdos), so nothing pops during the birthday.
 async function checkAchievements() {
@@ -805,5 +830,8 @@ $('#traits-list').replaceChildren(...TRAITS.map(t => new Option(t)));
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }); // else GitHub Pages' 10 min HTTP cache delays updates
 let seen = false;
 try { seen = localStorage.getItem('bday-seen') === '1'; } catch {}
-if (!seen || new URLSearchParams(location.search).has('cumple')) showBirthday();
-ensureMemories().catch(console.error).finally(() => { renderList(); checkAchievements(); });
+// The greeting waits for the installed app: David installs it on her phone from the browser without
+// seeing it, and the first time she opens it from the home screen it is there. ?cumple forces it anywhere.
+const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if ((installed && !seen) || new URLSearchParams(location.search).has('cumple')) showBirthday();
+ensureMemories().then(numberRecords).catch(console.error).finally(() => { renderList(); checkAchievements(); });
