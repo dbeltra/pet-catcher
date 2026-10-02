@@ -230,17 +230,19 @@ function renderCard(a, actions, save = () => {}, close = null) {
   };
   q('.note').onchange = () => { a.note = q('.note').value.trim(); save(); };
   q('.actions').append(...actions);
-  q('.swipe-hint').textContent = close ? '↔️ Desliza para ver sus rasgos · ⬇️ para cerrar' : '↔️ Desliza para ver sus rasgos';
+
   q('.sticker-wrap').onclick = () => flip(card, a, save); // tap = the same as a sideways swipe
   swipes(card, dir => flip(card, a, save, dir), close);
-  $('#card').replaceChildren(card);
+  const hint = Object.assign(document.createElement('p'), { className: 'swipe-hint',
+    textContent: close ? '↔️ Desliza la tarjeta para girarla · ⬇️ para cerrarla' : '↔️ Desliza la tarjeta para ver sus rasgos' });
+  $('#card').replaceChildren(card, hint);
   fillSpeciesList();
   return { where: q('.where'), sticker: q('.sticker') };
 }
 
 // Touch gestures on the big card. Sideways: the card turns with the finger, past 60 px it flips.
 // Down (only with the card layer scrolled to the top, and only if `onClose`): it follows the finger, past 110 px it closes.
-// Anything else gives the touch back to the browser (scrolling), and inputs keep their own touches.
+// Anything else gives the touch back to the browser (scrolling). Works from anywhere on the card, inputs included.
 function swipes(card, onFlip, onClose) {
   let x0, y0, dx, dy, mode;
   const spring = () => {
@@ -249,7 +251,7 @@ function swipes(card, onFlip, onClose) {
     card.style.removeProperty('--turn');
   };
   card.addEventListener('touchstart', e => {
-    mode = e.touches.length > 1 || e.target.closest('input, textarea') ? 'off' : null;
+    mode = e.touches.length > 1 ? 'off' : null; // also from inputs: a tap still edits, only a real swipe flips
     x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = dy = 0;
   }, { passive: true });
   card.addEventListener('touchmove', e => {
@@ -271,7 +273,8 @@ function swipes(card, onFlip, onClose) {
   card.addEventListener('touchend', () => {
     const m = mode;
     mode = null;
-    if (m === 'flip') Math.abs(dx) > 60 ? onFlip(dx > 0 ? 1 : -1) : spring();
+    if (m === 'flip' && Math.abs(dx) > 60) { document.activeElement?.blur(); onFlip(dx > 0 ? 1 : -1); } // blur: close the keyboard
+    else if (m === 'flip') spring();
     else if (m === 'close') dy > 110 ? onClose() : spring(); // closing morphs from where the finger left the card
   });
 }
@@ -283,6 +286,7 @@ async function flip(card, a, save, dir = 1) {
   const turn = (from, to) => card.animate([{ transform: `perspective(900px) rotateY(${from}deg)` }, { transform: `perspective(900px) rotateY(${to}deg)` }],
     { duration: 170, easing: to !== 0 ? 'ease-in' : 'cubic-bezier(.34, 1.56, .64, 1)' }).finished;
   const back = !card.classList.contains('show-back');
+  card.classList.remove('entering'); // flipping right after opening must not replay the pop-in
   const start = parseFloat(card.style.getPropertyValue('--turn')) || 0;
   card.style.transform = '';
   card.style.removeProperty('--turn');
@@ -299,9 +303,9 @@ function renderTraits(card, a, save) {
   const list = card.querySelector('.traits');
   card.querySelector('.back h3').textContent = `Así es ${a.name}`;
   const empty = () => { if (!a.traits.length) list.replaceChildren(Object.assign(document.createElement('li'), { className: 'none', textContent: 'Todavía sin rasgos (・・ )' })); };
-  const row = t => {
+  const row = (t, isNew = false) => {
     const li = document.createElement('li');
-    li.className = 'new';
+    li.classList.toggle('new', isNew); // only an added trait pops in: on a flip the rows are simply there
     const name = Object.assign(document.createElement('input'), { value: t.name, maxLength: 20, ariaLabel: 'Rasgo' });
     name.setAttribute('list', 'traits-list');
     name.onchange = () => { t.name = name.value.trim() || t.name; name.value = t.name; save(); };
@@ -315,14 +319,14 @@ function renderTraits(card, a, save) {
     li.append(name, ...stars, button('✕', () => { a.traits.splice(a.traits.indexOf(t), 1); li.remove(); empty(); save(); }, 'drop'));
     return li;
   };
-  list.replaceChildren(...a.traits.map(row));
+  list.replaceChildren(...a.traits.map(t => row(t)));
   empty();
   card.querySelector('.add-trait').onclick = () => {
     const used = new Set(a.traits.map(t => t.name));
     const t = { name: TRAITS.find(n => !used.has(n)) ?? 'Especial', stars: 2 };
     a.traits.push(t);
     list.querySelector('.none')?.remove();
-    const li = row(t);
+    const li = row(t, true);
     list.append(li);
     li.querySelector('input').select();
     save();

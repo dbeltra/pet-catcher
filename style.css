@@ -179,8 +179,9 @@ h1 {
 :is(.tile, .card, .slot.got)[data-rarity="épico"]::after { opacity: .55; }
 html.tilt :is(.tile, .card, .slot.got)::after { animation: none; background-position: var(--hx) var(--hy); }
 @keyframes holo-drift { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
-.swipe-hint { margin: 10px 0 0 !important; font-size: .78rem; color: rgba(90, 70, 50, .5) !important; }
-.back .swipe-hint { margin-top: 18px !important; }
+#card .swipe-hint { margin: 12px 0 0; text-align: center; font-size: .8rem; color: var(--muted); }
+/* Chrome draws a ▾ on inputs with suggestions (datalist); the suggestions still show while typing */
+.card input::-webkit-calendar-picker-indicator { display: none !important; }
 .card .rarity { font-weight: 600; font-size: .85rem; letter-spacing: .4px; }
 .card[data-rarity="común"] .rarity { display: none; }
 

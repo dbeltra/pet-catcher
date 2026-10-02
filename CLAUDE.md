@@ -155,7 +155,10 @@ lookups one at a time for records that have `location` but no `place`.
   All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper. The card keeps the front's
   height on both faces (`min-height` while the back shows). Edits change rows in place: never rebuild the list.
-- **Gestures** (`swipes()`, touch events, no buttons for these): sideways swipe turns the card with the finger and
+  On a flip the rows are simply there; only an added row pops in (`li.new`). A flip also ends `.entering`.
+  The ▾ Chrome draws on datalist inputs is hidden (`::-webkit-calendar-picker-indicator`).
+- **Gestures** (`swipes()`, touch events, no buttons for these; they work from anywhere on the card, text fields
+  included: a tap still edits, a real swipe flips and closes the keyboard; the hint sits below the card): sideways swipe turns the card with the finger and
   flips past 60 px (a tap on the photo or the back's title flips too); swipe down, with `#view` scrolled to the top,
   closes the detail past 110 px (never on a new catch). The detail is a history entry (`pushState`), so the
   phone's Back gesture closes it as well; everything that closes a detail goes through `history.back()`.

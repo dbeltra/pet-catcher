@@ -9,7 +9,7 @@ const btn = (d, text) => [...d.querySelectorAll('.actions button')].find(b => b.
 const names = d => [...d.querySelectorAll('.tile .name')].map(n => n.textContent);
 // A finger swipe on el, in steps (synthetic touch events).
 async function swipe(w, el, dx, dy) {
-  const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + 120;
+  const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + Math.min(120, r.height / 2);
   const t = (cx, cy) => new w.Touch({ identifier: 1, target: el, clientX: cx, clientY: cy });
   const fire = (type, cx, cy) => el.dispatchEvent(new w.TouchEvent(type, { bubbles: true, cancelable: true, touches: type === 'touchend' ? [] : [t(cx, cy)], changedTouches: [t(cx, cy)] }));
   fire('touchstart', x, y);
@@ -119,10 +119,16 @@ f.onload = async () => {
     d.querySelector('.back h3').click(); // a tap flips back too
     await wait('unflip', () => !d.querySelector('.card.show-back'), 5000);
     await sleep(500);
+    await swipe(w, d.querySelector('.card .note'), 150, 0); // a swipe that starts on a text field flips too
+    await wait('flip from input', () => d.querySelector('.card.show-back'), 5000);
+    await sleep(500);
+    d.querySelector('.back h3').click();
+    await wait('unflip 2', () => !d.querySelector('.card.show-back'), 5000);
+    await sleep(500);
     w.history.back();
     await wait('back from kurko', () => !d.querySelector('#list').hidden, 5000);
 
-    log(`OK swipes=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    log(`OK swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };
