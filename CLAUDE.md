@@ -138,7 +138,8 @@ lookups one at a time for records that have `location` but no `place`.
   photos. Replacing the files only helps phones that have not opened the app yet; on an existing phone use
   "📷 Cambiar foto" on the card (runs the same detect + cutout pipeline, keeps everything else).
 - **Favourites and notes:** ❤️ button on the card, a note textarea; the "❤️ Favoritos" filter chip (`FAV`).
-- **Settings** (⚙️ in the header, a native `<dialog>`): backup, restore, "🎂 Ver la felicitación", version.
+- **Settings** ("⚙️ Ajustes" link next to the version at the bottom of the list; a native `<dialog>`; David
+  did not want it in a primary spot): backup, restore, "🎂 Ver la felicitación", version.
 - **Backup / restore** (in settings): "💾 Guardar copia" writes all animals (stickers as data URLs) plus the `meta`
   store to `pet-catcher-YYYY-MM-DD.json`, through the share sheet when possible (iOS standalone downloads are
   unreliable), else a download. "📂 Restaurar" merges by id (never deletes); `parseBackup` validates.
@@ -155,9 +156,13 @@ lookups one at a time for records that have `location` but no `place`.
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper. The card keeps the front's
   height on both faces (`min-height` while the back shows). Edits change rows in place: never rebuild the list.
 - **Gestures** (`swipes()`, touch events, no buttons for these): sideways swipe turns the card with the finger and
-  flips past 60 px (a tap on the photo or the back's title flips too); swipe down, with the page at the top,
+  flips past 60 px (a tap on the photo or the back's title flips too); swipe down, with `#view` scrolled to the top,
   closes the detail past 110 px (never on a new catch). The detail is a history entry (`pushState`), so the
   phone's Back gesture closes it as well; everything that closes a detail goes through `history.back()`.
+- **The open card is a fixed full-screen layer** (`#view`, `overscroll-behavior: contain`) sized to fit a phone
+  screen (sticker max 30dvh, one row of short action labels): the app behind never scrolls. Pull-to-refresh is
+  off for the whole app (`overscroll-behavior-y: none` on html/body): a pull at the top reloaded the page
+  instead of closing the card. Check the fit at 390×760 when adding anything to the card.
 - **No replaying animations:** the card contents pop in only while `.card.entering` is set (1.2 s after open);
   the ❤️ pop is a Web Animation started by the click. A CSS animation tied to a class that changes later
   replays and looks like flicker (v0.8.0 bug).

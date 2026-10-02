@@ -167,8 +167,7 @@ function showView(name) {
   $('#view').hidden = name !== 'view';
   $('#shoot').hidden = name !== 'list';
   $('#footer').hidden = name !== 'list';
-  $('#open-settings').hidden = name !== 'list';
-  if (name === 'view') { $('#stage').replaceChildren(); $('#card').replaceChildren(); status(''); }
+  if (name === 'view') { $('#stage').replaceChildren(); $('#card').replaceChildren(); status(''); $('#view').scrollTop = 0; }
 }
 
 function button(text, onclick, cls = '') {
@@ -240,7 +239,7 @@ function renderCard(a, actions, save = () => {}, close = null) {
 }
 
 // Touch gestures on the big card. Sideways: the card turns with the finger, past 60 px it flips.
-// Down (only with the page at the top, and only if `onClose`): it follows the finger, past 110 px it closes.
+// Down (only with the card layer scrolled to the top, and only if `onClose`): it follows the finger, past 110 px it closes.
 // Anything else gives the touch back to the browser (scrolling), and inputs keep their own touches.
 function swipes(card, onFlip, onClose) {
   let x0, y0, dx, dy, mode;
@@ -257,7 +256,7 @@ function swipes(card, onFlip, onClose) {
     if (mode === 'off') return;
     dx = e.touches[0].clientX - x0; dy = e.touches[0].clientY - y0;
     if (!mode && Math.hypot(dx, dy) > 12) {
-      mode = Math.abs(dx) > Math.abs(dy) ? 'flip' : dy > 0 && onClose && scrollY <= 0 ? 'close' : 'off';
+      mode = Math.abs(dx) > Math.abs(dy) ? 'flip' : dy > 0 && onClose && $('#view').scrollTop <= 0 ? 'close' : 'off';
     }
     if (mode === 'flip') {
       e.preventDefault();
@@ -509,10 +508,10 @@ const closeDetail = () => history.back();
 
 function detailCard(a) {
   return renderCard(a, [
-    ...(a.memory ? [] : [button('👀 ¡Lo he vuelto a ver!', () => seenAgain(a))]),
-    button('📷 Cambiar foto', () => { rephotoTarget = a; $('#refile').click(); }),
+    ...(a.memory ? [] : [button('👀 ¡Otra vez!', () => seenAgain(a))]),
+    button('📷 Foto', () => { rephotoTarget = a; $('#refile').click(); }),
     // Memories (her past pets) cannot be released.
-    ...(a.memory ? [] : [button('Liberar', async () => {
+    ...(a.memory ? [] : [button('🕊️ Liberar', async () => {
       if (!confirm(`¿Liberar a ${a.name}? Se borrará de tu colección.`)) return;
       await remove(a.id);
       closeDetail();
@@ -568,7 +567,7 @@ function openDetail(a, from) {
   transition(async () => {
     tag(from, false);
     showView('view');
-    scrollTo(0, 0);
+    $('#view').scrollTop = 0;
     await decoded(detailCard(a).sticker);
   }, 'open');
 }

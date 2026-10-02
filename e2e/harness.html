@@ -32,8 +32,8 @@ f.onload = async () => {
 
     // A memory cannot be released.
     d.querySelector('.tile.memory').click();
-    await wait('memory card', () => btn(d, '📷'));
-    const memoryRelease = !!btn(d, 'Liberar');
+    await wait('memory card', () => btn(d, '📷 Foto'));
+    const memoryRelease = !!btn(d, '🕊️ Liberar');
     await sleep(700);
     await swipe(w, d.querySelector('.card'), 0, 200); // swipe down closes
     await wait('back', () => !d.querySelector('#list').hidden && d.querySelectorAll('.tile').length === 2);
@@ -103,7 +103,7 @@ f.onload = async () => {
     await wait('grid again', () => !d.querySelector('#grid').hidden && names(d).includes('Kurko'), 10000);
     await sleep(800);
     [...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Kurko').click();
-    await wait('kurko card', () => btn(d, '📷'));
+    await wait('kurko card', () => btn(d, '📷 Foto'));
     const rarity = d.querySelector('.card').dataset.rarity;
     await sleep(700);
     const hFront = d.querySelector('.card').offsetHeight;
