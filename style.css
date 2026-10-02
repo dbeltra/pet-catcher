@@ -1,0 +1,78 @@
+:root {
+  --bg: #f4f1ea;
+  --card: #fffdf8;
+  --text: #2b2b2b;
+  --muted: #777;
+  --accent: #2f855a;
+  --danger: #c53030;
+  --shadow: 0 2px 8px rgba(0, 0, 0, .12);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1b1d1c; --card: #262a28; --text: #eee; --muted: #9a9a9a; --shadow: 0 2px 8px rgba(0, 0, 0, .5); }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  font: 16px/1.4 system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: env(safe-area-inset-top) 16px calc(96px + env(safe-area-inset-bottom));
+}
+
+header { display: flex; align-items: baseline; justify-content: space-between; }
+h1 { font-size: 1.4rem; margin: 16px 0; }
+#count, #empty, .meta, .species, .when { color: var(--muted); }
+#empty { text-align: center; margin-top: 30vh; }
+
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+
+.tile {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px; border: 0; border-radius: 16px;
+  background: var(--card); color: inherit; font: inherit; box-shadow: var(--shadow);
+}
+.tile img { width: 100%; aspect-ratio: 1; object-fit: contain; }
+.tile .name { font-weight: 600; }
+.tile .meta { font-size: .8rem; }
+
+/* White outline around the transparent cutout: the sticker look */
+.tile img, .sticker {
+  filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
+          drop-shadow(0 4px 6px rgba(0, 0, 0, .3));
+}
+
+#status { text-align: center; }
+.photo { display: block; width: 100%; border-radius: 12px; cursor: crosshair; }
+
+.card {
+  background: var(--card); border-radius: 20px; padding: 20px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.card p { margin: 4px 0; }
+.sticker { width: 100%; max-height: 50vh; object-fit: contain; margin-bottom: 12px; }
+.card .name {
+  font: 600 1.5rem system-ui, sans-serif; text-align: center; width: 100%;
+  border: 0; border-bottom: 2px dashed var(--muted); background: none; color: inherit; padding: 4px;
+}
+.where a { color: var(--accent); }
+.actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; justify-content: center; }
+
+button { font: inherit; }
+.actions button {
+  padding: 10px 18px; border-radius: 999px; border: 1px solid var(--muted);
+  background: none; color: inherit;
+}
+.actions .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.actions .danger { color: var(--danger); border-color: var(--danger); }
+
+.fab {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  padding: 16px 28px; border-radius: 999px;
+  background: var(--accent); color: #fff; font-weight: 600; font-size: 1.1rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .3); cursor: pointer;
+}
