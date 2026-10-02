@@ -7,9 +7,11 @@ date, time and place of each catch, and rename the animals (each one gets a rand
 Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterate on.
 
 **The UI language is Spanish.** All visible text, species names and random names are Spanish.
-The look is kawaii but **not girly**: sunny yellow accent (`--accent`) with dark-brown text on it,
-butter/mint/sky/peach/pistachio pastels, the rounded font Fredoka, kaomoji, ⭐ not hearts, gentle animations.
-David rejected the earlier pink version (v0.2) as too girly.
+The look is kawaii but **not girly**: soft butter-yellow accent (`--accent: #f7d98b`) with dark-brown text on it,
+the cream polka-dot background, butter/mint/sky/peach/pistachio pastels, the rounded font Fredoka, kaomoji,
+⭐ not hearts, the rolling ✿ next to the title, gentle animations.
+David's feedback so far: pink (v0.2) too girly; bright yellow `#ffcf3f` (v0.3.0) too bright; he likes the
+background, the animations and the rolling flower (a ★ there was worse).
 
 ## Rules for this repo
 
