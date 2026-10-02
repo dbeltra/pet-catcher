@@ -11,6 +11,8 @@ date, time and place of each catch, and rename the animals (each one gets a rand
 Personal project of David (GitHub `dbeltra`). **It is a birthday gift for his girlfriend Mari, a pet lover.**
 Everything she sees should feel warm and personal; never ship something that can lose her data.
 
+**Always light:** no dark theme (`color-scheme: light`), also when the phone is in dark mode (David's choice, v0.13.1).
+
 **The UI language is Spanish.** All visible text, species names and random names are Spanish.
 The look is kawaii but **not girly**: soft butter-yellow accent (`--accent: #f7d98b`) with dark-brown text on it,
 the light cream polka-dot background (`--bg: #fffdf5`, softer dots since v0.13), butter/mint/sky/peach/pistachio pastels, the rounded font Fredoka, kaomoji,
@@ -274,7 +276,9 @@ a file picker, not the camera. To test on the phone, use the GitHub Pages URL (t
   dismisses the birthday overlay, checks both memories and that they have no "Liberar", favourites the
   catch, and does a backup → restore round trip (the share sheet is replaced by a capture). It prints
   `OK bday=... memories=2 memoryRelease=false ... pins=1 backup=3 tiles=4` and exits 0, or `FAIL ... timeout at <step>`.
-  Each later version adds its own checks to the same line. `harness.html` needs its `<meta charset>`: without it "¡" breaks the button lookup.
+  Each later version adds its own checks to the same line. It also guards two styles (birthday layer, tab
+  transition name), because v0.13.0 silently lost a whole CSS block. **When editing `style.css` with a script,
+  never replace a range between two markers: replace exact rules.** `harness.html` needs its `<meta charset>`: without it "¡" breaks the button lookup.
   It needs network (the first run downloads the models) and Google Chrome in `/Applications`.
   The harness reports back by requesting `/result?<message>`, which shows up in the server log.
 - Screenshot of the running app: start Chrome with `--remote-debugging-port` and call

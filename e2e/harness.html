@@ -27,6 +27,8 @@ f.onload = async () => {
     // First open: the birthday surprise, then her two memories.
     await wait('birthday', () => !d.querySelector('#bday').hidden, 10000);
     const bday = d.querySelector('#bday h2').textContent;
+    // Style guards (v0.13.0 lost a whole CSS block and the behaviour checks still passed):
+    if (getComputedStyle(d.querySelector('#bday')).position !== 'fixed') throw new Error('birthday styles missing');
     d.querySelector('#bday button').click();
     await wait('memories', () => names(d).includes('Kurko') && names(d).includes('Kiffy'), 10000);
     await sleep(300);
@@ -102,6 +104,7 @@ f.onload = async () => {
 
     // Album: gato and perro caught (memories count too).
     d.querySelector('#tabs [data-tab=album]').click();
+    if (getComputedStyle(d.querySelector('main')).viewTransitionName !== 'content') throw new Error('tab transition styles missing');
     await wait('album', () => !d.querySelector('#album').hidden && d.querySelectorAll('.slot').length, 10000);
     const album = d.querySelector('#album-progress').textContent;
     const badges = d.querySelector('#badges-title').textContent;
