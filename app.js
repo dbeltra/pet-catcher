@@ -243,7 +243,7 @@ async function renderList() {
 }
 
 // View Transitions. `type` sets html[data-vt], which style.css uses to pick the animation
-// (to-map / to-grid / filter; none = card open/close). Without the API (iOS < 18) views just swap.
+// (open / close = a card, to-map / to-grid, filter). Without the API (iOS < 18) views just swap.
 async function transition(fn, type) {
   if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return fn();
   if (type) document.documentElement.dataset.vt = type;
@@ -265,6 +265,13 @@ let listScroll = 0;
 
 // id: the animal whose tile (or map pin) the card shrinks back into.
 async function backToList(id) {
+  // First the card's contents drop away, so the shrinking card is just its colour and sticker
+  // (a scaled-down snapshot of the text and buttons looked messy).
+  const card = $('#view:not([hidden]) .card');
+  if (card && document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    card.classList.add('leaving');
+    await new Promise(r => setTimeout(r, 150));
+  }
   let target;
   await transition(async () => {
     showView('list');
@@ -273,7 +280,7 @@ async function backToList(id) {
     target = id && document.querySelector(`.tile[data-id="${id}"], .pin img[data-id="${id}"]`);
     tag(target, true);
     await decoded(target);
-  });
+  }, 'close');
   tag(target, false);
 }
 
@@ -296,7 +303,7 @@ function openDetail(a, from) {
     f.name.onchange = () => { a.name = f.name.value.trim() || randomName(); f.name.value = a.name; put(a); };
     f.species.onchange = () => { a.species = cleanSpecies(f.species.value); put(a); };
     await decoded(f.sticker);
-  });
+  }, 'open');
 }
 
 async function onPhoto(file) {

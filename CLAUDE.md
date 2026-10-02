@@ -86,7 +86,7 @@ where unsupported, e.g. iOS < 18). `type` goes to `html[data-vt]`, and `style.cs
 
 | type | when | animation |
 |---|---|---|
-| none | open / close a card | the tile (`card`) grows into the big card with an overshoot; its sticker (`sticker`) flies on top with a wiggle; the card contents then pop in one by one (`rise`) |
+| `open` / `close` | open / close a card | the tile (`card`) grows into the big card with an overshoot; its sticker (`sticker`) flies on top with a wiggle; the card contents then pop in one by one (`rise`). Closing: the contents first drop away (`.leaving`, 150 ms), then the plain card shrinks into the tile with less bounce |
 | `to-map` / `to-grid` | tab switch | `main` (`content`) swings out to one side and bounces in from the other; the yellow tab pill (`tab-on`) slides |
 | `filter` | filter chip | the grid or map shrinks away and pops back |
 
@@ -102,6 +102,16 @@ Rules that keep it working:
 - `renderList` must not await network work (the Nominatim retries run un-awaited), or the screen freezes
   during the transition.
 - `renderList` awaits `renderMap`, so the map tab snapshot already has its pins.
+- Anti-flicker rules from v0.5.2 (David saw flicker in v0.5.0):
+  - The big card stays fully opaque during the morph; only the small tile fades on top of it.
+    Cross-fading both left see-through frames.
+  - The sticker never cross-fades (old image hidden). The img boxes must have the sticker's own shape,
+    so no `aspect-ratio` + `object-fit: contain` letterboxing (`.tile .pic` wraps it). Otherwise two cats of
+    different sizes overlap.
+  - The card snapshots use `object-fit: cover; object-position: top`, so text is cropped, never stretched.
+- To judge an animation, record it frame by frame: CDP `Page.startScreencast` while you trigger it, save the
+  frames, then `ffmpeg -pattern_type glob -i 'f-*.png' -vf "scale=210:-1,tile=6x3" sheet.png` and look at the sheet.
+  Single screenshots do not show flicker.
 - All timings and keyframes live at the end of `style.css` (`vt-*` keyframes).
 
 ### Place names without signal
