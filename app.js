@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { COCO_ES, EMOJI, UNKNOWN, emojiFor, cleanSpecies, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { COCO_ES, EMOJI, UNKNOWN, emojiFor, pastelFor, cleanSpecies, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -159,8 +159,9 @@ async function fillSpeciesList() {
 function renderCard(a, actions) {
   const card = $('#card-tpl').content.firstElementChild.cloneNode(true);
   const q = s => card.querySelector(s);
+  card.style.setProperty('--pastel', pastelFor(a.id)); // same colour as its tile
   q('.sticker').src = blobUrl(a.sticker);
-  morph(q('.sticker'));
+  tag(card, true);
   q('.name').value = a.name;
   q('.species').value = a.species === UNKNOWN ? '' : a.species;
   q('.species').placeholder = '¿Qué bichito es?';
@@ -177,7 +178,10 @@ function renderCard(a, actions) {
 let filter = null; // species shown in the list and the map, null = all
 let tab = 'grid'; // 'grid' | 'map'
 
-for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => { tab = b.dataset.tab; renderList(); };
+for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => {
+  if (tab === b.dataset.tab) return;
+  transition(() => { tab = b.dataset.tab; return renderList(); }, tab === 'grid' ? 'to-map' : 'to-grid');
+};
 
 let map, pins;
 async function renderMap(animals) {
@@ -193,8 +197,9 @@ async function renderMap(animals) {
   // ponytail: catches at the same spot stack on top of each other; add marker clustering if that gets crowded
   const placed = animals.filter(a => a.location);
   for (const a of placed) {
-    const icon = L.divIcon({ className: 'pin', html: `<img src="${blobUrl(a.sticker)}" alt="">`, iconSize: [56, 56], iconAnchor: [28, 52] });
-    L.marker([a.location.lat, a.location.lon], { icon, title: a.name }).on('click', () => openDetail(a)).addTo(pins);
+    const icon = L.divIcon({ className: 'pin', html: `<img src="${blobUrl(a.sticker)}" data-id="${a.id}" alt="">`, iconSize: [56, 56], iconAnchor: [28, 52] });
+    L.marker([a.location.lat, a.location.lon], { icon, title: a.name })
+      .on('click', e => openDetail(a, e.target.getElement().querySelector('img'))).addTo(pins);
   }
   $('#map-empty').hidden = placed.length > 0;
   if (placed.length) map.fitBounds(placed.map(a => [a.location.lat, a.location.lon]), { padding: [48, 48], maxZoom: 16 });
@@ -210,7 +215,8 @@ async function renderList() {
   $('#count').textContent = all.length ? `${all.length} ${all.length === 1 ? 'atrapado' : 'atrapados'}` : '';
   $('#empty').hidden = all.length > 0;
   $('#filters').hidden = counts.length < 2;
-  const chip = (label, value) => button(label, () => { filter = value; renderList(); }, `chip${filter === value ? ' on' : ''}`);
+  const chip = (label, value) => button(label, () => transition(() => { filter = value; return renderList(); }, 'filter'),
+    `chip${filter === value ? ' on' : ''}`);
   $('#filters').replaceChildren(chip(`✨ Todos ${all.length}`, null),
     ...counts.map(([s, n]) => chip(`${emojiFor(s)} ${s} ${n}`, s)));
 
@@ -218,7 +224,7 @@ async function renderList() {
   $('#grid').hidden = tab !== 'grid';
   $('#map-wrap').hidden = tab !== 'map';
   const shown = all.filter(a => !filter || a.species === filter);
-  if (tab === 'map') renderMap(shown);
+  if (tab === 'map') await renderMap(shown); // awaited so a transition snapshots the pins
 
   $('#grid').replaceChildren(...shown.map(a => {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
@@ -226,7 +232,8 @@ async function renderList() {
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
     el.dataset.id = a.id;
-    el.onclick = () => openDetail(a, el.querySelector('img'));
+    el.style.setProperty('--pastel', pastelFor(a.id));
+    el.onclick = () => openDetail(a, el);
     return el;
   }));
 
@@ -235,35 +242,47 @@ async function renderList() {
   (async () => { for (const a of all) if (await resolvePlace(a)) await put(a); })();
 }
 
-// The sticker morphs between its tile and the big card. Without View Transitions (iOS < 18) the
-// views just swap.
-const transition = fn => document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches
-  ? document.startViewTransition(fn).finished.catch(() => {}) : Promise.resolve(fn());
-const morph = img => { if (img) img.style.viewTransitionName = 'sticker'; };
-const unmorph = img => { if (img) img.style.viewTransitionName = ''; };
-const decoded = img => img?.decode().catch(() => {});
+// View Transitions. `type` sets html[data-vt], which style.css uses to pick the animation
+// (to-map / to-grid / filter; none = card open/close). Without the API (iOS < 18) views just swap.
+async function transition(fn, type) {
+  if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return fn();
+  if (type) document.documentElement.dataset.vt = type;
+  await document.startViewTransition(fn).finished.catch(() => {});
+  delete document.documentElement.dataset.vt;
+}
+
+// A tile (or the big card) morphs as `card`, its sticker as `sticker`; a map pin has only a sticker.
+// Only one visible element may hold each name, so names are set just for the transition.
+function tag(el, on) {
+  if (!el) return;
+  const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+  if (img !== el) el.style.viewTransitionName = on ? 'card' : '';
+  img.style.viewTransitionName = on ? 'sticker' : '';
+}
+const decoded = el => (el?.tagName === 'IMG' ? el : el?.querySelector('img'))?.decode().catch(() => {});
 
 let listScroll = 0;
 
-// id: the animal whose tile the card shrinks back into.
+// id: the animal whose tile (or map pin) the card shrinks back into.
 async function backToList(id) {
-  let tile;
+  let target;
   await transition(async () => {
     showView('list');
     await renderList();
     scrollTo(0, listScroll);
-    tile = id && document.querySelector(`.tile[data-id="${id}"] img`);
-    morph(tile);
-    await decoded(tile);
+    target = id && document.querySelector(`.tile[data-id="${id}"], .pin img[data-id="${id}"]`);
+    tag(target, true);
+    await decoded(target);
   });
-  unmorph(tile); // one name per page: the next transition picks another tile
+  tag(target, false);
 }
 
-function openDetail(a, tile) {
+// from: the tile or pin image that was tapped.
+function openDetail(a, from) {
   listScroll = scrollY;
-  morph(tile);
+  tag(from, true);
   transition(async () => {
-    unmorph(tile);
+    tag(from, false);
     showView('view');
     scrollTo(0, 0);
     const f = renderCard(a, [

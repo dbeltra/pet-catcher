@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
-import { randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName(() => 0), 'Don Galleta');
 assert.match(randomName(), /^\S+ \S+$/);
+
+assert.equal(pastelFor('abc'), pastelFor('abc'));
+assert.ok(PASTELS.includes(pastelFor(crypto.randomUUID())));
+assert.equal(new Set(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(pastelFor)).size > 1, true);
 
 assert.equal(cleanSpecies('  Ciervo '), 'ciervo');
 assert.equal(cleanSpecies(''), UNKNOWN);

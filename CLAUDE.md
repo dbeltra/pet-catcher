@@ -79,18 +79,30 @@ List: two tabs, `🗂️ Colección` (grid) and `🗺️ Mapa` (`renderMap`, Lea
 the tab opens). The species filter chips (`#filters`) show when there are 2+ species and apply to both. Detail view: tap a tile.
 You can change the name or species (each saves on change) or "Liberar" (delete).
 
-### Card open/close transition
+### Transitions (David wants them flashy)
 
-`transition()` wraps the view swap in `document.startViewTransition` (skipped with reduced motion or
-where unsupported, e.g. iOS < 18). The tile image and the card sticker share the view-transition-name
-`sticker`, so the sticker morphs between them; the rest cross-fades. Rules that keep it working:
-- Only one *visible* element may hold the name at a time, or the browser skips the transition.
-  `openDetail` moves the name from the tile to the card inside the callback; `backToList(id)` puts it on
-  the matching tile and clears it when the transition ends.
+`transition(fn, type)` wraps a DOM change in `document.startViewTransition` (skipped with reduced motion or
+where unsupported, e.g. iOS < 18). `type` goes to `html[data-vt]`, and `style.css` picks the animation from it:
+
+| type | when | animation |
+|---|---|---|
+| none | open / close a card | the tile (`card`) grows into the big card with an overshoot; its sticker (`sticker`) flies on top with a wiggle; the card contents then pop in one by one (`rise`) |
+| `to-map` / `to-grid` | tab switch | `main` (`content`) swings out to one side and bounces in from the other; the yellow tab pill (`tab-on`) slides |
+| `filter` | filter chip | the grid or map shrinks away and pops back |
+
+Each animal has a fixed pastel (`pastelFor(id)`, a hash of the id), used by its tile **and** its big card,
+so the tile visibly grows into the card. A map pin morphs only its sticker into the card (and back).
+
+Rules that keep it working:
+- Only one *visible* element may hold a view-transition-name, or the browser skips the transition.
+  `tag(el, on)` sets/clears `card` + `sticker` on a tile (or only `sticker` on a pin image). `openDetail`
+  moves the names from the tile to the card inside the callback; `backToList(id)` puts them on the
+  matching tile or pin and clears them when the transition ends.
 - The callback awaits `img.decode()`, so the new snapshot never shows an empty image.
 - `renderList` must not await network work (the Nominatim retries run un-awaited), or the screen freezes
   during the transition.
-- Timing and the bounce live in `::view-transition-group(sticker)` in `style.css`.
+- `renderList` awaits `renderMap`, so the map tab snapshot already has its pins.
+- All timings and keyframes live at the end of `style.css` (`vt-*` keyframes).
 
 ### Place names without signal
 

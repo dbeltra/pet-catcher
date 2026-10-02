@@ -18,6 +18,10 @@ export const EMOJI = {
 };
 export const emojiFor = species => EMOJI[species] ?? '🐾';
 
+// Pastel per animal, stable across filters and reloads (hash of the id). The tile and its big card share it.
+export const PASTELS = ['#fff0bf', '#dcf4e4', '#dcedff', '#ffe4cc', '#e9f2d2'];
+export const pastelFor = id => PASTELS[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % PASTELS.length];
+
 export const cleanSpecies = s => s.trim().toLowerCase() || UNKNOWN;
 
 const TITLE = ['Don', 'Doña', 'Capitán', 'Princesa', 'Profe', 'Mini', 'Sir', 'Lady', 'Bebé', 'Señorito', 'Gran', 'Pequeño'];
