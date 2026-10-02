@@ -21,6 +21,8 @@ assert.equal(maskValueAt(mask, 4, 3, { x: 0.5, y: 0.9 }), 7);
 assert.equal(maskValueAt(mask, 4, 3, { x: 1, y: 1 }), 0); // clamps the edge
 assert.deepEqual(maskBBox(mask, 4, 3, 7), { x: 1, y: 1, w: 2, h: 2 });
 assert.equal(maskBBox(mask, 4, 3, 9), null);
+assert.equal(maskBBox(mask, 4, 3, 0, 0.5), null); // 8/12 of the mask > 0.5: the point hit background
+assert.ok(maskBBox(mask, 4, 3, 0, 0.9)); // 8/12 < 0.9: still a valid object
 
 // 8x6 image over the 4x3 mask: the mask scales 2x.
 const rgba = new Uint8ClampedArray(8 * 6 * 4).fill(255);

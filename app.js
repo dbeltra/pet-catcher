@@ -47,7 +47,7 @@ const remove = id => store('readwrite', s => s.delete(id));
 // ---------- image work ----------
 
 async function toCanvas(file) {
-  const bmp = await createImageBitmap(file);
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
   const k = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
   const c = document.createElement('canvas');
   c.width = Math.round(bmp.width * k);

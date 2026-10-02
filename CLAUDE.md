@@ -53,6 +53,8 @@ Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterat
    - The foreground value is **read from the mask at the keypoint** (`maskValueAt`). Do not assume
      0 or 1: this keeps the code correct whatever value the model uses.
    - The mask array is **copied** inside the callback, because MediaPipe frees it afterwards.
+   - If that value covers more than 90% of the mask, the point hit the background: `maskBBox`
+     returns null and the user is asked to tap the animal.
    - `applyMask` makes the background transparent; the result is cropped to the mask box plus `PAD`.
 6. The preview card shows the sticker, a random name (editable), species, date/time and location.
    Buttons: Discard, Re-cut (tap again to choose another point), Keep.
@@ -109,7 +111,7 @@ a file picker, not the camera. To test on the phone, use the GitHub Pages URL (t
 
 ## Deploy (GitHub Pages)
 
-1. One-time setup: in the repo → Settings → Pages → Source "Deploy from a branch", branch `main`, folder `/`.
+1. One-time setup (the repo must be **public** for free Pages): in the repo → Settings → Pages → Source "Deploy from a branch", branch `main`, folder `/`.
 2. Bump `SHELL_CACHE` in `sw.js`, commit, push to `main`. Pages rebuilds in about a minute.
 3. URL: `https://dbeltra.github.io/pet-catcher/`. All paths in the app are relative, so the subpath works.
 
@@ -128,6 +130,10 @@ done
 ## Known limits and ideas for next iterations
 
 - The detector knows only 10 animals. Anything else goes through the tap fallback.
+- An animal that fills more than 90% of the photo is taken as background, and the tap prompt
+  repeats with no way out (no Back button during a tap). Add a Back button if this happens in practice.
+- Not yet tested on a real phone: EXIF rotation of camera photos, the location line with real
+  coordinates, iOS Safari in standalone mode.
 - The mask can leave small stray specks. Fix: keep only the connected component under the keypoint.
 - The mask edge is hard (no feathering). Fix: blur the alpha a little before cropping.
 - The location is where the phone is when you pick the file, not EXIF GPS (camera captures usually

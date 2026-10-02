@@ -22,14 +22,16 @@ export const maskValueAt = (mask, w, h, p) =>
   mask[Math.min(h - 1, Math.floor(p.y * h)) * w + Math.min(w - 1, Math.floor(p.x * w))];
 
 // Bounding box of the pixels equal to fg, in mask coordinates, or null.
-export function maskBBox(mask, w, h, fg) {
-  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+// Null too when fg covers more than maxShare of the mask: then the point hit the background.
+export function maskBBox(mask, w, h, fg, maxShare = 0.9) {
+  let x0 = w, y0 = h, x1 = -1, y1 = -1, n = 0;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     if (mask[y * w + x] !== fg) continue;
+    n++;
     if (x < x0) x0 = x; if (x > x1) x1 = x;
     if (y < y0) y0 = y; if (y > y1) y1 = y;
   }
-  return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  return x1 < 0 || n > maxShare * w * h ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 
 // Make every RGBA pixel outside the mask transparent. The mask may be a different size than the image.
