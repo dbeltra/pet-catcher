@@ -160,6 +160,7 @@ function renderCard(a, actions) {
   const card = $('#card-tpl').content.firstElementChild.cloneNode(true);
   const q = s => card.querySelector(s);
   q('.sticker').src = blobUrl(a.sticker);
+  morph(q('.sticker'));
   q('.name').value = a.name;
   q('.species').value = a.species === UNKNOWN ? '' : a.species;
   q('.species').placeholder = '¿Qué bichito es?';
@@ -170,7 +171,7 @@ function renderCard(a, actions) {
   q('.actions').append(...actions);
   $('#card').replaceChildren(card);
   fillSpeciesList();
-  return { name: q('.name'), species: q('.species'), where: q('.where') };
+  return { name: q('.name'), species: q('.species'), where: q('.where'), sticker: q('.sticker') };
 }
 
 let filter = null; // species shown in the list and the map, null = all
@@ -224,28 +225,59 @@ async function renderList() {
     el.querySelector('img').src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
-    el.onclick = () => openDetail(a);
+    el.dataset.id = a.id;
+    el.onclick = () => openDetail(a, el.querySelector('img'));
     return el;
   }));
 
   // Name the places of catches made without signal. One at a time: Nominatim allows 1 request/s.
-  for (const a of all) if (await resolvePlace(a)) await put(a);
+  // Not awaited, so a view transition never waits on the network.
+  (async () => { for (const a of all) if (await resolvePlace(a)) await put(a); })();
 }
 
-function backToList() { showView('list'); renderList(); }
+// The sticker morphs between its tile and the big card. Without View Transitions (iOS < 18) the
+// views just swap.
+const transition = fn => document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches
+  ? document.startViewTransition(fn).finished.catch(() => {}) : Promise.resolve(fn());
+const morph = img => { if (img) img.style.viewTransitionName = 'sticker'; };
+const unmorph = img => { if (img) img.style.viewTransitionName = ''; };
+const decoded = img => img?.decode().catch(() => {});
 
-function openDetail(a) {
-  showView('view');
-  const f = renderCard(a, [
-    button('Volver', backToList),
-    button('Liberar', async () => {
-      if (!confirm(`¿Liberar a ${a.name}? Se borrará de tu colección.`)) return;
-      await remove(a.id);
-      backToList();
-    }, 'danger'),
-  ]);
-  f.name.onchange = () => { a.name = f.name.value.trim() || randomName(); f.name.value = a.name; put(a); };
-  f.species.onchange = () => { a.species = cleanSpecies(f.species.value); put(a); };
+let listScroll = 0;
+
+// id: the animal whose tile the card shrinks back into.
+async function backToList(id) {
+  let tile;
+  await transition(async () => {
+    showView('list');
+    await renderList();
+    scrollTo(0, listScroll);
+    tile = id && document.querySelector(`.tile[data-id="${id}"] img`);
+    morph(tile);
+    await decoded(tile);
+  });
+  unmorph(tile); // one name per page: the next transition picks another tile
+}
+
+function openDetail(a, tile) {
+  listScroll = scrollY;
+  morph(tile);
+  transition(async () => {
+    unmorph(tile);
+    showView('view');
+    scrollTo(0, 0);
+    const f = renderCard(a, [
+      button('Volver', () => backToList(a.id)),
+      button('Liberar', async () => {
+        if (!confirm(`¿Liberar a ${a.name}? Se borrará de tu colección.`)) return;
+        await remove(a.id);
+        backToList();
+      }, 'danger'),
+    ]);
+    f.name.onchange = () => { a.name = f.name.value.trim() || randomName(); f.name.value = a.name; put(a); };
+    f.species.onchange = () => { a.species = cleanSpecies(f.species.value); put(a); };
+    await decoded(f.sticker);
+  });
 }
 
 async function onPhoto(file) {
@@ -275,7 +307,7 @@ async function onPhoto(file) {
     const placed = resolvePlace(a);
     const showPreview = () => {
       const f = renderCard(a, [
-        button('Descartar', backToList),
+        button('Descartar', () => backToList()),
         button('Recortar otra vez', async () => {
           $('#card').replaceChildren();
           const p = await askTap(img, 'Toca al animal para recortarlo otra vez.');
@@ -288,7 +320,7 @@ async function onPhoto(file) {
           a.species = cleanSpecies(f.species.value);
           await put(a); // if the place lookup is still running, renderList retries it
           navigator.storage?.persist?.();
-          backToList();
+          backToList(a.id);
         }, 'primary'),
       ]);
       placed.then(ok => { f.where.textContent = ok || !a.location ? fmtWhere(a) : 'Sin conexión: le pondré nombre más tarde 📡'; });
@@ -297,7 +329,7 @@ async function onPhoto(file) {
   } catch (e) {
     console.error(e);
     status(`Algo ha ido mal (╥﹏╥) ${e.message ?? e}`);
-    $('#card').replaceChildren(button('Volver', backToList));
+    $('#card').replaceChildren(button('Volver', () => backToList()));
   }
 }
 

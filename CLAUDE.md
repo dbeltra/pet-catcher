@@ -9,9 +9,10 @@ Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterat
 **The UI language is Spanish.** All visible text, species names and random names are Spanish.
 The look is kawaii but **not girly**: soft butter-yellow accent (`--accent: #f7d98b`) with dark-brown text on it,
 the cream polka-dot background, butter/mint/sky/peach/pistachio pastels, the rounded font Fredoka, kaomoji,
-⭐ not hearts, the rolling ✿ next to the title, gentle animations.
+⭐ not hearts, the rolling ✿ next to the title, a highlighter band behind the title, gentle animations.
 David's feedback so far: pink (v0.2) too girly; bright yellow `#ffcf3f` (v0.3.0) too bright; he likes the
-background, the animations and the rolling flower (a ★ there was worse).
+background, the animations and the rolling flower (a ★ there was worse); a 3px offset text-shadow on the
+title (v0.3) was hard to read.
 
 ## Rules for this repo
 
@@ -77,6 +78,19 @@ background, the animations and the rolling flower (a ★ there was worse).
 List: two tabs, `🗂️ Colección` (grid) and `🗺️ Mapa` (`renderMap`, Leaflet is imported the first time
 the tab opens). The species filter chips (`#filters`) show when there are 2+ species and apply to both. Detail view: tap a tile.
 You can change the name or species (each saves on change) or "Liberar" (delete).
+
+### Card open/close transition
+
+`transition()` wraps the view swap in `document.startViewTransition` (skipped with reduced motion or
+where unsupported, e.g. iOS < 18). The tile image and the card sticker share the view-transition-name
+`sticker`, so the sticker morphs between them; the rest cross-fades. Rules that keep it working:
+- Only one *visible* element may hold the name at a time, or the browser skips the transition.
+  `openDetail` moves the name from the tile to the card inside the callback; `backToList(id)` puts it on
+  the matching tile and clears it when the transition ends.
+- The callback awaits `img.decode()`, so the new snapshot never shows an empty image.
+- `renderList` must not await network work (the Nominatim retries run un-awaited), or the screen freezes
+  during the transition.
+- Timing and the bounce live in `::view-transition-group(sticker)` in `style.css`.
 
 ### Place names without signal
 

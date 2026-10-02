@@ -8,12 +8,14 @@
   --accent-deep: #dcb760; /* its 3D edge */
   --on-accent: #4a3412;   /* text on yellow: dark brown, white would be unreadable */
   --danger: #e0674c;
+  --title-mark: var(--accent);
   --shadow: 0 6px 0 rgba(220, 183, 96, .22), 0 10px 24px rgba(90, 70, 50, .10);
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #24211b; --dots: #383226; --card: #332d23; --text: #fff4da; --muted: #c8b48e;
+    --title-mark: rgba(247, 217, 139, .28);
     --shadow: 0 6px 0 rgba(0, 0, 0, .25), 0 10px 24px rgba(0, 0, 0, .35);
   }
 }
@@ -30,8 +32,12 @@ body {
 }
 
 header { text-align: center; padding: 18px 0 6px; }
-h1 { font-size: 2rem; font-weight: 600; margin: 0; color: var(--text); letter-spacing: .5px; text-shadow: 3px 3px 0 var(--accent); }
-.sparkle { display: inline-block; color: var(--accent-deep); text-shadow: none; animation: spin 6s linear infinite; }
+/* Highlighter band behind the title. A 3px offset text-shadow made the letters hard to read. */
+h1 {
+  display: inline-block; font-size: 2rem; font-weight: 600; margin: 0; padding: 0 8px; color: var(--text); letter-spacing: .5px;
+  background: linear-gradient(transparent 58%, var(--title-mark) 58%, var(--title-mark) 92%, transparent 92%);
+}
+.sparkle { display: inline-block; color: var(--accent-deep); animation: spin 6s linear infinite; }
 .tagline { margin: 2px 0 0; color: var(--muted); }
 #count:not(:empty)::before { content: '· '; }
 
@@ -137,6 +143,10 @@ h1 { font-size: 2rem; font-weight: 600; margin: 0; color: var(--text); letter-sp
   animation: wiggle 3.5s ease-in-out infinite;
 }
 .fab:active { transform: translateX(-50%) translateY(4px); box-shadow: 0 2px 0 var(--accent-deep); animation: none; }
+
+/* Card open/close (View Transitions): the sticker flies with a little bounce, the rest cross-fades */
+::view-transition-group(sticker) { animation-duration: .45s; animation-timing-function: cubic-bezier(.34, 1.35, .64, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .25s; }
 
 @keyframes bob { 50% { transform: translateY(-6px); } }
 @keyframes twinkle { 50% { opacity: .3; transform: scale(.8); } }
