@@ -1,23 +1,28 @@
+<meta charset="utf-8">
 <iframe id="f" src="../index.html" style="width:400px;height:800px"></iframe>
 <script>
 const log = m => fetch('/result?' + encodeURIComponent(m));
 const f = document.getElementById('f');
-const wait = (fn, ms = 120000) => new Promise((res, rej) => { const t0 = Date.now(); const i = setInterval(() => { const v = fn(); if (v) { clearInterval(i); res(v); } else if (Date.now() - t0 > ms) { clearInterval(i); rej(new Error('timeout: ' + f.contentDocument.querySelector('#status')?.textContent)); } }, 250); });
+const wait = (step, fn, ms = 120000) => new Promise((res, rej) => { const t0 = Date.now(); const i = setInterval(() => { const v = fn(); if (v) { clearInterval(i); res(v); } else if (Date.now() - t0 > ms) { clearInterval(i); rej(new Error(`timeout at ${step} after ${(Date.now() - t0) / 1000}s, status: ` + f.contentDocument.querySelector('#status')?.textContent)); } }, 250); });
 f.onload = async () => {
   try {
     const d = f.contentDocument;
+    // Headless Chrome has no position: fake one in Sitges so the real place lookup runs.
+    f.contentWindow.navigator.geolocation.getCurrentPosition = ok => ok({ coords: { latitude: 41.2372, longitude: 1.8059 } });
     const blob = await (await fetch('cat.jpg')).blob();
     const dt = new DataTransfer(); dt.items.add(new File([blob], 'cat.jpg', { type: 'image/jpeg' }));
     const input = d.querySelector('#file'); input.files = dt.files; input.dispatchEvent(new Event('change'));
-    const keep = await wait(() => [...d.querySelectorAll('.actions button')].find(b => b.textContent === 'Keep') || (d.querySelector('#status').textContent.startsWith('Something') && d.querySelector('#status')));
+    const keep = await wait('preview', () => [...d.querySelectorAll('.actions button')].find(b => b.textContent.startsWith('¡Me lo quedo!')) || (d.querySelector('#status').textContent.startsWith('Algo') && d.querySelector('#status')));
     if (!keep.onclick) throw new Error(keep.textContent);
-    const img = d.querySelector('.sticker'); await wait(() => img.complete && img.naturalWidth);
+    const where = d.querySelector('.where');
+    await wait('place', () => !where.textContent.startsWith('Buscando'), 30000);
+    const img = d.querySelector('.sticker'); await wait('sticker', () => img.complete && img.naturalWidth);
     const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
     const x = c.getContext('2d'); x.drawImage(img, 0, 0); const px = x.getImageData(0, 0, c.width, c.height).data;
     let clear = 0; for (let i = 3; i < px.length; i += 4) if (px[i] === 0) clear++;
-    const info = `species=${d.querySelector('.species').textContent} name=${d.querySelector('.name').value} sticker=${c.width}x${c.height} transparent=${(clear / (px.length / 4) * 100).toFixed(0)}% status=${d.querySelector('#status').textContent}`;
+    const info = `species=${d.querySelector('.species').value} name=${d.querySelector('.name').value} sticker=${c.width}x${c.height} transparent=${(clear / (px.length / 4) * 100).toFixed(0)}% place=${where.textContent} status=${d.querySelector('#status').textContent}`;
     keep.click();
-    await wait(() => d.querySelectorAll('.tile').length);
+    await wait('gallery', () => d.querySelectorAll('.tile').length, 10000);
     log('OK ' + info + ' tiles=' + d.querySelectorAll('.tile').length + ' count=' + d.querySelector('#count').textContent);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }

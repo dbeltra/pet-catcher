@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { randomName, pickAnimal, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { COCO_ES, EMOJI, UNKNOWN, emojiFor, cleanSpecies, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -106,10 +106,24 @@ function askTap(img, text) {
 const getLocation = () => new Promise(res => {
   if (!navigator.geolocation) return res(null);
   navigator.geolocation.getCurrentPosition(
-    p => res({ lat: p.coords.latitude, lon: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) }),
+    p => res({ lat: p.coords.latitude, lon: p.coords.longitude }),
     () => res(null),
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
 });
+
+// Only the place name is kept. Coordinates stay on the record just until a lookup succeeds
+// (no signal at catch time): renderList retries, then drops them.
+async function resolvePlace(a) {
+  if (a.place || !a.location || !navigator.onLine) return false;
+  try {
+    const { lat, lon } = a.location;
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=es&lat=${lat}&lon=${lon}`,
+      { signal: AbortSignal.timeout(8000) });
+    a.place = placeName(await r.json()) ?? 'Un lugar sin nombre';
+    delete a.location;
+    return true;
+  } catch { return false; }
+}
 
 // ---------- UI ----------
 
@@ -118,6 +132,8 @@ const blobUrl = b => { const u = URL.createObjectURL(b); urls.push(u); return u;
 const freeUrls = () => { urls.forEach(URL.revokeObjectURL); urls = []; };
 
 const status = t => { $('#status').textContent = t; $('#status').hidden = !t; };
+const fmtWhen = t => new Date(t).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' });
+const fmtWhere = a => a.place ?? (a.location ? 'Buscando el nombre del lugar…' : 'Lugar desconocido');
 
 function showView(name) {
   $('#list').hidden = name !== 'list';
@@ -132,56 +148,73 @@ function button(text, onclick, cls = '') {
   return b;
 }
 
-function fmtWhere(loc) {
-  if (!loc) return document.createTextNode('No location');
-  const a = document.createElement('a');
-  a.href = `https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lon}#map=17/${loc.lat}/${loc.lon}`;
-  a.target = '_blank'; a.rel = 'noopener';
-  a.textContent = `${loc.lat.toFixed(5)}, ${loc.lon.toFixed(5)} (±${loc.accuracy} m)`;
-  return a;
+// Suggestions for the species field: the built-in list plus every species already caught.
+async function fillSpeciesList() {
+  const used = (await getAll()).map(a => a.species);
+  $('#species-list').replaceChildren(...[...new Set([...Object.keys(EMOJI), ...used])]
+    .filter(s => s !== UNKNOWN).sort().map(s => new Option(s)));
 }
 
 // Big card, used for the new-catch preview and for the detail view.
 function renderCard(a, actions) {
   const card = $('#card-tpl').content.firstElementChild.cloneNode(true);
-  card.querySelector('.sticker').src = blobUrl(a.sticker);
-  card.querySelector('.name').value = a.name;
-  card.querySelector('.species').textContent = a.species;
-  card.querySelector('.when').textContent = new Date(a.takenAt).toLocaleString();
-  card.querySelector('.where').replaceChildren(fmtWhere(a.location));
-  card.querySelector('.actions').append(...actions);
+  const q = s => card.querySelector(s);
+  q('.sticker').src = blobUrl(a.sticker);
+  q('.name').value = a.name;
+  q('.species').value = a.species === UNKNOWN ? '' : a.species;
+  q('.species').placeholder = '¿Qué bichito es?';
+  q('.emoji').textContent = emojiFor(a.species);
+  q('.species').oninput = () => { q('.emoji').textContent = emojiFor(cleanSpecies(q('.species').value)); };
+  q('.when').textContent = fmtWhen(a.takenAt);
+  q('.where').textContent = fmtWhere(a);
+  q('.actions').append(...actions);
   $('#card').replaceChildren(card);
-  return card.querySelector('.name');
+  fillSpeciesList();
+  return { name: q('.name'), species: q('.species'), where: q('.where') };
 }
+
+let filter = null; // species shown in the list, null = all
 
 async function renderList() {
   freeUrls();
   const all = (await getAll()).sort((a, b) => b.takenAt - a.takenAt);
-  $('#count').textContent = all.length ? `${all.length} caught` : '';
+  const counts = speciesCounts(all);
+  if (!counts.some(([s]) => s === filter)) filter = null;
+
+  $('#count').textContent = all.length ? `${all.length} ${all.length === 1 ? 'atrapado' : 'atrapados'}` : '';
   $('#empty').hidden = all.length > 0;
-  $('#grid').replaceChildren(...all.map(a => {
+  $('#filters').hidden = counts.length < 2;
+  const chip = (label, value) => button(label, () => { filter = value; renderList(); }, `chip${filter === value ? ' on' : ''}`);
+  $('#filters').replaceChildren(chip(`✨ Todos ${all.length}`, null),
+    ...counts.map(([s, n]) => chip(`${emojiFor(s)} ${s} ${n}`, s)));
+
+  $('#grid').replaceChildren(...all.filter(a => !filter || a.species === filter).map(a => {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
     el.querySelector('img').src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
-    el.querySelector('.meta').textContent = `${a.species} · ${new Date(a.takenAt).toLocaleDateString()}`;
+    el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
     el.onclick = () => openDetail(a);
     return el;
   }));
+
+  // Name the places of catches made without signal. One at a time: Nominatim allows 1 request/s.
+  for (const a of all) if (await resolvePlace(a)) await put(a);
 }
 
 function backToList() { showView('list'); renderList(); }
 
 function openDetail(a) {
   showView('view');
-  const name = renderCard(a, [
-    button('Back', backToList),
-    button('Release', async () => {
-      if (!confirm(`Release ${a.name}? This deletes it.`)) return;
+  const f = renderCard(a, [
+    button('Volver', backToList),
+    button('Liberar', async () => {
+      if (!confirm(`¿Liberar a ${a.name}? Se borrará de tu colección.`)) return;
       await remove(a.id);
       backToList();
     }, 'danger'),
   ]);
-  name.onchange = () => { a.name = name.value.trim() || randomName(); name.value = a.name; put(a); };
+  f.name.onchange = () => { a.name = f.name.value.trim() || randomName(); f.name.value = a.name; put(a); };
+  f.species.onchange = () => { a.species = cleanSpecies(f.species.value); put(a); };
 }
 
 async function onPhoto(file) {
@@ -189,48 +222,51 @@ async function onPhoto(file) {
   const where = getLocation(); // ask early, it runs while the models work
   const takenAt = Date.now();
   try {
-    status('Loading the animal spotter… (about 13 MB the first time)');
+    status('Despertando al detector de bichitos… (◕‿◕) La primera vez descarga unos 13 MB.');
     const img = await toCanvas(file);
     img.className = 'photo';
     const { detector, segmenter } = await loadModels();
 
-    status('Looking for an animal…');
+    status('Buscando al bichito… (・・ ) ?');
     const hit = pickAnimal(detector.detect(img).detections);
-    let species = hit?.name ?? 'mystery critter';
-    let point = hit ? boxCenter(hit.box, img) : await askTap(img, 'No animal found. Tap the animal in the photo.');
+    const species = hit ? COCO_ES[hit.name] : UNKNOWN;
+    let point = hit ? boxCenter(hit.box, img) : await askTap(img, 'No lo encuentro (｡•́︿•̀｡) Toca al animal en la foto.');
 
-    status('Cutting it out…');
+    status('Recortando con cuidado… ✂️');
     let sticker = await cutout(segmenter, img, point);
     while (!sticker) {
-      point = await askTap(img, 'Could not cut that out. Tap the animal again.');
+      point = await askTap(img, 'Ups, no he podido recortarlo. Toca al animal otra vez.');
       sticker = await cutout(segmenter, img, point);
     }
 
-    const a = { id: crypto.randomUUID(), name: randomName(), species, sticker, takenAt, location: await where };
+    const a = { id: crypto.randomUUID(), name: randomName(), species, sticker, takenAt, place: null, location: await where };
     status('');
+    const placed = resolvePlace(a);
     const showPreview = () => {
-      const name = renderCard(a, [
-        button('Discard', backToList),
-        button('Re-cut', async () => {
+      const f = renderCard(a, [
+        button('Descartar', backToList),
+        button('Recortar otra vez', async () => {
           $('#card').replaceChildren();
-          const p = await askTap(img, 'Tap the animal to cut it out again.');
+          const p = await askTap(img, 'Toca al animal para recortarlo otra vez.');
           a.sticker = (await cutout(segmenter, img, p)) ?? a.sticker;
           status('');
           showPreview();
         }),
-        button('Keep', async () => {
-          a.name = name.value.trim() || a.name;
-          await put(a);
+        button('¡Me lo quedo! 💖', async () => {
+          a.name = f.name.value.trim() || a.name;
+          a.species = cleanSpecies(f.species.value);
+          await put(a); // if the place lookup is still running, renderList retries it
           navigator.storage?.persist?.();
           backToList();
         }, 'primary'),
       ]);
+      placed.then(ok => { f.where.textContent = ok || !a.location ? fmtWhere(a) : 'Sin conexión: le pondré nombre más tarde 📡'; });
     };
     showPreview();
   } catch (e) {
     console.error(e);
-    status(`Something went wrong: ${e.message ?? e}`);
-    $('#card').replaceChildren(button('Back', backToList));
+    status(`Algo ha ido mal (╥﹏╥) ${e.message ?? e}`);
+    $('#card').replaceChildren(button('Volver', backToList));
   }
 }
 
@@ -240,5 +276,6 @@ $('#file').onchange = e => {
   if (file) onPhoto(file);
 };
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+$('#version').textContent = `v${self.VERSION}`;
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }); // else GitHub Pages' 10 min HTTP cache delays updates
 renderList();

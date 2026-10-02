@@ -1,8 +1,23 @@
 import assert from 'node:assert/strict';
-import { randomName, pickAnimal, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
-assert.equal(randomName(() => 0), 'Sir Biscuit');
-assert.match(randomName(), /^\w+ \w+$/);
+assert.equal(randomName(() => 0), 'Don Galleta');
+assert.match(randomName(), /^\S+ \S+$/);
+
+assert.equal(cleanSpecies('  Ciervo '), 'ciervo');
+assert.equal(cleanSpecies(''), UNKNOWN);
+assert.equal(emojiFor('ciervo'), '🦌');
+assert.equal(emojiFor('dragón'), '🐾');
+
+// Real Nominatim responses (trimmed).
+assert.equal(placeName({ name: 'Sitges', address: { town: 'Sitges', county: 'Garraf', state: 'Cataluña' } }), 'Sitges, Garraf');
+assert.equal(placeName({ name: 'Carxol', address: { hamlet: 'Carxol', village: 'Begues', county: 'Bajo Llobregat' } }), 'Carxol, Begues');
+assert.equal(placeName({ name: 'Sol', address: { quarter: 'Sol', city: 'Madrid', state: 'Comunidad de Madrid' } }), 'Sol, Madrid');
+assert.equal(placeName({ name: '', address: { county: 'Garraf', state: 'Cataluña' } }), 'Garraf, Cataluña');
+assert.equal(placeName({ error: 'Unable to geocode' }), null);
+
+assert.deepEqual(speciesCounts([{ species: 'gato' }, { species: 'perro' }, { species: 'gato' }, { species: 'ciervo' }]),
+  [['gato', 2], ['ciervo', 1], ['perro', 1]]);
 
 const box = { originX: 1, originY: 2, width: 3, height: 4 };
 assert.equal(pickAnimal([]), null);

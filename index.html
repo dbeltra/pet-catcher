@@ -1,24 +1,35 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#2f855a">
+  <meta name="theme-color" content="#ffd6e3">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Pet Catcher">
   <title>Pet Catcher</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="style.css">
+  <script src="version.js"></script>
   <script type="module" src="app.js"></script>
 </head>
 <body>
-  <header><h1>Pet Catcher</h1><span id="count"></span></header>
+  <header>
+    <h1>Pet Catcher <span class="sparkle">✿</span></h1>
+    <p class="tagline">¡atrápalos a todos! <span id="count"></span></p>
+  </header>
 
   <main>
     <section id="list">
-      <p id="empty" hidden>No animals yet. Go catch one!</p>
+      <nav id="filters" hidden></nav>
+      <div id="empty" hidden>
+        <p class="kaomoji">(｡•ᴗ•｡)</p>
+        <p>Todavía no has atrapado ningún bichito.<br>¡Sal a buscar uno!</p>
+      </div>
       <div id="grid"></div>
     </section>
 
@@ -29,9 +40,13 @@
     </section>
   </main>
 
-  <label id="shoot" class="fab">📷 Catch
+  <footer id="version"></footer>
+
+  <label id="shoot" class="fab">📸 ¡Atrapar!
     <input id="file" type="file" accept="image/*" capture="environment" hidden>
   </label>
+
+  <datalist id="species-list"></datalist>
 
   <template id="tile-tpl">
     <button class="tile"><img alt=""><span class="name"></span><span class="meta"></span></button>
@@ -39,9 +54,12 @@
 
   <template id="card-tpl">
     <article class="card">
-      <img class="sticker" alt="">
-      <input class="name" maxlength="40" aria-label="Name" autocomplete="off">
-      <p class="species"></p>
+      <div class="sticker-wrap"><img class="sticker" alt=""></div>
+      <input class="name" maxlength="40" aria-label="Nombre" autocomplete="off">
+      <label class="species-row">
+        <span class="emoji" aria-hidden="true"></span>
+        <input class="species" list="species-list" maxlength="30" aria-label="Especie" autocomplete="off">
+      </label>
       <p class="when"></p>
       <p class="where"></p>
       <div class="actions"></div>

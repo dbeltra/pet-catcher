@@ -6,6 +6,9 @@ date, time and place of each catch, and rename the animals (each one gets a rand
 
 Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterate on.
 
+**The UI language is Spanish.** All visible text, species names and random names are Spanish.
+The look is kawaii: pastel colours, the rounded font Fredoka, kaomoji, gentle animations.
+
 ## Rules for this repo
 
 - **Git identity:** commit as `David Beltrà <dbeltra@gmail.com>`. It is already set in the local
@@ -14,8 +17,10 @@ Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterat
   alias for the personal key `~/.ssh/id_ed25519_dbeltra`. Never use the default 011h key.
 - **No build step, no npm, no framework.** Plain HTML, CSS and ES modules, served as static files.
   Keep it that way unless a feature truly needs more.
-- **On every deploy, bump `SHELL_CACHE` in `sw.js`** (`shell-v1` → `shell-v2` ...). If you do not,
-  installed phones keep serving the old files from the cache.
+- **On every deploy, bump `VERSION` in `version.js`** (semver: 0.2.0 → 0.2.1 for fixes, 0.3.0 for features).
+  The service worker names its cache `shell-<VERSION>`, so the bump makes phones fetch the new files.
+  The version shows at the bottom of the list, so David can check he has the latest. If you do not
+  bump it, installed phones keep serving the old files.
 
 ## Decisions (and why)
 
@@ -24,7 +29,8 @@ Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterat
 | Storage | IndexedDB on the phone | Free, offline, no account. Data is lost if the site data is cleared or the phone changes. Add Supabase sync when that matters. |
 | Detection | MediaPipe ObjectDetector, EfficientDet-Lite0 (COCO) | On-device, free, private, offline after the first load. Knows only 10 animals: bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe. |
 | Cutout | MediaPipe InteractiveSegmenter, `magic_touch` model | Class-agnostic: it cuts out whatever object sits under one point, so it works for any animal, including ones the detector does not know. |
-| Species names | COCO label, or "mystery critter" | For real species (e.g. "European robin") add a vision API (Claude) later. It needs a small server to hide the API key, so it does not fit GitHub Pages alone. |
+| Species names | COCO label mapped to Spanish (`COCO_ES`), or `bichito misterioso`. The user can type any species (e.g. `ciervo`) with suggestions from a `<datalist>` | For real species detection (e.g. "petirrojo") add a vision API (Claude) later. It needs a small server to hide the API key, so it does not fit GitHub Pages alone. |
+| Place | Reverse geocoding with Nominatim (OpenStreetMap), free, no key, max 1 request/s | Only the place name is stored, not the coordinates (David's choice). |
 | Camera | `<input type="file" accept="image/*" capture="environment">` | Opens the native camera app. No getUserMedia viewfinder code. |
 | Hosting | GitHub Pages | Free, HTTPS (the camera and service worker need it). Static only. |
 
@@ -34,10 +40,11 @@ Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterat
 |---|---|
 | `index.html` | Page shell, the two views (`#list`, `#view`), the `<template>`s for tiles and cards. |
 | `app.js` | Everything with a DOM: model loading, IndexedDB, the catch flow, rendering. |
-| `lib.mjs` | Pure helpers, no DOM: `randomName`, `pickAnimal`, `maskValueAt`, `maskBBox`, `applyMask`. |
+| `version.js` | `self.VERSION`. Loaded by the page (`<script>`) and by the service worker (`importScripts`). |
+| `lib.mjs` | Pure helpers, no DOM: Spanish species map `COCO_ES`, `EMOJI` per species, `cleanSpecies`, `randomName`, `pickAnimal`, `placeName`, `speciesCounts`, mask helpers. |
 | `test.mjs` | Unit check for `lib.mjs`. Run `node test.mjs` → prints `ok`. |
 | `style.css` | Mobile-first styles, light/dark through `prefers-color-scheme`. The sticker outline is a stack of CSS `drop-shadow`s. |
-| `sw.js` | Service worker: cache-first. Two caches: `shell-vN` (own files), `cdn-v1` (MediaPipe lib + models). |
+| `sw.js` | Service worker: cache-first. Two caches: `shell-<VERSION>` (own files), `cdn-v1` (MediaPipe lib, models, font; hosts in `CDN_HOSTS`). Other origins (Nominatim) pass through uncached. It is registered with `updateViaCache: 'none'`, else GitHub Pages' 10 min HTTP cache delays updates. |
 | `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png` | PWA install data. The PNGs are rendered from `icon.svg` (see below). |
 | `e2e/run.sh`, `e2e/harness.html` | End-to-end check in headless Chrome (see Testing). |
 
@@ -48,7 +55,8 @@ Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterat
 3. `loadModels` loads the WASM runtime and both models once (about 13 MB, then cached by the SW).
 4. The detector runs. `pickAnimal` takes the best-scoring COCO animal.
    - Found: the keypoint is the center of its box.
-   - Not found: the photo is shown and the user taps the animal (`askTap`). Species = "mystery critter".
+   - Not found: the photo is shown and the user taps the animal (`askTap`). Species = `bichito misterioso`
+     (the species field shows empty, so the user can type one).
 5. `cutout` runs the segmenter with that keypoint and gets a category mask.
    - The foreground value is **read from the mask at the keypoint** (`maskValueAt`). Do not assume
      0 or 1: this keeps the code correct whatever value the model uses.
@@ -56,11 +64,19 @@ Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterat
    - If that value covers more than 90% of the mask, the point hit the background: `maskBBox`
      returns null and the user is asked to tap the animal.
    - `applyMask` makes the background transparent; the result is cropped to the mask box plus `PAD`.
-6. The preview card shows the sticker, a random name (editable), species, date/time and location.
-   Buttons: Discard, Re-cut (tap again to choose another point), Keep.
-7. Keep saves the record to IndexedDB and asks for persistent storage (`navigator.storage.persist`).
+6. The preview card shows the sticker, a random name, the species (both editable), date/time and place.
+   The place lookup (`resolvePlace`) starts as soon as the position is known.
+   Buttons: Descartar, Recortar otra vez (tap again to choose another point), ¡Me lo quedo!
+7. "¡Me lo quedo!" saves the record to IndexedDB and asks for persistent storage (`navigator.storage.persist`).
 
-Detail view: tap a tile. You can rename (it saves on change) or "Release" (delete).
+List: the species filter chips (`#filters`) show when there are 2+ species. Detail view: tap a tile.
+You can change the name or species (each saves on change) or "Liberar" (delete).
+
+### Place names without signal
+
+The record keeps `location: {lat, lon}` only until the Nominatim lookup works. If there is no signal,
+the preview says so, and every `renderList` retries the lookups one at a time. On success it sets
+`place` and deletes `location`. So a stored record normally has `place` and no coordinates.
 
 ## Data model
 
@@ -69,13 +85,17 @@ IndexedDB database `pet-catcher`, version 1, object store `animals`, keyPath `id
 ```js
 {
   id: 'uuid',
-  name: 'Sir Biscuit',
-  species: 'cat' | 'mystery critter' | ...,
+  name: 'Don Galleta',
+  species: 'gato' | 'ciervo' | 'bichito misterioso' | ...,   // lowercase Spanish, free text
   sticker: Blob,            // PNG with transparency, cropped
   takenAt: 1759400000000,   // ms since epoch
-  location: { lat, lon, accuracy } | null   // accuracy in metres
+  place: 'Sitges, Garraf' | null,
+  location: { lat, lon }    // only while the place name is still pending
 }
 ```
+
+Records from v0.1 have English species (`cat`) and `location` with `accuracy`; their place gets
+resolved by the retry. Their species stays English unless edited (no migration, there were only test catches).
 
 The original photo is **not** stored (it saves space). This is why Re-cut works only in the preview.
 If you change the shape, bump the DB version and migrate in `onupgradeneeded`.
@@ -88,6 +108,8 @@ If you change the shape, bump the DB version and migrate in `onupgradeneeded`.
 - Models from `storage.googleapis.com/mediapipe-models/`:
   `object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite` (7 MB) and
   `interactive_segmenter/magic_touch/float32/1/magic_touch.tflite` (6 MB). Both send CORS headers.
+- Google Fonts: Fredoka (400, 500, 600).
+- Nominatim `reverse?format=jsonv2&zoom=14&accept-language=es`. `placeName` builds "most specific, town or county".
 
 ## Run locally
 
@@ -102,8 +124,9 @@ a file picker, not the camera. To test on the phone, use the GitHub Pages URL (t
 
 - `node test.mjs`: pure logic. Fast. Run it after any change to `lib.mjs`.
 - `./e2e/run.sh`: the real app in headless Chrome. It downloads a cat photo once (to `e2e/cat.jpg`,
-  gitignored), puts it into the file input, waits for the preview, clicks Keep and checks that the
-  gallery has one tile. It prints `OK species=cat ... transparent=30% ... tiles=1` and exits 0, or `FAIL ...`.
+  gitignored), fakes a position in Sitges, puts the photo into the file input, waits for the preview
+  and the real place lookup, clicks "¡Me lo quedo!" and checks that the gallery has one tile.
+  It prints `OK species=gato ... place=Sitges, Garraf ... tiles=1` and exits 0, or `FAIL ...`.
   It needs network (the first run downloads the models) and Google Chrome in `/Applications`.
   The harness reports back by requesting `/result?<message>`, which shows up in the server log.
 - Screenshot of the running app: start Chrome with `--remote-debugging-port` and call
@@ -112,8 +135,11 @@ a file picker, not the camera. To test on the phone, use the GitHub Pages URL (t
 ## Deploy (GitHub Pages)
 
 1. One-time setup (the repo must be **public** for free Pages): in the repo → Settings → Pages → Source "Deploy from a branch", branch `main`, folder `/`.
-2. Bump `SHELL_CACHE` in `sw.js`, commit, push to `main`. Pages rebuilds in about a minute.
+2. Bump `VERSION` in `version.js`, commit, push to `main`. Pages rebuilds in about a minute.
 3. URL: `https://dbeltra.github.io/pet-catcher/`. All paths in the app are relative, so the subpath works.
+
+To check the phone has the new version: close and reopen the app, and look at the version at the
+bottom of the list. A deploy can need two reopens (the first one installs the new service worker).
 
 Install on the phone: Android Chrome → menu → "Install app". iPhone Safari → Share → "Add to Home Screen".
 
@@ -138,6 +164,6 @@ done
 - The mask edge is hard (no feathering). Fix: blur the alpha a little before cropping.
 - The location is where the phone is when you pick the file, not EXIF GPS (camera captures usually
   strip GPS anyway).
-- No place names, only coordinates with an OpenStreetMap link. A reverse geocoder (Nominatim) could add them.
 - No export/backup. Data lives in one browser on one phone.
+- The detector's species list is fixed; custom species are free text, so typos make separate filter chips.
 - Ideas: species via Claude vision, Supabase sync, a map of catches, rarity/stats, sharing a card as an image.

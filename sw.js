@@ -1,8 +1,10 @@
-// Bump SHELL_CACHE on every deploy, or phones keep the old app.
-const SHELL_CACHE = 'shell-v1';
-// Models and the MediaPipe library (other origins) live in their own cache, so a deploy does not re-download 13 MB.
+importScripts('version.js'); // bump VERSION there on every deploy, or phones keep the old app
+const SHELL_CACHE = `shell-${self.VERSION}`;
+// Models, the MediaPipe library and the font live in their own cache, so a deploy does not re-download 13 MB.
+// Other origins (the Nominatim place lookup) are never cached.
 const CDN_CACHE = 'cdn-v1';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'lib.mjs', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+const CDN_HOSTS = ['cdn.jsdelivr.net', 'storage.googleapis.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+const SHELL = ['./', 'index.html', 'version.js', 'style.css', 'app.js', 'lib.mjs', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => e.waitUntil(
   caches.open(SHELL_CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
@@ -14,8 +16,9 @@ self.addEventListener('activate', e => e.waitUntil(
 
 // Cache first, then network. Anything new gets cached on the way through.
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  const cache = new URL(e.request.url).origin === location.origin ? SHELL_CACHE : CDN_CACHE;
+  const url = new URL(e.request.url);
+  const cache = url.origin === location.origin ? SHELL_CACHE : CDN_HOSTS.includes(url.hostname) ? CDN_CACHE : null;
+  if (e.request.method !== 'GET' || !cache) return;
   e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
     if (res.ok || res.type === 'opaque') {
       const copy = res.clone();

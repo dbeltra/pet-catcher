@@ -1,20 +1,54 @@
 // Pure helpers, no DOM. Tested by test.mjs (node test.mjs).
 
-// The COCO animal classes EfficientDet knows. "teddy bear" is left out on purpose.
-export const ANIMALS = new Set(['bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe']);
+// COCO animal classes EfficientDet knows → the Spanish name we show and store. "teddy bear" is left out on purpose.
+export const COCO_ES = {
+  bird: 'pájaro', cat: 'gato', dog: 'perro', horse: 'caballo', sheep: 'oveja',
+  cow: 'vaca', elephant: 'elefante', bear: 'oso', zebra: 'cebra', giraffe: 'jirafa',
+};
 
-const ADJ = ['Sir', 'Captain', 'Little', 'Fluffy', 'Grumpy', 'Sneaky', 'Lady', 'Professor', 'Tiny', 'Mighty', 'Sleepy', 'Wild'];
-const NOUN = ['Biscuit', 'Pickles', 'Noodle', 'Waffles', 'Pebble', 'Muffin', 'Taco', 'Bean', 'Sprout', 'Nugget', 'Pudding', 'Ziggy'];
+export const UNKNOWN = 'bichito misterioso';
+
+// Emoji per species. The keys double as suggestions when the user types a species.
+export const EMOJI = {
+  pájaro: '🐦', gato: '🐱', perro: '🐶', caballo: '🐴', oveja: '🐑', vaca: '🐮', elefante: '🐘',
+  oso: '🐻', cebra: '🦓', jirafa: '🦒', ciervo: '🦌', conejo: '🐰', ardilla: '🐿️', pato: '🦆',
+  gallina: '🐔', paloma: '🕊️', búho: '🦉', tortuga: '🐢', rana: '🐸', zorro: '🦊', jabalí: '🐗',
+  erizo: '🦔', cerdo: '🐷', cabra: '🐐', mono: '🐒', pez: '🐟', mariposa: '🦋', abeja: '🐝',
+  lagartija: '🦎', caracol: '🐌', ratón: '🐭', [UNKNOWN]: '❓',
+};
+export const emojiFor = species => EMOJI[species] ?? '🐾';
+
+export const cleanSpecies = s => s.trim().toLowerCase() || UNKNOWN;
+
+const TITLE = ['Don', 'Doña', 'Capitán', 'Princesa', 'Profe', 'Mini', 'Sir', 'Lady', 'Bebé', 'Señorito', 'Gran', 'Pequeño'];
+const NOUN = ['Galleta', 'Churro', 'Pepinillo', 'Fideo', 'Gofre', 'Croqueta', 'Mochi', 'Bollito', 'Nube', 'Garbanzo', 'Turrón', 'Chispa'];
 
 export const randomName = (rnd = Math.random) =>
-  `${ADJ[Math.floor(rnd() * ADJ.length)]} ${NOUN[Math.floor(rnd() * NOUN.length)]}`;
+  `${TITLE[Math.floor(rnd() * TITLE.length)]} ${NOUN[Math.floor(rnd() * NOUN.length)]}`;
 
 // Best-scoring animal across all detections, or null.
 export function pickAnimal(detections) {
   const hits = detections.flatMap(d =>
-    d.categories.filter(c => ANIMALS.has(c.categoryName))
+    d.categories.filter(c => c.categoryName in COCO_ES)
       .map(c => ({ name: c.categoryName, score: c.score, box: d.boundingBox })));
   return hits.sort((a, b) => b.score - a.score)[0] ?? null;
+}
+
+// Short place name from a Nominatim reverse-geocode response: "Sitges, Garraf", "Carxol, Begues", "Sol, Madrid".
+export function placeName(r) {
+  const a = r.address ?? {};
+  const town = a.city ?? a.town ?? a.village ?? a.municipality;
+  const first = r.name || town || a.county || a.state;
+  if (!first) return null;
+  const second = [town, a.county, a.state_district, a.state].find(v => v && v !== first);
+  return second ? `${first}, ${second}` : first;
+}
+
+// Species → count, most common first.
+export function speciesCounts(animals) {
+  const m = new Map();
+  for (const a of animals) m.set(a.species, (m.get(a.species) ?? 0) + 1);
+  return [...m].sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
 }
 
 // Mask value at a normalized point. That value is the object the segmenter picked.

@@ -1,13 +1,14 @@
 {
   "name": "Pet Catcher",
+  "lang": "es",
   "short_name": "Pet Catcher",
-  "description": "Snap animals, turn them into sticker cards, collect them all.",
+  "description": "Haz fotos a animales, conviértelos en pegatinas y colecciónalos todos.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f4f1ea",
-  "theme_color": "#2f855a",
+  "background_color": "#fff4f8",
+  "theme_color": "#ffd6e3",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
