@@ -3,6 +3,7 @@
   "lang": "es",
   "short_name": "Pet Catcher",
   "description": "Haz fotos a animales, conviértelos en pegatinas y colecciónalos todos.",
+  "id": "pet-catcher",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

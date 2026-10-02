@@ -177,6 +177,11 @@ bottom of the list. A deploy can need two reopens (the first one installs the ne
 
 The home-screen icon is copied at install time. After an icon change, remove the app and install it again.
 
+**Never change `id` in `manifest.webmanifest`** (`pet-catcher`, set in v0.5.1). Chrome identifies an installed
+app by it. v0.5.1 added it because, after an uninstall, Chrome on Android kept a stale "already installed"
+record for the old implicit id (the start URL) and only offered a shortcut. Changing it again would make
+Chrome see a second, separate app. Data is not affected: IndexedDB belongs to the origin, not the id.
+
 Install on the phone: Android Chrome → menu → "Install app". iPhone Safari → Share → "Add to Home Screen".
 
 ## Regenerate the PNG icons
