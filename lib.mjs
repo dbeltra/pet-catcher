@@ -22,6 +22,30 @@ export const emojiFor = species => EMOJI[species] ?? '🐾';
 export const PASTELS = ['#fff0bf', '#dcf4e4', '#dcedff', '#ffe4cc', '#e9f2d2'];
 export const pastelFor = id => PASTELS[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % PASTELS.length];
 
+// Fills the fields newer versions added, so records from any older version keep working.
+export const normalize = a => ({ fav: false, note: '', traits: [], visits: [], memory: false, ...a });
+
+// Her past pets ("recuerdos"). Fixed ids: re-added on every start if missing, never deletable, and a
+// restore never duplicates them. Memories have no catch date or place.
+export const SEEDS = [
+  { id: 'seed-kurko', name: 'Kurko', species: 'perro', file: 'seed/kurko.png' },
+  { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', file: 'seed/kiffy.png' },
+];
+
+// Memories first, then newest first.
+export const byNewest = (a, b) => (b.memory - a.memory) || ((b.takenAt ?? 0) - (a.takenAt ?? 0));
+
+// Validates a backup file's text. Throws a message meant for the user.
+export function parseBackup(text) {
+  let d;
+  try { d = JSON.parse(text); } catch { throw new Error('El archivo no es una copia de Pet Catcher.'); }
+  if (d?.app !== 'pet-catcher' || !Array.isArray(d.animals)
+    || !d.animals.every(a => typeof a.id === 'string' && /^data:image\//.test(a.sticker))) {
+    throw new Error('El archivo no es una copia de Pet Catcher.');
+  }
+  return d;
+}
+
 export const cleanSpecies = s => s.trim().toLowerCase() || UNKNOWN;
 
 const TITLE = ['Don', 'Doña', 'Capitán', 'Princesa', 'Profe', 'Mini', 'Sir', 'Lady', 'Bebé', 'Señorito', 'Gran', 'Pequeño'];

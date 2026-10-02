@@ -1,8 +1,16 @@
 import assert from 'node:assert/strict';
-import { PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName(() => 0), 'Don Galleta');
 assert.match(randomName(), /^\S+ \S+$/);
+
+assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, note: '', traits: [], visits: [], memory: false, id: 'x' });
+assert.deepEqual([{ id: 'old', takenAt: 1 }, { id: 'mem', memory: true, takenAt: null }, { id: 'new', takenAt: 5 }]
+  .map(normalize).sort(byNewest).map(a => a.id), ['mem', 'new', 'old']);
+assert.equal(parseBackup(JSON.stringify({ app: 'pet-catcher', animals: [{ id: 'a', sticker: 'data:image/png;base64,AA' }] })).animals.length, 1);
+assert.throws(() => parseBackup('not json'), /no es una copia/);
+assert.throws(() => parseBackup('{"app":"other","animals":[]}'), /no es una copia/);
+assert.throws(() => parseBackup('{"app":"pet-catcher","animals":[{"id":"a","sticker":"http://x"}]}'), /no es una copia/);
 
 assert.equal(pastelFor('abc'), pastelFor('abc'));
 assert.ok(PASTELS.includes(pastelFor(crypto.randomUUID())));

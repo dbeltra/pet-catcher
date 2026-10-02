@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { COCO_ES, EMOJI, UNKNOWN, emojiFor, pastelFor, cleanSpecies, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { COCO_ES, EMOJI, UNKNOWN, SEEDS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -28,21 +28,40 @@ function loadModels() {
   return models;
 }
 
-// ---------- storage (IndexedDB, one store) ----------
+// ---------- storage (IndexedDB: `animals`, and `meta` for small app state) ----------
 
 const db = new Promise((res, rej) => {
-  const r = indexedDB.open('pet-catcher', 1);
-  r.onupgradeneeded = () => r.result.createObjectStore('animals', { keyPath: 'id' });
+  const r = indexedDB.open('pet-catcher', 2);
+  r.onupgradeneeded = () => { // create only what is missing: never drop `animals`
+    const d = r.result;
+    if (!d.objectStoreNames.contains('animals')) d.createObjectStore('animals', { keyPath: 'id' });
+    if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+  };
   r.onsuccess = () => res(r.result);
   r.onerror = () => rej(r.error);
 });
-async function store(mode, fn) {
-  const s = (await db).transaction('animals', mode).objectStore('animals');
+async function store(name, mode, fn) {
+  const s = (await db).transaction(name, mode).objectStore(name);
   return new Promise((res, rej) => { const r = fn(s); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
 }
-const getAll = () => store('readonly', s => s.getAll());
-const put = a => store('readwrite', s => s.put(a));
-const remove = id => store('readwrite', s => s.delete(id));
+const getAll = async () => (await store('animals', 'readonly', s => s.getAll())).map(normalize);
+const put = a => store('animals', 'readwrite', s => s.put(a));
+const remove = id => store('animals', 'readwrite', s => s.delete(id));
+const getMeta = k => store('meta', 'readonly', s => s.get(k));
+const setMeta = (k, v) => store('meta', 'readwrite', s => s.put(v, k));
+async function getAllMeta() {
+  const [keys, values] = await Promise.all([store('meta', 'readonly', s => s.getAllKeys()), store('meta', 'readonly', s => s.getAll())]);
+  return Object.fromEntries(keys.map((k, i) => [k, values[i]]));
+}
+
+// Her past pets are part of the app: any that is missing (first open, cleared data) comes back.
+async function ensureMemories() {
+  const have = new Set((await getAll()).map(a => a.id));
+  for (const s of SEEDS) if (!have.has(s.id)) {
+    const sticker = await (await fetch(s.file)).blob();
+    await put(normalize({ id: s.id, name: s.name, species: s.species, sticker, memory: true, fav: true, takenAt: null, place: null, location: null }));
+  }
+}
 
 // ---------- image work ----------
 
@@ -134,11 +153,20 @@ const status = t => { $('#status').textContent = t; $('#status').hidden = !t; };
 const fmtWhen = t => new Date(t).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' });
 const fmtWhere = a => a.place ?? (a.location ? 'Buscando el nombre del lugar…' : 'Lugar desconocido');
 
+let toastTimer;
+function toast(text) {
+  $('#toast').textContent = text;
+  $('#toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('#toast').hidden = true; }, 3500);
+}
+
 function showView(name) {
   $('#tabs').hidden = name !== 'list';
   $('#list').hidden = name !== 'list';
   $('#view').hidden = name !== 'view';
   $('#shoot').hidden = name !== 'list';
+  $('#footer').hidden = name !== 'list';
   if (name === 'view') { $('#stage').replaceChildren(); $('#card').replaceChildren(); status(''); }
 }
 
@@ -155,11 +183,12 @@ async function fillSpeciesList() {
     .filter(s => s !== UNKNOWN).sort().map(s => new Option(s)));
 }
 
-// Big card, used for the new-catch preview and for the detail view.
-function renderCard(a, actions) {
+// Big card, used for the new-catch preview and for the detail view. `save` runs after each edit (detail only).
+function renderCard(a, actions, save = () => {}) {
   const card = $('#card-tpl').content.firstElementChild.cloneNode(true);
   const q = s => card.querySelector(s);
   card.style.setProperty('--pastel', pastelFor(a.id)); // same colour as its tile
+  card.classList.toggle('memory', a.memory);
   q('.sticker').src = blobUrl(a.sticker);
   tag(card, true);
   q('.name').value = a.name;
@@ -167,15 +196,25 @@ function renderCard(a, actions) {
   q('.species').placeholder = '¿Qué bichito es?';
   q('.emoji').textContent = emojiFor(a.species);
   q('.species').oninput = () => { q('.emoji').textContent = emojiFor(cleanSpecies(q('.species').value)); };
-  q('.when').textContent = fmtWhen(a.takenAt);
+  q('.when').textContent = a.memory ? 'Un recuerdo para siempre' : fmtWhen(a.takenAt);
   q('.where').textContent = fmtWhere(a);
+  q('.where').hidden = a.memory && !a.place;
+  q('.note').value = a.note;
+  const fav = q('.fav');
+  const paintFav = () => { fav.textContent = a.fav ? '❤️' : '🤍'; fav.classList.toggle('on', a.fav); };
+  paintFav();
+  fav.onclick = () => { a.fav = !a.fav; paintFav(); save(); };
+  q('.name').onchange = () => { a.name = q('.name').value.trim() || a.name; q('.name').value = a.name; save(); };
+  q('.species').onchange = () => { a.species = cleanSpecies(q('.species').value); save(); };
+  q('.note').onchange = () => { a.note = q('.note').value.trim(); save(); };
   q('.actions').append(...actions);
   $('#card').replaceChildren(card);
   fillSpeciesList();
-  return { name: q('.name'), species: q('.species'), where: q('.where'), sticker: q('.sticker') };
+  return { where: q('.where'), sticker: q('.sticker') };
 }
 
-let filter = null; // species shown in the list and the map, null = all
+const FAV = 'fav'; // filter value for favourites; species are stored lowercase Spanish, so no clash with a real one
+let filter = null; // species (or FAV) shown in the list and the map, null = all
 let tab = 'grid'; // 'grid' | 'map'
 
 for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => {
@@ -208,22 +247,24 @@ async function renderMap(animals) {
 
 async function renderList() {
   freeUrls();
-  const all = (await getAll()).sort((a, b) => b.takenAt - a.takenAt);
+  const all = (await getAll()).sort(byNewest);
   const counts = speciesCounts(all);
-  if (!counts.some(([s]) => s === filter)) filter = null;
+  const favs = all.filter(a => a.fav).length;
+  if (filter === FAV ? !favs : !counts.some(([s]) => s === filter)) filter = null;
 
   $('#count').textContent = all.length ? `${all.length} ${all.length === 1 ? 'atrapado' : 'atrapados'}` : '';
   $('#empty').hidden = all.length > 0;
-  $('#filters').hidden = counts.length < 2;
+  $('#filters').hidden = counts.length < 2 && !favs;
   const chip = (label, value) => button(label, () => transition(() => { filter = value; return renderList(); }, 'filter'),
     `chip${filter === value ? ' on' : ''}`);
   $('#filters').replaceChildren(chip(`✨ Todos ${all.length}`, null),
+    ...(favs ? [chip(`❤️ Favoritos ${favs}`, FAV)] : []),
     ...counts.map(([s, n]) => chip(`${emojiFor(s)} ${s} ${n}`, s)));
 
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === tab);
   $('#grid').hidden = tab !== 'grid';
   $('#map-wrap').hidden = tab !== 'map';
-  const shown = all.filter(a => !filter || a.species === filter);
+  const shown = all.filter(a => !filter || (filter === FAV ? a.fav : a.species === filter));
   if (tab === 'map') await renderMap(shown); // awaited so a transition snapshots the pins
 
   $('#grid').replaceChildren(...shown.map(a => {
@@ -231,6 +272,8 @@ async function renderList() {
     el.querySelector('img').src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
+    el.querySelector('.heart').hidden = !a.fav;
+    el.classList.toggle('memory', a.memory);
     el.dataset.id = a.id;
     el.style.setProperty('--pastel', pastelFor(a.id));
     el.onclick = () => openDetail(a, el);
@@ -284,6 +327,19 @@ async function backToList(id) {
   tag(target, false);
 }
 
+function detailCard(a) {
+  return renderCard(a, [
+    button('Volver', () => backToList(a.id)),
+    button('📷 Cambiar foto', () => { rephotoTarget = a; $('#refile').click(); }),
+    // Memories (her past pets) cannot be released.
+    ...(a.memory ? [] : [button('Liberar', async () => {
+      if (!confirm(`¿Liberar a ${a.name}? Se borrará de tu colección.`)) return;
+      await remove(a.id);
+      backToList();
+    }, 'danger')]),
+  ], () => put(a));
+}
+
 // from: the tile or pin image that was tapped.
 function openDetail(a, from) {
   listScroll = scrollY;
@@ -292,18 +348,40 @@ function openDetail(a, from) {
     tag(from, false);
     showView('view');
     scrollTo(0, 0);
-    const f = renderCard(a, [
-      button('Volver', () => backToList(a.id)),
-      button('Liberar', async () => {
-        if (!confirm(`¿Liberar a ${a.name}? Se borrará de tu colección.`)) return;
-        await remove(a.id);
-        backToList();
-      }, 'danger'),
-    ]);
-    f.name.onchange = () => { a.name = f.name.value.trim() || randomName(); f.name.value = a.name; put(a); };
-    f.species.onchange = () => { a.species = cleanSpecies(f.species.value); put(a); };
-    await decoded(f.sticker);
+    await decoded(detailCard(a).sticker);
   }, 'open');
+}
+
+// Photo → sticker: detect the animal, or let the user tap it, then cut it out. Uses #view's status and stage.
+async function stickerFrom(file) {
+  status('Despertando al detector de bichitos… (◕‿◕) La primera vez descarga unos 13 MB.');
+  const img = await toCanvas(file);
+  img.className = 'photo';
+  const { detector, segmenter } = await loadModels();
+
+  status('Buscando al bichito… (・・ ) ?');
+  const hit = pickAnimal(detector.detect(img).detections);
+  let point = hit ? boxCenter(hit.box, img) : await askTap(img, 'No lo encuentro (｡•́︿•̀｡) Toca al animal en la foto.');
+
+  status('Recortando con cuidado… ✂️');
+  let sticker = await cutout(segmenter, img, point);
+  while (!sticker) {
+    point = await askTap(img, 'Ups, no he podido recortarlo. Toca al animal otra vez.');
+    sticker = await cutout(segmenter, img, point);
+  }
+  status('');
+  const recut = async () => {
+    const p = await askTap(img, 'Toca al animal para recortarlo otra vez.');
+    status('');
+    return (await cutout(segmenter, img, p)) ?? sticker;
+  };
+  return { sticker, species: hit ? COCO_ES[hit.name] : UNKNOWN, recut };
+}
+
+function failed(e) {
+  console.error(e);
+  status(`Algo ha ido mal (╥﹏╥) ${e.message ?? e}`);
+  $('#card').replaceChildren(button('Volver', () => backToList()));
 }
 
 async function onPhoto(file) {
@@ -311,39 +389,18 @@ async function onPhoto(file) {
   const where = getLocation(); // ask early, it runs while the models work
   const takenAt = Date.now();
   try {
-    status('Despertando al detector de bichitos… (◕‿◕) La primera vez descarga unos 13 MB.');
-    const img = await toCanvas(file);
-    img.className = 'photo';
-    const { detector, segmenter } = await loadModels();
-
-    status('Buscando al bichito… (・・ ) ?');
-    const hit = pickAnimal(detector.detect(img).detections);
-    const species = hit ? COCO_ES[hit.name] : UNKNOWN;
-    let point = hit ? boxCenter(hit.box, img) : await askTap(img, 'No lo encuentro (｡•́︿•̀｡) Toca al animal en la foto.');
-
-    status('Recortando con cuidado… ✂️');
-    let sticker = await cutout(segmenter, img, point);
-    while (!sticker) {
-      point = await askTap(img, 'Ups, no he podido recortarlo. Toca al animal otra vez.');
-      sticker = await cutout(segmenter, img, point);
-    }
-
-    const a = { id: crypto.randomUUID(), name: randomName(), species, sticker, takenAt, place: null, location: await where };
-    status('');
+    const cut = await stickerFrom(file);
+    const a = normalize({ id: crypto.randomUUID(), name: randomName(), species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where });
     const placed = resolvePlace(a);
     const showPreview = () => {
       const f = renderCard(a, [
         button('Descartar', () => backToList()),
         button('Recortar otra vez', async () => {
           $('#card').replaceChildren();
-          const p = await askTap(img, 'Toca al animal para recortarlo otra vez.');
-          a.sticker = (await cutout(segmenter, img, p)) ?? a.sticker;
-          status('');
+          a.sticker = await cut.recut();
           showPreview();
         }),
         button('¡Me lo quedo! ⭐', async () => {
-          a.name = f.name.value.trim() || a.name;
-          a.species = cleanSpecies(f.species.value);
           await put(a); // if the place lookup is still running, renderList retries it
           navigator.storage?.persist?.();
           backToList(a.id);
@@ -352,19 +409,93 @@ async function onPhoto(file) {
       placed.then(ok => { f.where.textContent = ok || !a.location ? fmtWhere(a) : 'Sin conexión: le pondré nombre más tarde 📡'; });
     };
     showPreview();
-  } catch (e) {
-    console.error(e);
-    status(`Algo ha ido mal (╥﹏╥) ${e.message ?? e}`);
-    $('#card').replaceChildren(button('Volver', () => backToList()));
-  }
+  } catch (e) { failed(e); }
 }
 
-$('#file').onchange = e => {
+// New photo for an existing card (e.g. the placeholder of a memory). Keeps everything else.
+async function rePhoto(a, file) {
+  showView('view');
+  try {
+    a.sticker = (await stickerFrom(file)).sticker;
+    await put(a);
+    detailCard(a);
+  } catch (e) { failed(e); }
+}
+
+let rephotoTarget;
+const onFile = fn => e => {
   const file = e.target.files[0];
   e.target.value = ''; // so the same photo can be picked again
-  if (file) onPhoto(file);
+  if (file) fn(file);
 };
+$('#file').onchange = onFile(onPhoto);
+$('#refile').onchange = onFile(file => rePhoto(rephotoTarget, file));
+
+// ---------- backup / restore ----------
+
+const toDataUrl = blob => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
+
+$('#backup').onclick = async () => {
+  const animals = await Promise.all((await getAll()).map(async a => ({ ...a, sticker: await toDataUrl(a.sticker) })));
+  const day = new Date().toISOString().slice(0, 10);
+  const file = new File([JSON.stringify({ app: 'pet-catcher', version: self.VERSION, savedAt: Date.now(), animals, meta: await getAllMeta() })],
+    `pet-catcher-${day}.json`, { type: 'application/json' });
+  // Share sheet first: on phones (iOS standalone above all) a plain download is unreliable.
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'Copia de Pet Catcher' }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: file.name });
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+};
+
+// Merges by id: nothing already on the phone is deleted.
+$('#restore').onchange = async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const data = parseBackup(await file.text());
+    if (!confirm(`¿Recuperar ${data.animals.length} bichitos de la copia? Los que ya tienes se quedan.`)) return;
+    for (const a of data.animals) await put(normalize({ ...a, sticker: await (await fetch(a.sticker)).blob() }));
+    for (const [k, v] of Object.entries(data.meta ?? {})) await setMeta(k, v);
+    await renderList();
+    toast(`¡Listo! ${data.animals.length} bichitos recuperados 🐾`);
+  } catch (err) { toast(err.message); }
+};
+
+// ---------- birthday surprise ----------
+
+function confetti() {
+  const colors = ['#f7d98b', '#ffb27a', '#9fd8b4', '#9cc7f0', '#f5a3b5', '#c9b6f2'];
+  const box = $('#confetti');
+  box.replaceChildren(...Array.from({ length: 90 }, () => {
+    const c = document.createElement('i');
+    c.style.cssText = `--x:${Math.random() * 100}vw;--d:${2.5 + Math.random() * 2.5}s;--delay:${Math.random() * 1.5}s;`
+      + `--r:${Math.random() * 720 - 360}deg;--drift:${Math.random() * 30 - 15}vw;background:${colors[Math.floor(Math.random() * colors.length)]}`;
+    return c;
+  }));
+}
+
+function showBirthday() {
+  $('#bday').hidden = false;
+  confetti();
+}
+$('#bday button').onclick = () => {
+  try { localStorage.setItem('bday-seen', '1'); } catch {}
+  // The tilt of holographic cards needs this on iOS, and it must come from a tap.
+  globalThis.DeviceOrientationEvent?.requestPermission?.().catch(() => {});
+  $('#bday').hidden = true;
+  $('#confetti').replaceChildren();
+};
+$('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title
+
+// ---------- start ----------
 
 $('#version').textContent = `v${self.VERSION}`;
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }); // else GitHub Pages' 10 min HTTP cache delays updates
-renderList();
+let seen = false;
+try { seen = localStorage.getItem('bday-seen') === '1'; } catch {}
+if (!seen || new URLSearchParams(location.search).has('cumple')) showBirthday();
+ensureMemories().catch(console.error).finally(renderList);

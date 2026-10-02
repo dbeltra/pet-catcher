@@ -4,7 +4,8 @@ A PWA (installable web app) for the phone. You take a photo of an animal. The ap
 cuts it out like a sticker, puts it on a card and saves it. You browse your collection, see the
 date, time and place of each catch, and rename the animals (each one gets a random name first).
 
-Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterate on.
+Personal project of David (GitHub `dbeltra`). **It is a birthday gift for his girlfriend Mari, a pet lover.**
+Everything she sees should feel warm and personal; never ship something that can lose her data.
 
 **The UI language is Spanish.** All visible text, species names and random names are Spanish.
 The look is kawaii but **not girly**: soft butter-yellow accent (`--accent: #f7d98b`) with dark-brown text on it,
@@ -52,6 +53,7 @@ title (v0.3) was hard to read.
 | `style.css` | Mobile-first styles, light/dark through `prefers-color-scheme`. The sticker outline is a stack of CSS `drop-shadow`s. |
 | `sw.js` | Service worker: cache-first. Two caches: `shell-<VERSION>` (own files), `cdn-v1` (MediaPipe lib, Leaflet, models, font; hosts in `CDN_HOSTS`). Other origins (Nominatim, map tiles) pass through uncached, so the map has no tiles offline. It is registered with `updateViaCache: 'none'` and installs the shell with `cache: 'reload'`; without both, GitHub Pages' 10 min HTTP cache delays updates or mixes old and new files. |
 | `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png` | PWA install data. The PNGs are rendered from `icon.svg` (see below). |
+| `seed/*.png` | Stickers of her past pets (placeholders until David sends photos). |
 | `e2e/run.sh`, `e2e/harness.html` | End-to-end check in headless Chrome (see Testing). |
 
 ## How the catch flow works (`onPhoto` in `app.js`)
@@ -123,9 +125,28 @@ Rules that keep it working:
 If the Nominatim lookup fails (no signal), the preview says so and every `renderList` retries the
 lookups one at a time for records that have `location` but no `place`.
 
+## Gift features
+
+- **Birthday surprise:** `#bday` overlay ("¡Feliz cumpleaños Mari! Te quiero ❤️", CSS confetti) shows on the
+  first open (`localStorage` key `bday-seen`). Replay: tap the ✿ next to the title, or open with `?cumple`.
+  Its button also asks for `DeviceOrientationEvent.requestPermission()` (iOS needs a tap for the holo tilt).
+- **Recuerdos (her past pets):** `SEEDS` in `lib.mjs` (Kurko 🐶 perro, Kiffy 🐱 gato) with fixed ids
+  `seed-kurko` / `seed-kiffy`. `ensureMemories()` re-adds any that is missing on **every** start, so they can
+  never be lost; the card has no "Liberar" button. They have `memory: true`, `fav: true`, no date or place
+  (the card says "Un recuerdo para siempre"), a golden glowing frame and a "Recuerdo" ribbon, and sort first.
+  Their stickers are `seed/kurko.png` / `seed/kiffy.png`, **placeholder emoji for now**: David will send real
+  photos. Replacing the files only helps phones that have not opened the app yet; on an existing phone use
+  "📷 Cambiar foto" on the card (runs the same detect + cutout pipeline, keeps everything else).
+- **Favourites and notes:** ❤️ button on the card, a note textarea; the "❤️ Favoritos" filter chip (`FAV`).
+- **Backup / restore** (footer): "💾 Guardar copia" writes all animals (stickers as data URLs) plus the `meta`
+  store to `pet-catcher-YYYY-MM-DD.json`, through the share sheet when possible (iOS standalone downloads are
+  unreliable), else a download. "📂 Restaurar" merges by id (never deletes); `parseBackup` validates.
+
 ## Data model
 
-IndexedDB database `pet-catcher`, version 1, object store `animals`, keyPath `id`:
+IndexedDB database `pet-catcher`, **version 2**: object store `animals` (keyPath `id`) and `meta`
+(out-of-line keys, small app state; included in backups). `onupgradeneeded` only creates missing stores.
+Every record goes through `normalize()` on read, which fills fields added later. Record:
 
 ```js
 {
@@ -135,7 +156,10 @@ IndexedDB database `pet-catcher`, version 1, object store `animals`, keyPath `id
   sticker: Blob,            // PNG with transparency, cropped
   takenAt: 1759400000000,   // ms since epoch
   place: 'Sitges, Garraf' | null,   // null while the lookup is pending or with no position
-  location: { lat, lon } | null      // for the map
+  location: { lat, lon } | null,     // for the map
+  fav: false, note: '',
+  memory: false,                     // true for her past pets (SEEDS)
+  traits: [], visits: [],            // reserved for the next versions
 }
 ```
 

@@ -76,7 +76,7 @@ h1 {
 #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; padding-top: 8px; }
 
 .tile {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
   padding: 14px 10px 12px; border: 3px solid #fff; border-radius: 26px;
   background: var(--pastel, #fff0bf); color: #5a4632; font: inherit; box-shadow: var(--shadow);
   transform: rotate(-1.5deg); transition: transform .2s cubic-bezier(.3, 1.6, .5, 1);
@@ -93,6 +93,7 @@ h1 {
 .tile img { display: block; max-width: 100%; max-height: 100%; }
 .tile .name { font-weight: 600; }
 .tile .meta { font-size: .85rem; opacity: .75; }
+.tile .heart { position: absolute; z-index: 3; top: 8px; right: 10px; font-size: 1rem; }
 
 /* White outline around the transparent cutout: the sticker look */
 .tile img, .sticker {
@@ -100,7 +101,37 @@ h1 {
           drop-shadow(0 5px 6px rgba(90, 70, 50, .25));
 }
 
-#version { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 28px; }
+#footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 28px; color: var(--muted); font-size: .85rem; }
+#footer button, #footer .restore {
+  font: inherit; color: var(--text); background: var(--card); border: 2px solid var(--dots);
+  border-radius: 999px; padding: 6px 12px; cursor: pointer;
+}
+#version { width: 100%; text-align: center; }
+
+#toast {
+  position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 900;
+  background: var(--card); color: var(--text); padding: 10px 18px; border-radius: 999px; box-shadow: var(--shadow);
+  max-width: calc(100vw - 32px); text-align: center; animation: vt-pop .4s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+/* ---------- recuerdos: her past pets. Golden frame, soft glow, ribbon; they cannot be released ---------- */
+.ribbon {
+  position: absolute; z-index: 3; top: 10px; left: -6px; padding: 2px 12px 2px 10px;
+  background: linear-gradient(135deg, #f7d98b, #e8b84a); color: #4a3412; font-size: .72rem; font-weight: 600;
+  border-radius: 0 999px 999px 0; box-shadow: 0 2px 4px rgba(90, 70, 50, .25); letter-spacing: .3px;
+}
+.ribbon::before { content: '✨ '; }
+.tile:not(.memory) .ribbon, .card:not(.memory) .ribbon { display: none; }
+.tile.memory, .card.memory {
+  border-color: #f2cf6b;
+  animation: memory-glow 3s ease-in-out infinite;
+}
+.card .ribbon { top: 12px; left: 50%; transform: translateX(-50%); border-radius: 999px; padding: 3px 14px; font-size: .8rem; }
+.card.memory .when::before { content: '💫 '; }
+@keyframes memory-glow {
+  0%, 100% { box-shadow: 0 0 0 2px #fff3c4, 0 0 10px rgba(242, 207, 107, .45), var(--shadow); }
+  50% { box-shadow: 0 0 0 2px #fff3c4, 0 0 22px rgba(242, 207, 107, .9), var(--shadow); }
+}
 
 /* ---------- catch / detail ---------- */
 #status { text-align: center; font-size: 1.05rem; margin: 18px 0; }
@@ -109,7 +140,7 @@ h1 {
 /* Same pastel and white border as its tile, so the tile visibly grows into it. Fixed dark text: pastels are light in both themes. */
 .card {
   --ink: #5a4632;
-  background: var(--pastel, var(--card)); color: var(--ink); border: 3px solid #fff;
+  position: relative; background: var(--pastel, var(--card)); color: var(--ink); border: 3px solid #fff;
   border-radius: 32px; padding: 22px 20px; margin-top: 12px; box-shadow: var(--shadow);
   display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px;
 }
@@ -124,6 +155,21 @@ h1 {
 .card > :nth-child(4) { animation-delay: .22s; }
 .card > :nth-child(5) { animation-delay: .27s; }
 .card > :nth-child(6) { animation-delay: .32s; }
+.card > :nth-child(7) { animation-delay: .37s; }
+.card > :nth-child(8) { animation-delay: .42s; }
+.card > :nth-child(9) { animation-delay: .47s; }
+
+.fav {
+  position: absolute; z-index: 3; top: 14px; right: 14px; width: 44px; height: 44px; border: 0; border-radius: 50%;
+  background: #fff; font-size: 1.4rem; box-shadow: 0 3px 8px rgba(90, 70, 50, .2); cursor: pointer;
+}
+.fav.on { animation: heart-pop .4s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes heart-pop { 40% { transform: scale(1.35); } }
+.card .note {
+  width: 100%; margin-top: 8px; padding: 8px 12px; resize: none; font: inherit; font-size: .95rem; color: var(--ink);
+  background: rgba(255, 255, 255, .55); border: 2px dashed rgba(90, 70, 50, .25); border-radius: 14px; text-align: left;
+}
+.card .note:focus { outline: none; border-color: var(--accent-deep); }
 .card.leaving > :not(.sticker-wrap) { animation: sink .15s ease-in both; }
 .sticker-wrap::before, .sticker-wrap::after { position: absolute; font-size: 1.4rem; animation: twinkle 2.4s ease-in-out infinite; }
 .sticker-wrap::before { content: '✨'; top: 10px; left: 14px; }
@@ -205,6 +251,33 @@ html[data-vt="filter"] #grid, html[data-vt="filter"] #map-wrap { view-transition
 html[data-vt="filter"]::view-transition-old(content) { animation: vt-shrink .2s ease-in both; }
 html[data-vt="filter"]::view-transition-new(content) { animation: vt-pop .45s cubic-bezier(.34, 1.56, .64, 1) .1s both; }
 html[data-vt]::view-transition-group(content) { animation: none; }
+
+/* ---------- birthday surprise ---------- */
+#bday {
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px;
+  background: rgba(255, 250, 234, .82); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+@media (prefers-color-scheme: dark) { #bday { background: rgba(36, 33, 27, .82); } }
+.bday-card {
+  position: relative; z-index: 1; text-align: center; background: #fff; color: #5a4632;
+  border: 4px solid #fff3c4; border-radius: 36px; padding: 28px 26px 24px; max-width: 360px;
+  box-shadow: 0 8px 0 var(--accent-deep), 0 20px 50px rgba(90, 70, 50, .3);
+  animation: vt-pop .7s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.bday-cake { font-size: 4.5rem; margin: 0; animation: bob 2s ease-in-out infinite; }
+.bday-card h2 { font-size: 1.9rem; margin: 6px 0 2px; line-height: 1.15; }
+.bday-love { font-size: 1.4rem; margin: 0 0 20px; }
+.bday-card button {
+  font: inherit; font-weight: 600; font-size: 1.15rem; padding: 12px 26px; border-radius: 999px; border: 3px solid #fff;
+  background: var(--accent); color: var(--on-accent); box-shadow: 0 5px 0 var(--accent-deep); cursor: pointer;
+}
+#confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+#confetti i {
+  position: fixed; top: -20px; left: var(--x); width: 10px; height: 14px; border-radius: 3px;
+  animation: fall var(--d) linear var(--delay) infinite;
+}
+#confetti i:nth-child(3n) { border-radius: 50%; width: 10px; height: 10px; }
+@keyframes fall { to { transform: translate(var(--drift), 110vh) rotate(var(--r)); } }
 
 @keyframes vt-wiggle {
   30% { transform: rotate(-6deg) scale(1.08); }

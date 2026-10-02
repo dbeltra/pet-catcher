@@ -3,16 +3,36 @@
 <script>
 const log = m => fetch('/result?' + encodeURIComponent(m));
 const f = document.getElementById('f');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const wait = (step, fn, ms = 120000) => new Promise((res, rej) => { const t0 = Date.now(); const i = setInterval(() => { const v = fn(); if (v) { clearInterval(i); res(v); } else if (Date.now() - t0 > ms) { clearInterval(i); rej(new Error(`timeout at ${step} after ${(Date.now() - t0) / 1000}s, status: ` + f.contentDocument.querySelector('#status')?.textContent)); } }, 250); });
+const btn = (d, text) => [...d.querySelectorAll('.actions button')].find(b => b.textContent.startsWith(text));
+const names = d => [...d.querySelectorAll('.tile .name')].map(n => n.textContent);
 f.onload = async () => {
+  f.onload = null;
   try {
-    const d = f.contentDocument;
+    const d = f.contentDocument, w = f.contentWindow;
     // Headless Chrome has no position: fake one in Sitges so the real place lookup runs.
-    f.contentWindow.navigator.geolocation.getCurrentPosition = ok => ok({ coords: { latitude: 41.2372, longitude: 1.8059 } });
+    w.navigator.geolocation.getCurrentPosition = ok => ok({ coords: { latitude: 41.2372, longitude: 1.8059 } });
+    w.confirm = () => true;
+
+    // First open: the birthday surprise, then her two memories.
+    await wait('birthday', () => !d.querySelector('#bday').hidden, 10000);
+    const bday = d.querySelector('#bday h2').textContent;
+    d.querySelector('#bday button').click();
+    await wait('memories', () => names(d).includes('Kurko') && names(d).includes('Kiffy'), 10000);
+
+    // A memory cannot be released.
+    d.querySelector('.tile.memory').click();
+    await wait('memory card', () => btn(d, 'Volver'));
+    const memoryRelease = !!btn(d, 'Liberar');
+    btn(d, 'Volver').click();
+    await wait('back', () => !d.querySelector('#list').hidden && d.querySelectorAll('.tile').length === 2);
+
+    // Catch a cat.
     const blob = await (await fetch('cat.jpg')).blob();
     const dt = new DataTransfer(); dt.items.add(new File([blob], 'cat.jpg', { type: 'image/jpeg' }));
     const input = d.querySelector('#file'); input.files = dt.files; input.dispatchEvent(new Event('change'));
-    const keep = await wait('preview', () => [...d.querySelectorAll('.actions button')].find(b => b.textContent.startsWith('¡Me lo quedo!')) || (d.querySelector('#status').textContent.startsWith('Algo') && d.querySelector('#status')));
+    const keep = await wait('preview', () => btn(d, '¡Me lo quedo!') || (d.querySelector('#status').textContent.startsWith('Algo') && d.querySelector('#status')));
     if (!keep.onclick) throw new Error(keep.textContent);
     const where = d.querySelector('.where');
     await wait('place', () => !where.textContent.startsWith('Buscando'), 30000);
@@ -20,13 +40,29 @@ f.onload = async () => {
     const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
     const x = c.getContext('2d'); x.drawImage(img, 0, 0); const px = x.getImageData(0, 0, c.width, c.height).data;
     let clear = 0; for (let i = 3; i < px.length; i += 4) if (px[i] === 0) clear++;
-    const info = `species=${d.querySelector('.species').value} name=${d.querySelector('.name').value} sticker=${c.width}x${c.height} transparent=${(clear / (px.length / 4) * 100).toFixed(0)}% place=${where.textContent} status=${d.querySelector('#status').textContent}`;
+    d.querySelector('.fav').click(); // favourite it
+    const info = `species=${d.querySelector('.species').value} sticker=${c.width}x${c.height} transparent=${(clear / (px.length / 4) * 100).toFixed(0)}% place=${where.textContent}`;
     keep.click();
-    await wait('gallery', () => d.querySelectorAll('.tile').length, 10000);
-    const tiles = d.querySelectorAll('.tile').length;
+    await wait('gallery', () => d.querySelectorAll('.tile').length === 3, 10000);
+    const hearts = [...d.querySelectorAll('.tile .heart')].filter(h => !h.hidden).length;
     d.querySelector('#tabs [data-tab=map]').click();
     await wait('map', () => d.querySelectorAll('.pin').length, 20000);
-    log('OK ' + info + ' tiles=' + tiles + ' pins=' + d.querySelectorAll('.pin').length + ' count=' + d.querySelector('#count').textContent);
+    const pins = d.querySelectorAll('.pin').length;
+
+    // Backup → restore round trip (the share sheet is replaced by a capture).
+    let saved;
+    w.navigator.canShare = () => true;
+    w.navigator.share = async ({ files }) => { saved = await files[0].text(); };
+    d.querySelector('#backup').click();
+    await wait('backup', () => saved, 10000);
+    const backup = JSON.parse(saved);
+    backup.animals = backup.animals.filter(a => !a.memory).map(a => ({ ...a, id: 'restored', name: 'Restaurado' }));
+    const rt = new DataTransfer(); rt.items.add(new File([JSON.stringify(backup)], 'copia.json', { type: 'application/json' }));
+    const restore = d.querySelector('#restore'); restore.files = rt.files; restore.dispatchEvent(new Event('change'));
+    d.querySelector('#tabs [data-tab=grid]').click();
+    await wait('restore', () => names(d).includes('Restaurado'), 10000);
+
+    log(`OK bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };
