@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffd6e3">
+  <meta name="theme-color" content="#ffd34d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Pet Catcher">
   <title>Pet Catcher</title>
@@ -13,14 +13,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
   <script src="version.js"></script>
   <script type="module" src="app.js"></script>
 </head>
 <body>
   <header>
-    <h1>Pet Catcher <span class="sparkle">✿</span></h1>
+    <h1>Pet Catcher <span class="sparkle">★</span></h1>
     <p class="tagline">¡atrápalos a todos! <span id="count"></span></p>
+    <nav id="tabs">
+      <button data-tab="grid">🗂️ Colección</button>
+      <button data-tab="map">🗺️ Mapa</button>
+    </nav>
   </header>
 
   <main>
@@ -31,6 +36,10 @@
         <p>Todavía no has atrapado ningún bichito.<br>¡Sal a buscar uno!</p>
       </div>
       <div id="grid"></div>
+      <div id="map-wrap" hidden>
+        <div id="map"></div>
+        <p id="map-empty" hidden>Aún no hay capturas con ubicación (・_・;)</p>
+      </div>
     </section>
 
     <section id="view" hidden>

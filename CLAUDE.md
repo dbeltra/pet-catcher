@@ -7,7 +7,9 @@ date, time and place of each catch, and rename the animals (each one gets a rand
 Personal project of David (GitHub `dbeltra`). It is a prototype, built to iterate on.
 
 **The UI language is Spanish.** All visible text, species names and random names are Spanish.
-The look is kawaii: pastel colours, the rounded font Fredoka, kaomoji, gentle animations.
+The look is kawaii but **not girly**: sunny yellow accent (`--accent`) with dark-brown text on it,
+butter/mint/sky/peach/pistachio pastels, the rounded font Fredoka, kaomoji, ⭐ not hearts, gentle animations.
+David rejected the earlier pink version (v0.2) as too girly.
 
 ## Rules for this repo
 
@@ -30,7 +32,8 @@ The look is kawaii: pastel colours, the rounded font Fredoka, kaomoji, gentle an
 | Detection | MediaPipe ObjectDetector, EfficientDet-Lite0 (COCO) | On-device, free, private, offline after the first load. Knows only 10 animals: bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe. |
 | Cutout | MediaPipe InteractiveSegmenter, `magic_touch` model | Class-agnostic: it cuts out whatever object sits under one point, so it works for any animal, including ones the detector does not know. |
 | Species names | COCO label mapped to Spanish (`COCO_ES`), or `bichito misterioso`. The user can type any species (e.g. `ciervo`) with suggestions from a `<datalist>` | For real species detection (e.g. "petirrojo") add a vision API (Claude) later. It needs a small server to hide the API key, so it does not fit GitHub Pages alone. |
-| Place | Reverse geocoding with Nominatim (OpenStreetMap), free, no key, max 1 request/s | Only the place name is stored, not the coordinates (David's choice). |
+| Place | Reverse geocoding with Nominatim (OpenStreetMap), free, no key, max 1 request/s | The card shows only the place name. Coordinates are stored too, for the map (since v0.3). |
+| Map | Leaflet 1.9.4 (ES module from jsdelivr) + OpenStreetMap tiles | Free, no key. Each catch is a mini sticker pin; tap → detail. The species filter applies to the map too. |
 | Camera | `<input type="file" accept="image/*" capture="environment">` | Opens the native camera app. No getUserMedia viewfinder code. |
 | Hosting | GitHub Pages | Free, HTTPS (the camera and service worker need it). Static only. |
 
@@ -44,7 +47,7 @@ The look is kawaii: pastel colours, the rounded font Fredoka, kaomoji, gentle an
 | `lib.mjs` | Pure helpers, no DOM: Spanish species map `COCO_ES`, `EMOJI` per species, `cleanSpecies`, `randomName`, `pickAnimal`, `placeName`, `speciesCounts`, mask helpers. |
 | `test.mjs` | Unit check for `lib.mjs`. Run `node test.mjs` → prints `ok`. |
 | `style.css` | Mobile-first styles, light/dark through `prefers-color-scheme`. The sticker outline is a stack of CSS `drop-shadow`s. |
-| `sw.js` | Service worker: cache-first. Two caches: `shell-<VERSION>` (own files), `cdn-v1` (MediaPipe lib, models, font; hosts in `CDN_HOSTS`). Other origins (Nominatim) pass through uncached. It is registered with `updateViaCache: 'none'`, else GitHub Pages' 10 min HTTP cache delays updates. |
+| `sw.js` | Service worker: cache-first. Two caches: `shell-<VERSION>` (own files), `cdn-v1` (MediaPipe lib, Leaflet, models, font; hosts in `CDN_HOSTS`). Other origins (Nominatim, map tiles) pass through uncached, so the map has no tiles offline. It is registered with `updateViaCache: 'none'`, else GitHub Pages' 10 min HTTP cache delays updates. |
 | `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png` | PWA install data. The PNGs are rendered from `icon.svg` (see below). |
 | `e2e/run.sh`, `e2e/harness.html` | End-to-end check in headless Chrome (see Testing). |
 
@@ -69,14 +72,14 @@ The look is kawaii: pastel colours, the rounded font Fredoka, kaomoji, gentle an
    Buttons: Descartar, Recortar otra vez (tap again to choose another point), ¡Me lo quedo!
 7. "¡Me lo quedo!" saves the record to IndexedDB and asks for persistent storage (`navigator.storage.persist`).
 
-List: the species filter chips (`#filters`) show when there are 2+ species. Detail view: tap a tile.
+List: two tabs, `🗂️ Colección` (grid) and `🗺️ Mapa` (`renderMap`, Leaflet is imported the first time
+the tab opens). The species filter chips (`#filters`) show when there are 2+ species and apply to both. Detail view: tap a tile.
 You can change the name or species (each saves on change) or "Liberar" (delete).
 
 ### Place names without signal
 
-The record keeps `location: {lat, lon}` only until the Nominatim lookup works. If there is no signal,
-the preview says so, and every `renderList` retries the lookups one at a time. On success it sets
-`place` and deletes `location`. So a stored record normally has `place` and no coordinates.
+If the Nominatim lookup fails (no signal), the preview says so and every `renderList` retries the
+lookups one at a time for records that have `location` but no `place`.
 
 ## Data model
 
@@ -89,13 +92,14 @@ IndexedDB database `pet-catcher`, version 1, object store `animals`, keyPath `id
   species: 'gato' | 'ciervo' | 'bichito misterioso' | ...,   // lowercase Spanish, free text
   sticker: Blob,            // PNG with transparency, cropped
   takenAt: 1759400000000,   // ms since epoch
-  place: 'Sitges, Garraf' | null,
-  location: { lat, lon }    // only while the place name is still pending
+  place: 'Sitges, Garraf' | null,   // null while the lookup is pending or with no position
+  location: { lat, lon } | null      // for the map
 }
 ```
 
 Records from v0.1 have English species (`cat`) and `location` with `accuracy`; their place gets
-resolved by the retry. Their species stays English unless edited (no migration, there were only test catches).
+resolved by the retry. Records from v0.2 whose place resolved lost their coordinates (v0.2 deleted them),
+so they do not show on the map. Their species stays English unless edited (no migration, there were only test catches).
 
 The original photo is **not** stored (it saves space). This is why Re-cut works only in the preview.
 If you change the shape, bump the DB version and migrate in `onupgradeneeded`.
@@ -109,6 +113,7 @@ If you change the shape, bump the DB version and migrate in `onupgradeneeded`.
   `object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite` (7 MB) and
   `interactive_segmenter/magic_touch/float32/1/magic_touch.tflite` (6 MB). Both send CORS headers.
 - Google Fonts: Fredoka (400, 500, 600).
+- `leaflet@1.9.4` from jsdelivr: `dist/leaflet-src.esm.js` (dynamic import) and `dist/leaflet.css` (in `<head>`).
 - Nominatim `reverse?format=jsonv2&zoom=14&accept-language=es`. `placeName` builds "most specific, town or county".
 
 ## Run locally
@@ -125,8 +130,9 @@ a file picker, not the camera. To test on the phone, use the GitHub Pages URL (t
 - `node test.mjs`: pure logic. Fast. Run it after any change to `lib.mjs`.
 - `./e2e/run.sh`: the real app in headless Chrome. It downloads a cat photo once (to `e2e/cat.jpg`,
   gitignored), fakes a position in Sitges, puts the photo into the file input, waits for the preview
-  and the real place lookup, clicks "¡Me lo quedo!" and checks that the gallery has one tile.
-  It prints `OK species=gato ... place=Sitges, Garraf ... tiles=1` and exits 0, or `FAIL ...`.
+  and the real place lookup, clicks "¡Me lo quedo!", checks that the gallery has one tile, opens the map
+  tab and checks for one pin. It prints `OK species=gato ... place=Sitges, Garraf ... tiles=1 pins=1` and
+  exits 0, or `FAIL ... timeout at <step>`. `harness.html` needs its `<meta charset>`: without it "¡" breaks the button lookup.
   It needs network (the first run downloads the models) and Google Chrome in `/Applications`.
   The harness reports back by requesting `/result?<message>`, which shows up in the server log.
 - Screenshot of the running app: start Chrome with `--remote-debugging-port` and call
@@ -140,6 +146,8 @@ a file picker, not the camera. To test on the phone, use the GitHub Pages URL (t
 
 To check the phone has the new version: close and reopen the app, and look at the version at the
 bottom of the list. A deploy can need two reopens (the first one installs the new service worker).
+
+The home-screen icon is copied at install time. After an icon change, remove the app and install it again.
 
 Install on the phone: Android Chrome → menu → "Install app". iPhone Safari → Share → "Add to Home Screen".
 
@@ -166,4 +174,5 @@ done
   strip GPS anyway).
 - No export/backup. Data lives in one browser on one phone.
 - The detector's species list is fixed; custom species are free text, so typos make separate filter chips.
+- Map pins at the same spot overlap (no clustering).
 - Ideas: species via Claude vision, Supabase sync, a map of catches, rarity/stats, sharing a card as an image.

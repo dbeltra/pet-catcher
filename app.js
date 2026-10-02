@@ -111,8 +111,8 @@ const getLocation = () => new Promise(res => {
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
 });
 
-// Only the place name is kept. Coordinates stay on the record just until a lookup succeeds
-// (no signal at catch time): renderList retries, then drops them.
+// The card shows only the place name; the coordinates are kept for the map.
+// No signal at catch time: renderList retries the lookup.
 async function resolvePlace(a) {
   if (a.place || !a.location || !navigator.onLine) return false;
   try {
@@ -120,7 +120,6 @@ async function resolvePlace(a) {
     const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=es&lat=${lat}&lon=${lon}`,
       { signal: AbortSignal.timeout(8000) });
     a.place = placeName(await r.json()) ?? 'Un lugar sin nombre';
-    delete a.location;
     return true;
   } catch { return false; }
 }
@@ -136,6 +135,7 @@ const fmtWhen = t => new Date(t).toLocaleString('es-ES', { dateStyle: 'long', ti
 const fmtWhere = a => a.place ?? (a.location ? 'Buscando el nombre del lugar…' : 'Lugar desconocido');
 
 function showView(name) {
+  $('#tabs').hidden = name !== 'list';
   $('#list').hidden = name !== 'list';
   $('#view').hidden = name !== 'view';
   $('#shoot').hidden = name !== 'list';
@@ -173,7 +173,32 @@ function renderCard(a, actions) {
   return { name: q('.name'), species: q('.species'), where: q('.where') };
 }
 
-let filter = null; // species shown in the list, null = all
+let filter = null; // species shown in the list and the map, null = all
+let tab = 'grid'; // 'grid' | 'map'
+
+for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => { tab = b.dataset.tab; renderList(); };
+
+let map, pins;
+async function renderMap(animals) {
+  const L = await import('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet-src.esm.js');
+  if (!map) {
+    map = L.map('map', { zoomControl: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+    pins = L.layerGroup().addTo(map);
+  }
+  map.invalidateSize(); // the map was hidden, Leaflet must measure it again
+  pins.clearLayers();
+  // ponytail: catches at the same spot stack on top of each other; add marker clustering if that gets crowded
+  const placed = animals.filter(a => a.location);
+  for (const a of placed) {
+    const icon = L.divIcon({ className: 'pin', html: `<img src="${blobUrl(a.sticker)}" alt="">`, iconSize: [56, 56], iconAnchor: [28, 52] });
+    L.marker([a.location.lat, a.location.lon], { icon, title: a.name }).on('click', () => openDetail(a)).addTo(pins);
+  }
+  $('#map-empty').hidden = placed.length > 0;
+  if (placed.length) map.fitBounds(placed.map(a => [a.location.lat, a.location.lon]), { padding: [48, 48], maxZoom: 16 });
+  else map.setView([40.4, -3.7], 5);
+}
 
 async function renderList() {
   freeUrls();
@@ -188,7 +213,13 @@ async function renderList() {
   $('#filters').replaceChildren(chip(`✨ Todos ${all.length}`, null),
     ...counts.map(([s, n]) => chip(`${emojiFor(s)} ${s} ${n}`, s)));
 
-  $('#grid').replaceChildren(...all.filter(a => !filter || a.species === filter).map(a => {
+  for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === tab);
+  $('#grid').hidden = tab !== 'grid';
+  $('#map-wrap').hidden = tab !== 'map';
+  const shown = all.filter(a => !filter || a.species === filter);
+  if (tab === 'map') renderMap(shown);
+
+  $('#grid').replaceChildren(...shown.map(a => {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
     el.querySelector('img').src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
@@ -252,7 +283,7 @@ async function onPhoto(file) {
           status('');
           showPreview();
         }),
-        button('¡Me lo quedo! 💖', async () => {
+        button('¡Me lo quedo! ⭐', async () => {
           a.name = f.name.value.trim() || a.name;
           a.species = cleanSpecies(f.species.value);
           await put(a); // if the place lookup is still running, renderList retries it

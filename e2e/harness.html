@@ -23,7 +23,10 @@ f.onload = async () => {
     const info = `species=${d.querySelector('.species').value} name=${d.querySelector('.name').value} sticker=${c.width}x${c.height} transparent=${(clear / (px.length / 4) * 100).toFixed(0)}% place=${where.textContent} status=${d.querySelector('#status').textContent}`;
     keep.click();
     await wait('gallery', () => d.querySelectorAll('.tile').length, 10000);
-    log('OK ' + info + ' tiles=' + d.querySelectorAll('.tile').length + ' count=' + d.querySelector('#count').textContent);
+    const tiles = d.querySelectorAll('.tile').length;
+    d.querySelector('#tabs [data-tab=map]').click();
+    await wait('map', () => d.querySelectorAll('.pin').length, 20000);
+    log('OK ' + info + ' tiles=' + tiles + ' pins=' + d.querySelectorAll('.pin').length + ' count=' + d.querySelector('#count').textContent);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };
