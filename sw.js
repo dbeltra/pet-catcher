@@ -4,7 +4,7 @@ const SHELL_CACHE = `shell-${self.VERSION}`;
 // Other origins (the Nominatim place lookup) are never cached.
 const CDN_CACHE = 'cdn-v1';
 const CDN_HOSTS = ['cdn.jsdelivr.net', 'storage.googleapis.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
-const SHELL = ['./', 'index.html', 'version.js', 'style.css', 'app.js', 'lib.mjs', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'seed/kurko.png', 'seed/kiffy.png'];
+const SHELL = ['./', 'index.html', 'version.js', 'style.css', 'app.js', 'lib.mjs', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'seed/kurko.png', 'seed/kiffy.png'];
 
 self.addEventListener('install', e => e.waitUntil(
   // cache: 'reload' skips the HTTP cache: GitHub Pages sends max-age=600, so a plain addAll right after a

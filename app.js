@@ -706,10 +706,10 @@ $('#backup').onclick = async () => {
   const animals = await Promise.all((await getAll()).map(async a => ({ ...a, sticker: await toDataUrl(a.sticker) })));
   const day = new Date().toISOString().slice(0, 10);
   const file = new File([JSON.stringify({ app: 'pet-catcher', version: self.VERSION, savedAt: Date.now(), animals, meta: await getAllMeta() })],
-    `pet-catcher-${day}.json`, { type: 'application/json' });
+    `bichidex-${day}.json`, { type: 'application/json' });
   // Share sheet first: on phones (iOS standalone above all) a plain download is unreliable.
   if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'Copia de Pet Catcher' }); return; }
+    try { await navigator.share({ files: [file], title: 'Copia de Bichidex' }); return; }
     catch (e) { if (e.name === 'AbortError') return; }
   }
   const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: file.name });
@@ -760,7 +760,7 @@ $('#bday button').onclick = () => {
 $('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title, or "Ver la felicitación" in settings
 
 // ---------- settings ----------
-$('#open-settings').onclick = () => { $('#settings-version').textContent = `Pet Catcher v${self.VERSION}`; $('#settings').showModal(); };
+$('#open-settings').onclick = () => { $('#settings-version').textContent = `Bichidex v${self.VERSION}`; $('#settings').showModal(); };
 $('#replay-bday').onclick = () => { $('#settings').close(); showBirthday(); };
 
 // ---------- achievements ----------

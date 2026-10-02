@@ -42,10 +42,10 @@ export const byNewest = (a, b) => (b.memory - a.memory) || ((b.takenAt ?? 0) - (
 // Validates a backup file's text. Throws a message meant for the user.
 export function parseBackup(text) {
   let d;
-  try { d = JSON.parse(text); } catch { throw new Error('El archivo no es una copia de Pet Catcher.'); }
+  try { d = JSON.parse(text); } catch { throw new Error('El archivo no es una copia de Bichidex.'); }
   if (d?.app !== 'pet-catcher' || !Array.isArray(d.animals)
     || !d.animals.every(a => typeof a.id === 'string' && /^data:image\//.test(a.sticker))) {
-    throw new Error('El archivo no es una copia de Pet Catcher.');
+    throw new Error('El archivo no es una copia de Bichidex.');
   }
   return d;
 }

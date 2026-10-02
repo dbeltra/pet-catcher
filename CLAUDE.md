@@ -1,4 +1,8 @@
-# Pet Catcher
+# Bichidex
+
+(The app was called "Pet Catcher" until v0.11; the repo, the URL and some internal ids still use `pet-catcher`.
+**Never rename these:** the IndexedDB name `pet-catcher` (her data lives there), the manifest `id`
+(Chrome would see a second app), and `app: 'pet-catcher'` in backups (`parseBackup` checks it).)
 
 A PWA (installable web app) for the phone. You take a photo of an animal. The app finds the animal,
 cuts it out like a sticker, puts it on a card and saves it. You browse your collection, see the
@@ -52,7 +56,7 @@ title (v0.3) was hard to read.
 | `test.mjs` | Unit check for `lib.mjs`. Run `node test.mjs` → prints `ok`. |
 | `style.css` | Mobile-first styles, light/dark through `prefers-color-scheme`. The sticker outline is a stack of CSS `drop-shadow`s. |
 | `sw.js` | Service worker: cache-first. Two caches: `shell-<VERSION>` (own files), `cdn-v1` (MediaPipe lib, Leaflet, models, font; hosts in `CDN_HOSTS`). Other origins (Nominatim, map tiles) pass through uncached, so the map has no tiles offline. It is registered with `updateViaCache: 'none'` and installs the shell with `cache: 'reload'`; without both, GitHub Pages' 10 min HTTP cache delays updates or mixes old and new files. |
-| `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png` | PWA install data. The PNGs are rendered from `icon.svg` (see below). |
+| `manifest.webmanifest`, `icon-192.png`, `icon-512.png` | PWA install data. The icon is the 🐱 emoji as a sticker on the butter-yellow dots, rendered from `icon-source.html` (see below). |
 | `seed/*.png` | Stickers of her past pets (placeholders until David sends photos). |
 | `e2e/run.sh`, `e2e/harness.html` | End-to-end check in headless Chrome (see Testing). |
 
@@ -278,12 +282,13 @@ Install on the phone: Android Chrome → menu → "Install app". iPhone Safari �
 
 ## Regenerate the PNG icons
 
+The icon is the 🐱 emoji itself (David wants it to stay the emoji, also after Kiffy's real photo arrives).
+Render 512 px and scale down: headless Chrome has a minimum window width, so a 192 px screenshot is cropped.
+
 ```sh
 C="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-for s in 192 512; do
-  printf '<body style="margin:0"><img src="file://%s/icon.svg" width=%s height=%s style="display:block">' "$PWD" $s $s > /tmp/icon.html
-  "$C" --headless --hide-scrollbars --allow-file-access-from-files --window-size=$s,$s --screenshot="$PWD/icon-$s.png" file:///tmp/icon.html
-done
+"$C" --headless --hide-scrollbars --window-size=512,512 --screenshot="$PWD/icon-512.png" "file://$PWD/icon-source.html"
+sips -Z 192 icon-512.png --out icon-192.png
 ```
 
 ## Known limits and ideas for next iterations

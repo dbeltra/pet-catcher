@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- Source of icon-512.png (icon-192.png is scaled from it; see CLAUDE.md "Regenerate the PNG icons").
+     The 🐱 emoji itself, not seed/kiffy.png: that file becomes Kiffy's real photo, the icon stays the emoji.
+     The cat stays inside the middle 80%, the safe zone of a maskable icon. -->
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; }
+  body {
+    display: grid; place-items: center;
+    background: #f7d98b radial-gradient(#fbe6ad 1.2vw, transparent 1.4vw) 0 0 / 11vw 11vw;
+  }
+  .cat {
+    font-size: 62vw; line-height: 1;
+    filter: drop-shadow(1.6vw 0 0 #fff) drop-shadow(-1.6vw 0 0 #fff) drop-shadow(0 1.6vw 0 #fff) drop-shadow(0 -1.6vw 0 #fff)
+            drop-shadow(0 2.4vw 2.4vw rgba(90, 70, 50, .3));
+  }
+</style>
+<div class="cat">🐱</div>

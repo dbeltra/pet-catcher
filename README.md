@@ -1,4 +1,4 @@
-# Pet Catcher
+# Bichidex
 
 Snap an animal with your phone. The app finds it, cuts it out as a sticker, and adds it to your collection
 with the date, time and place. Everything runs and stays on your phone.
