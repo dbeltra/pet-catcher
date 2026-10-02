@@ -1,8 +1,8 @@
 # Bichidex
 
 (The app was called "Pet Catcher" until v0.11; the repo, the URL and some internal ids still use `pet-catcher`.
-**Never rename these:** the IndexedDB name `pet-catcher` (her data lives there), the manifest `id`
-(Chrome would see a second app), and `app: 'pet-catcher'` in backups (`parseBackup` checks it).)
+**Never rename these:** the IndexedDB name `pet-catcher` (her data lives there) and `app: 'pet-catcher'` in
+backups (`parseBackup` checks it). The manifest `id` is `bichidex` since v0.11.1, see Deploy.)
 
 A PWA (installable web app) for the phone. You take a photo of an animal. The app finds the animal,
 cuts it out like a sticker, puts it on a card and saves it. You browse your collection, see the
@@ -273,10 +273,12 @@ bottom of the list. A deploy can need two reopens (the first one installs the ne
 
 The home-screen icon is copied at install time. After an icon change, remove the app and install it again.
 
-**Never change `id` in `manifest.webmanifest`** (`pet-catcher`, set in v0.5.1). Chrome identifies an installed
-app by it. v0.5.1 added it because, after an uninstall, Chrome on Android kept a stale "already installed"
-record for the old implicit id (the start URL) and only offered a shortcut. Changing it again would make
-Chrome see a second, separate app. Data is not affected: IndexedDB belongs to the origin, not the id.
+**Do not change `id` in `manifest.webmanifest`** (`bichidex` since v0.11.1) unless an install is stuck.
+Chrome identifies an installed app by it. Twice on David's phone, after an uninstall, Chrome on Android kept a
+stale "already installed" record and only offered a shortcut (v0.5.1: implicit id → `pet-catcher`; v0.11.1:
+`pet-catcher` → `bichidex`). A new id is the only fix that keeps the data: IndexedDB belongs to the origin.
+**To get a new name or icon, do not reinstall:** Chrome on Android updates an installed app's name and icon
+from the manifest by itself (it can take up to a day and may ask to confirm).
 
 Install on the phone: Android Chrome → menu → "Install app". iPhone Safari → Share → "Add to Home Screen".
 
