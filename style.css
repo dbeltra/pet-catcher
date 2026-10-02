@@ -61,8 +61,9 @@ h1 {
   background: var(--card); padding: 10px 16px; border-radius: 999px; box-shadow: var(--shadow);
 }
 .pin { display: flex; align-items: flex-end; justify-content: center; }
-.pin img {
-  max-width: 100%; max-height: 100%;
+/* !important + extra specificity: leaflet.css forces max-width/max-height: none !important on marker images */
+.leaflet-container .leaflet-marker-pane .pin img {
+  max-width: 100% !important; max-height: 100% !important;
   filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
           drop-shadow(0 3px 3px rgba(0, 0, 0, .35));
 }
@@ -172,7 +173,9 @@ h1 {
 ::view-transition-new(sticker) { animation: none; }
 /* The big card stays solid the whole time (no see-through frames); only the small tile fades on top of it.
    Both snapshots fill the morphing box, cropped from the top, so text never stretches. */
-::view-transition-old(card), ::view-transition-new(card) { height: 100%; object-fit: cover; object-position: top; border-radius: 26px; }
+::view-transition-old(card), ::view-transition-new(card) { height: 100%; object-fit: cover; object-position: top; }
+/* Clip to the morphing box: Chrome still paints the tall card snapshot below it, which then vanished at the end (flicker) */
+::view-transition-group(card) { overflow: clip; border-radius: 26px; }
 html[data-vt="open"]::view-transition-old(card) { z-index: 1; animation: vt-fade-out .15s ease-out both; }
 html[data-vt="open"]::view-transition-new(card) { animation: none; }
 html[data-vt="close"]::view-transition-old(card) { animation: none; }

@@ -109,6 +109,10 @@ Rules that keep it working:
     so no `aspect-ratio` + `object-fit: contain` letterboxing (`.tile .pic` wraps it). Otherwise two cats of
     different sizes overlap.
   - The card snapshots use `object-fit: cover; object-position: top`, so text is cropped, never stretched.
+  - `::view-transition-group(card)` has `overflow: clip`: Chrome still paints the tall card snapshot below the
+    box, and that strip vanished at the very end of closing (v0.5.2 flicker, fixed in v0.5.3).
+  - leaflet.css forces `max-width/max-height: none !important` on marker images; the `.pin img` limits need
+    `!important` and the `.leaflet-container .leaflet-marker-pane` prefix, or map stickers render giant.
 - To judge an animation, record it frame by frame: CDP `Page.startScreencast` while you trigger it, save the
   frames, then `ffmpeg -pattern_type glob -i 'f-*.png' -vf "scale=210:-1,tile=6x3" sheet.png` and look at the sheet.
   Single screenshots do not show flicker.
