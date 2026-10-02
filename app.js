@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { COCO_ES, EMOJI, UNKNOWN, SEEDS, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { COCO_ES, EMOJI, UNKNOWN, SEEDS, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -190,8 +190,12 @@ function renderCard(a, actions, save = () => {}, close = null) {
   const q = s => card.querySelector(s);
   card.style.setProperty('--pastel', pastelFor(a.id)); // same colour as its tile
   card.classList.toggle('memory', a.memory);
-  card.dataset.rarity = rarityFor(a);
-  q('.rarity').textContent = RARITY_LABEL[rarityFor(a)];
+  const paintRarity = () => {
+    card.dataset.rarity = rarityFor(a);
+    q('.rarity').textContent = RARITY_LABEL[rarityFor(a)] + (a.shiny ? ' · ✨ Shiny' : '');
+  };
+  card.classList.toggle('shiny', a.shiny);
+  paintRarity();
   q('.sticker').src = blobUrl(a.sticker);
   tag(card, true);
   q('.name').value = a.name;
@@ -224,8 +228,7 @@ function renderCard(a, actions, save = () => {}, close = null) {
   q('.name').onchange = () => { a.name = q('.name').value.trim() || a.name; q('.name').value = a.name; save(); };
   q('.species').onchange = () => {
     a.species = cleanSpecies(q('.species').value);
-    card.dataset.rarity = rarityFor(a);
-    q('.rarity').textContent = RARITY_LABEL[rarityFor(a)];
+    paintRarity();
     save();
   };
   q('.note').onchange = () => { a.note = q('.note').value.trim(); save(); };
@@ -295,16 +298,24 @@ function evenFaces(card) {
 // Card flip: turn to 90°, swap faces, turn back from -90°. The back has the traits and the note, all editable.
 // dir: 1 or -1, the way the finger swiped. A swipe hands over the angle it already reached (--turn).
 async function flip(card, a, save, dir = 1) {
-  const turn = (from, to) => card.animate([{ transform: `perspective(900px) rotateY(${from}deg)` }, { transform: `perspective(900px) rotateY(${to}deg)` }],
-    { duration: 170, easing: to !== 0 ? 'ease-in' : 'cubic-bezier(.34, 1.56, .64, 1)' }).finished;
   const back = !card.classList.contains('show-back');
   const start = parseFloat(card.style.getPropertyValue('--turn')) || 0;
   card.style.transform = '';
   card.style.removeProperty('--turn');
-  await turn(start, 90 * dir);
-  card.classList.toggle('show-back', back);
-  if (back) card.querySelector('.back h3').textContent = `Así es ${a.name}`; // the name may have been edited
-  await turn(-90 * dir, 0);
+  await turnCard(card, dir, start, () => {
+    card.classList.toggle('show-back', back);
+    if (back) card.querySelector('.back h3').textContent = `Así es ${a.name}`; // the name may have been edited
+  });
+}
+
+// The two halves of a turn, swapping faces when the card is edge-on. `base`: a transform to keep
+// (where a swipe down left the card), so closing from the back turns in place instead of jumping.
+async function turnCard(card, dir, start, swap, { base = '', ms = 170 } = {}) {
+  const turn = (from, to, easing) => card.animate([{ transform: `${base} perspective(900px) rotateY(${from}deg)` },
+    { transform: `${base} perspective(900px) rotateY(${to}deg)` }], { duration: ms, easing }).finished;
+  await turn(start, 90 * dir, 'ease-in');
+  swap();
+  await turn(-90 * dir, 0, base ? 'ease-out' : 'cubic-bezier(.34, 1.56, .64, 1)');
 }
 
 // Edits change rows in place: rebuilding the list replayed the pop-in and looked like flicker.
@@ -412,8 +423,9 @@ async function renderList() {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
     el.querySelector('img').src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
-    el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
+    el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.shiny ? ' ✨' : '') + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
     el.dataset.rarity = rarityFor(a);
+    el.classList.toggle('shiny', a.shiny);
     el.querySelector('.heart').hidden = !a.fav;
     el.classList.toggle('memory', a.memory);
     el.dataset.id = a.id;
@@ -498,11 +510,16 @@ async function backToList(id) {
   // The browser freezes the old screen until the update below is done, which looked like a stop before the
   // shrink. So the list is rebuilt and the target decoded first, while still hidden. (The map needs to be
   // visible to lay out, so on that tab it still renders inside the update.)
+  // Closing from the back: turn to the front first (while the list renders), then shrink.
+  const open = $('#view:not([hidden]) .card');
+  const front = open?.classList.contains('show-back')
+    ? turnCard(open, 1, 0, () => open.classList.remove('show-back'), { base: open.style.transform, ms: 130 }) : null;
   if (tab !== 'map') {
     await renderList();
     // every tile image, not just the target: undecoded images made the first paint of the list slow
     await Promise.all([...$('#grid').querySelectorAll('img')].map(i => i.decode().catch(() => {})));
   }
+  await front;
   // The card's text and buttons go at once, so the shrinking card is just its colour, sticker and foil
   // (a scaled-down snapshot of the text looked messy; a 150 ms fade first also felt like a stop).
   $('#view:not([hidden]) .card')?.classList.add('leaving');
@@ -565,6 +582,7 @@ async function pickExisting(caught, placed, back) {
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
     el.querySelector('.heart').hidden = !a.fav;
     el.dataset.rarity = rarityFor(a);
+    el.classList.toggle('shiny', a.shiny);
     el.style.setProperty('--pastel', pastelFor(a.id));
     el.onclick = async () => {
       await placed;
@@ -632,7 +650,7 @@ async function onPhoto(file) {
   const takenAt = Date.now();
   try {
     const cut = await stickerFrom(file);
-    const a = normalize({ id: crypto.randomUUID(), name: randomName(), species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits() });
+    const a = normalize({ id: crypto.randomUUID(), name: randomName(), species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits(), shiny: rollShiny() });
     const placed = resolvePlace(a);
     const showPreview = () => {
       const f = renderCard(a, [
@@ -653,6 +671,11 @@ async function onPhoto(file) {
       placed.then(ok => { f.where.textContent = ok || !a.location ? fmtWhere(a) : 'Sin conexión: le pondré nombre más tarde 📡'; });
     };
     showPreview();
+    if (a.shiny) {
+      toast('✨🌈 ¡Increíble, es un bichito SHINY! 🌈✨');
+      confetti($('#burst'), 80);
+      setTimeout(() => $('#burst').replaceChildren(), 4500);
+    }
   } catch (e) { failed(e); }
 }
 

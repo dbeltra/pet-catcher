@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
-import { ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName(() => 0), 'Don Galleta');
 assert.match(randomName(), /^\S+ \S+$/);
 
-assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, note: '', traits: [], visits: [], memory: false, id: 'x' });
+assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, note: '', traits: [], visits: [], memory: false, shiny: false, id: 'x' });
+assert.equal(rollShiny(() => SHINY_CHANCE - 0.001), true);
+assert.equal(rollShiny(() => SHINY_CHANCE), false);
+
 assert.deepEqual([{ id: 'old', takenAt: 1 }, { id: 'mem', memory: true, takenAt: null }, { id: 'new', takenAt: 5 }]
   .map(normalize).sort(byNewest).map(a => a.id), ['mem', 'new', 'old']);
 assert.equal(parseBackup(JSON.stringify({ app: 'pet-catcher', animals: [{ id: 'a', sticker: 'data:image/png;base64,AA' }] })).animals.length, 1);
@@ -35,6 +38,8 @@ assert.deepEqual(unlockedIds([cat()]), ['first']);
 assert.ok(unlockedIds([cat({ takenAt: at(23) })]).includes('night'));
 assert.ok(unlockedIds([cat({ visits: [{ at: at(7) }] })]).includes('early')); // visits count as sightings
 assert.ok(unlockedIds([cat({ species: 'ciervo' })]).includes('epic'));
+assert.ok(unlockedIds([cat({ shiny: true })]).includes('shiny'));
+assert.ok(!unlockedIds([cat({ shiny: true, memory: true })]).includes('shiny'));
 assert.ok(unlockedIds(['a', 'b', 'c'].map(p => cat({ place: p }))).includes('travel'));
 assert.ok(unlockedIds([cat({ visits: [{ at: 1 }, { at: 2 }] })]).includes('loyal'));
 assert.ok(unlockedIds(Array.from({ length: 5 }, () => cat())).includes('cats'));

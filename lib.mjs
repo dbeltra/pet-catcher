@@ -23,7 +23,11 @@ export const PASTELS = ['#fff0bf', '#dcf4e4', '#dcedff', '#ffe4cc', '#e9f2d2'];
 export const pastelFor = id => PASTELS[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % PASTELS.length];
 
 // Fills the fields newer versions added, so records from any older version keep working.
-export const normalize = a => ({ fav: false, note: '', traits: [], visits: [], memory: false, ...a });
+export const normalize = a => ({ fav: false, note: '', traits: [], visits: [], memory: false, shiny: false, ...a });
+
+// Shiny: any new catch (not a Recuerdo) has this chance of a sparkling rainbow foil, whatever its species.
+export const SHINY_CHANCE = 1 / 15;
+export const rollShiny = (rnd = Math.random) => rnd() < SHINY_CHANCE;
 
 // Her past pets ("recuerdos"). Fixed ids: re-added on every start if missing, never deletable, and a
 // restore never duplicates them. Memories have no catch date or place.
@@ -105,6 +109,7 @@ export const ACHIEVEMENTS = [
   { id: 'travel', emoji: '🧭', title: 'Viajera', desc: 'Capturas en 3 lugares', test: all => places(all).size >= 3 },
   { id: 'world', emoji: '✈️', title: 'Trotamundos', desc: 'Capturas en 10 lugares', test: all => places(all).size >= 10 },
   { id: 'loyal', emoji: '🔁', title: 'Amiga fiel', desc: 'Ve al mismo bichito 3 veces', test: all => catches(all).some(a => timesSeen(a) >= 3) },
+  { id: 'shiny', emoji: '🌈', title: '¡Un shiny!', desc: 'Atrapa un bichito shiny', test: all => catches(all).some(a => a.shiny) },
   { id: 'heart', emoji: '💖', title: 'Corazón blando', desc: '5 favoritos', test: all => all.filter(a => a.fav).length >= 5 },
 ];
 export const unlockedIds = all => ACHIEVEMENTS.filter(x => x.test(all)).map(x => x.id);

@@ -104,6 +104,8 @@ Rules that keep it working:
 - `renderList` must not await network work (the Nominatim retries run un-awaited), or the screen freezes
   during the transition.
 - `renderList` awaits `renderMap`, so the map tab snapshot already has its pins.
+- Closing while the back shows: `backToList` first turns the card to the front (`turnCard`, 2×130 ms, in place
+  where a swipe left it, in parallel with the list render), then shrinks it.
 - Closing must start at once: the browser freezes the old screen until the update callback is done. So
   `backToList` rebuilds the list and decodes every tile image *before* the transition (except on the map tab),
   then hides the card's text (`.leaving`, no fade) and starts it. Measured: shrink starts ~35 ms after the text goes.
@@ -156,6 +158,10 @@ lookups one at a time for records that have `location` but no `place`.
   cards it is a real element (`.foil`), so it gets its own view-transition-name and flies above the sticker
   during open/close (as a `::after` of the card it vanished behind the flying sticker). Album slots use `::after`.
   Use normal blending: `color-dodge` washes out to white on the pastels.
+- **Shiny:** every new catch (not a Recuerdo, not a "Ya lo tenía" visit) rolls `rollShiny()` with
+  `SHINY_CHANCE = 1/15`, whatever its species. A shiny gets a stronger sparkling rainbow foil (`.shiny > .foil`),
+  "· ✨ Shiny" after the rarity, ✨ on the tile, a special toast + confetti in the preview, and the "¡Un shiny!"
+  achievement. Text and buttons sit above the foil (z-index 3) so it never washes them out.
 - **Traits** (flip the card): 3 random `TRAITS` with 1-5 stars on each new catch and memory.
   All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper. The card keeps the front's

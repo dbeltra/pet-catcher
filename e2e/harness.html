@@ -41,9 +41,14 @@ f.onload = async () => {
     // Catch a cat.
     const blob = await (await fetch('cat.jpg')).blob();
     const dt = new DataTransfer(); dt.items.add(new File([blob], 'cat.jpg', { type: 'image/jpeg' }));
+    const realRandom = w.Math.random;
+    w.Math.random = () => 0.01; // force this catch to be shiny
     const input = d.querySelector('#file'); input.files = dt.files; input.dispatchEvent(new Event('change'));
     const keep = await wait('preview', () => btn(d, '¡Me lo quedo!') || (d.querySelector('#status').textContent.startsWith('Algo') && d.querySelector('#status')));
     if (!keep.onclick) throw new Error(keep.textContent);
+    w.Math.random = realRandom;
+    const shinyToast = await wait('shiny toast', () => d.querySelector('#toast').textContent.includes('SHINY') && 'yes', 5000);
+    const shinyCard = d.querySelector('.card').classList.contains('shiny');
     const where = d.querySelector('.where');
     await wait('place', () => !where.textContent.startsWith('Buscando'), 30000);
     const img = d.querySelector('.sticker'); await wait('sticker', () => img.complete && img.naturalWidth);
@@ -54,7 +59,8 @@ f.onload = async () => {
     const info = `species=${d.querySelector('.species').value} sticker=${c.width}x${c.height} transparent=${(clear / (px.length / 4) * 100).toFixed(0)}% place=${where.textContent}`;
     keep.click();
     await wait('gallery', () => d.querySelectorAll('.tile').length === 3, 10000);
-    const firstBadge = await wait('first badge toast', () => d.querySelector('#toast').textContent.includes('Primera captura') && 'yes', 8000);
+    const firstBadge = await wait('first badge toast', () => d.querySelector('#toast').textContent.includes('Primera captura') && d.querySelector('#toast').textContent.includes('shiny') && 'yes', 8000);
+    const shinyTile = !!d.querySelector('.tile.shiny');
 
     // Seen again from the card (no photo).
     [...d.querySelectorAll('.tile')].find(t => !t.classList.contains('memory')).click();
@@ -122,13 +128,18 @@ f.onload = async () => {
     await swipe(w, d.querySelector('.card .name'), 150, 0); // a swipe that starts on a text field flips too
     await wait('flip from input', () => d.querySelector('.card.show-back'), 5000);
     await sleep(500);
-    d.querySelector('.back h3').click();
-    await wait('unflip 2', () => !d.querySelector('.card.show-back'), 5000);
+    // Closing while the back shows (it still does, from the swipe above): it turns to the front first, then shrinks.
+    w.history.back();
+    await wait('front before close', () => !d.querySelector('.card.show-back'), 3000);
+    await wait('closed from back', () => !d.querySelector('#list').hidden, 5000);
+    await sleep(600);
+    [...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Kurko').click();
+    await wait('kurko again', () => btn(d, '📷'));
     await sleep(500);
     w.history.back();
     await wait('back from kurko', () => !d.querySelector('#list').hidden, 5000);
 
-    log(`OK swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    log(`OK shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };

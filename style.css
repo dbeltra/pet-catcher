@@ -170,7 +170,7 @@ h1 {
 /* The shine: a rainbow band over the card that follows the tilt (--hx/--hy from app.js), or drifts on its own */
 /* On tiles and cards it is a real element (.foil), so it can fly above the sticker during the open/close morph */
 .foil { display: none; }
-:is(.tile, .card):is([data-rarity="épico"], [data-rarity="legendario"]) > .foil,
+:is(.tile, .card):is([data-rarity="épico"], [data-rarity="legendario"], .shiny) > .foil,
 .slot.got:is([data-rarity="épico"], [data-rarity="legendario"])::after {
   content: ''; display: block; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none;
   /* normal blending: color-dodge washed out to white on the light pastels */
@@ -181,6 +181,23 @@ h1 {
 }
 :is(.tile, .card)[data-rarity="épico"] > .foil, .slot.got[data-rarity="épico"]::after { opacity: .55; }
 html.tilt .foil, html.tilt .slot.got::after { animation: none; background-position: var(--hx) var(--hy); }
+html.tilt .shiny > .foil { animation: shiny-twinkle 1.6s ease-in-out infinite; background-position: 0 0, 0 0, 0 0, var(--hx) var(--hy); }
+/* Text and buttons sit above the foil (it washed them out); the sticker stays under it, which is the foil look */
+.card > :not(.foil, .sticker-wrap, .fav), .tile > :is(.name, .meta) { position: relative; z-index: 3; }
+
+/* Shiny: a stronger, full rainbow foil with twinkling sparkles, on any species */
+:is(.tile, .card).shiny > .foil {
+  opacity: 1;
+  background: radial-gradient(circle at 18% 22%, #fff 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 78% 30%, #fff 0 2px, transparent 3px),
+    radial-gradient(circle at 62% 76%, #fff 0 1.5px, transparent 2.5px),
+    linear-gradient(115deg, rgba(255, 110, 180, .26), rgba(255, 210, 110, .26) 25%, rgba(130, 240, 170, .26) 50%,
+      rgba(110, 190, 255, .28) 75%, rgba(200, 140, 255, .26));
+  background-size: 100% 100%, 100% 100%, 100% 100%, 260% 260%;
+  animation: holo-drift 4s ease-in-out infinite alternate, shiny-twinkle 1.6s ease-in-out infinite;
+}
+:is(.tile, .card).shiny { border-color: #fff6a8; }
+@keyframes shiny-twinkle { 50% { filter: brightness(1.15) saturate(1.3); } }
 @keyframes holo-drift { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
 #card .swipe-hint { margin: 12px 0 0; text-align: center; font-size: .8rem; color: var(--muted); }
 /* Chrome draws a ▾ on inputs with suggestions (datalist); the suggestions still show while typing */
