@@ -49,7 +49,7 @@ background, the animations and the rolling flower (a ★ there was worse).
 | `lib.mjs` | Pure helpers, no DOM: Spanish species map `COCO_ES`, `EMOJI` per species, `cleanSpecies`, `randomName`, `pickAnimal`, `placeName`, `speciesCounts`, mask helpers. |
 | `test.mjs` | Unit check for `lib.mjs`. Run `node test.mjs` → prints `ok`. |
 | `style.css` | Mobile-first styles, light/dark through `prefers-color-scheme`. The sticker outline is a stack of CSS `drop-shadow`s. |
-| `sw.js` | Service worker: cache-first. Two caches: `shell-<VERSION>` (own files), `cdn-v1` (MediaPipe lib, Leaflet, models, font; hosts in `CDN_HOSTS`). Other origins (Nominatim, map tiles) pass through uncached, so the map has no tiles offline. It is registered with `updateViaCache: 'none'`, else GitHub Pages' 10 min HTTP cache delays updates. |
+| `sw.js` | Service worker: cache-first. Two caches: `shell-<VERSION>` (own files), `cdn-v1` (MediaPipe lib, Leaflet, models, font; hosts in `CDN_HOSTS`). Other origins (Nominatim, map tiles) pass through uncached, so the map has no tiles offline. It is registered with `updateViaCache: 'none'` and installs the shell with `cache: 'reload'`; without both, GitHub Pages' 10 min HTTP cache delays updates or mixes old and new files. |
 | `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png` | PWA install data. The PNGs are rendered from `icon.svg` (see below). |
 | `e2e/run.sh`, `e2e/harness.html` | End-to-end check in headless Chrome (see Testing). |
 

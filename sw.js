@@ -7,7 +7,9 @@ const CDN_HOSTS = ['cdn.jsdelivr.net', 'storage.googleapis.com', 'fonts.googleap
 const SHELL = ['./', 'index.html', 'version.js', 'style.css', 'app.js', 'lib.mjs', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => e.waitUntil(
-  caches.open(SHELL_CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
+  // cache: 'reload' skips the HTTP cache: GitHub Pages sends max-age=600, so a plain addAll right after a
+  // deploy can store the old index.html next to the new version.js (seen in v0.3.1).
+  caches.open(SHELL_CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())));
 
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys()
