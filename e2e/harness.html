@@ -169,7 +169,21 @@ f.onload = async () => {
     await wait('search', () => d.querySelector('.loc-pin'), 15000);
     d.querySelector('#loc-ok').click();
     await wait('picked place', () => d.querySelector('.card .where').textContent.includes('Martos'), 15000);
-    const gallery = `hintGone=${hintGone} when="${galleryWhen}" before="${noPlace}" after="${d.querySelector('.card .where').textContent}"`;
+    let gallery = `hintGone=${hintGone} when="${galleryWhen}" before="${noPlace}" after="${d.querySelector('.card .where').textContent}"`;
+    // Re-cut with a box: drag a box around the cat, then tap it inside the zoomed area.
+    const stickerBefore = d.querySelector('.card .sticker').src;
+    btn(d, '✂️ Recortar otra vez').click();
+    await wait('recut photo', () => d.querySelector('#stage .photo'), 5000);
+    const pointer = (el, type, fx, fy) => { const r = el.getBoundingClientRect();
+      el.dispatchEvent(new w.PointerEvent(type, { bubbles: true, pointerId: 7, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy })); };
+    let ph = d.querySelector('#stage .photo');
+    pointer(ph, 'pointerdown', 0.12, 0.08); pointer(ph, 'pointermove', 0.5, 0.5); pointer(ph, 'pointermove', 0.92, 0.95); pointer(ph, 'pointerup', 0.92, 0.95);
+    await wait('zoomed', () => d.querySelector('#stage .photo') && d.querySelector('#stage .photo') !== ph, 5000);
+    ph = d.querySelector('#stage .photo');
+    const zoomed = `${ph.width}x${ph.height}`;
+    pointer(ph, 'pointerdown', 0.5, 0.45); pointer(ph, 'pointerup', 0.5, 0.45);
+    await wait('recut preview', () => btn(d, '¡Me lo quedo!') && d.querySelector('.card .sticker').src !== stickerBefore, 20000);
+    gallery += ` recutZoomed=${zoomed}`;
     btn(d, 'Descartar').click();
     await wait('discarded', () => !d.querySelector('#list').hidden, 5000);
     await sleep(500);

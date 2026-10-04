@@ -245,7 +245,9 @@ html.tilt .shiny > .foil { animation: shiny-twinkle 1.6s ease-in-out infinite; b
   background: var(--bg) radial-gradient(var(--dots) 2px, transparent 2.5px) 0 0 / 22px 22px;
 }
 #status { text-align: center; font-size: 1.05rem; margin: 18px 0; }
-.photo { display: block; width: 100%; border-radius: 22px; border: 4px solid #fff; box-shadow: var(--shadow); cursor: crosshair; }
+#stage { position: relative; overflow: hidden; border-radius: 22px; } /* clips the box's dimming shadow */
+.area-box { position: absolute; border: 3px dashed #fff; border-radius: 10px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .35); pointer-events: none; }
+.photo { touch-action: none; display: block; width: 100%; border-radius: 22px; border: 4px solid #fff; box-shadow: var(--shadow); cursor: crosshair; }
 
 /* Same pastel and white border as its tile, so the tile visibly grows into it. Fixed dark text: pastels are light in both themes. */
 .card {

@@ -256,3 +256,28 @@ function readTiff(v, t, out) {
   }
   return out;
 }
+
+// Cleans a cutout mask: keeps the region under the point, plus any other region of the same value at least
+// `minShare` of its size (a tail or leg the model split off), and drops the small isolated bits.
+// Returns a new mask with 1 = keep, 0 = drop.
+export function keepComponent(mask, w, h, p, minShare = 0.15) {
+  const v = maskValueAt(mask, w, h, p);
+  const label = new Int32Array(w * h).fill(-1), sizes = [], stack = new Int32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (mask[i] !== v || label[i] >= 0) continue;
+    const id = sizes.length;
+    let top = 0, n = 0;
+    stack[top++] = i; label[i] = id;
+    while (top) {
+      const j = stack[--top], x = j % w;
+      n++;
+      for (const k of [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, j - w, j + w]) {
+        if (k >= 0 && k < w * h && label[k] < 0 && mask[k] === v) { label[k] = id; stack[top++] = k; }
+      }
+    }
+    sizes.push(n);
+  }
+  const seed = label[Math.min(h - 1, Math.floor(p.y * h)) * w + Math.min(w - 1, Math.floor(p.x * w))];
+  const keep = sizes.map((n, id) => id === seed || n >= minShare * sizes[seed]);
+  return Uint8Array.from(label, id => (id >= 0 && keep[id] ? 1 : 0));
+}

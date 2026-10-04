@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Galleta');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -134,6 +134,19 @@ assert.equal(alpha(6, 5), 0);
   assert.ok(Math.abs(x.location.lat - 37.7197) < 1e-3 && Math.abs(x.location.lon + 3.9697) < 1e-3, JSON.stringify(x.location));
   assert.deepEqual(readExif(Uint8Array.from([0xFF, 0xD8, 0xFF, 0xDA, 0, 2, 0, 0, 0, 0, 0, 0]).buffer), { takenAt: null, location: null });
   assert.deepEqual(readExif(new ArrayBuffer(4)), { takenAt: null, location: null });
+}
+
+// 6x4 mask: the pet (7) is a 2x3 block plus a 1-pixel speck far away and a 1-pixel bit touching it.
+{
+  const m = Uint8Array.from([
+    7, 7, 0, 0, 0, 7,
+    7, 7, 7, 0, 0, 0,
+    7, 7, 0, 0, 0, 0,
+    0, 0, 0, 0, 7, 7,
+  ]);
+  const k = keepComponent(m, 6, 4, { x: 0.1, y: 0.1 });
+  assert.deepEqual([...k], [1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]); // 1-px speck dropped, 2-px piece kept (2 ≥ 15% of 7)
+  assert.equal(keepComponent(m, 6, 4, { x: 0.1, y: 0.1 }, 0.5)[22], 0); // with a stricter share it goes too
 }
 
 console.log('ok');

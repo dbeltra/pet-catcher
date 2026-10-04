@@ -77,10 +77,14 @@ title (v0.3) was hard to read.
    - The mask array is **copied** inside the callback, because MediaPipe frees it afterwards.
    - If that value covers more than 90% of the mask, the point hit the background: `maskBBox`
      returns null and the user is asked to tap the animal.
+   - `keepComponent` then keeps only the region under the keypoint (plus pieces ≥ 15% of its size, e.g. a
+     split-off tail) and drops isolated bits elsewhere in the photo.
    - `applyMask` makes the background transparent; the result is cropped to the mask box plus `PAD`.
 6. The preview card shows the sticker, a random name, the species (both editable), date/time and place.
    The place lookup (`resolvePlace`) starts as soon as the position is known.
-   Buttons: Descartar, Recortar otra vez (tap again to choose another point), ¡Me lo quedo!
+   Buttons: Descartar, ✂️ Recortar otra vez, ¡Me lo quedo! Re-cut (`pickAndCut` / `askSpot`): a tap picks the
+   animal; a drag draws a box, the photo is cropped to it (`cropCanvas`) and she taps the animal inside, so the
+   cutout can never reach outside the box. The same picker is used when nothing is detected.
 7. "¡Me lo quedo!" saves the record to IndexedDB and asks for persistent storage (`navigator.storage.persist`).
 
 List: two tabs, `🗂️ Colección` (grid) and `🗺️ Mapa` (`renderMap`, Leaflet is imported the first time
@@ -331,7 +335,6 @@ sips -Z 192 icon-512.png --out icon-192.png
   repeats with no way out (no Back button during a tap). Add a Back button if this happens in practice.
 - Not yet tested on a real phone: EXIF rotation of camera photos, the location line with real
   coordinates, iOS Safari in standalone mode.
-- The mask can leave small stray specks. Fix: keep only the connected component under the keypoint.
 - The mask edge is hard (no feathering). Fix: blur the alpha a little before cropping.
 - The location is where the phone is when you pick the file, not EXIF GPS (camera captures usually
   strip GPS anyway).
