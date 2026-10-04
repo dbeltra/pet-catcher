@@ -200,8 +200,7 @@ lookups one at a time for records that have `location` but no `place`.
 - **Traits** (flip the card): 3 random `TRAITS` with 1-5 stars on each new catch and memory.
   All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper. The card keeps the front's
-  The back also holds the note. `evenFaces()` gives both faces the height of the taller one (measured by
-  switching faces without a paint; re-run on image load and trait add/remove), so the card never changes size.
+  The back also holds the note. Both faces share the card's fixed 5:7 shape.
   Edits change rows in place: never rebuild the list. On a flip the rows are simply there; only an added row
   pops in (`li.new`). Every card shows its rarity line, "Común" included. The species field has no underline
   and is as wide as its text, so emoji + word sit centred.
@@ -212,10 +211,12 @@ lookups one at a time for records that have `location` but no `place`.
   flips past 60 px (a tap on the photo or the back's title flips too); swipe down, with `#view` scrolled to the top,
   closes the detail past 110 px (never on a new catch). The detail is a history entry (`pushState`), so the
   phone's Back gesture closes it as well; everything that closes a detail goes through `history.back()`.
-- **Every big card has the same shape** (v0.17.2): a fixed-height photo area (`.sticker-wrap`, 30dvh; the img keeps
-  its own aspect inside it) and `min-height: calc(30dvh + 420px)` with the buttons pushed to the bottom. 420 px fits
-  the longest card (date + place + 2-line sightings + 2 rows of buttons); raise it if the card gets more lines.
-  Tile names are one line (ellipsis), so tiles match too.
+- **Trading-card shape** (v0.17.3): tiles and the big card are 5:7 (63 × 88 mm, `aspect-ratio: 5 / 7`); the big card
+  is no taller than the screen. The text keeps its size and the photo area (`.sticker-wrap`, `flex: 1`) takes what
+  is left, so a card with more lines has a smaller photo. A long back (many traits) scrolls inside the card. Same
+  shape on both faces, so no height syncing is needed. Tile names are one line (ellipsis).
+- **Without swipes:** the ↔️ and ⬇️ in the hint are buttons (flip / close), and the keyboard's ← → ↓ do the same
+  (`cardKeys`, ignored while typing or with a dialog open).
 - **The open card is a fixed full-screen layer** (`#view`, `overscroll-behavior: contain`) sized to fit a phone
   screen (sticker max 30dvh, one row of short action labels): the app behind never scrolls. Pull-to-refresh is
   off for the whole app (`overscroll-behavior-y: none` on html/body): a pull at the top reloaded the page

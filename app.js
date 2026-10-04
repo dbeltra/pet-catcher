@@ -349,14 +349,16 @@ function renderCard(a, actions, save = () => {}, close = null) {
   q('.sticker-wrap').onclick = () => flip(card, a, save); // tap = the same as a sideways swipe
   swipes(card, dir => { learned('flip'); flip(card, a, save, dir); }, close && (() => { learned('close'); close(); }));
   $('#card').replaceChildren(card);
+  // The same actions without a swipe: the arrows in the hint are buttons, and ← → ↓ work on a keyboard.
+  cardKeys = { flip: dir => flip(card, a, save, dir), close };
   if (!remembered('gestures-learned')) {
-    const hint = Object.assign(document.createElement('p'), { className: 'swipe-hint',
-      textContent: close ? '↔️ Desliza la tarjeta para girarla · ⬇️ para cerrarla ' : '↔️ Desliza la tarjeta para ver sus rasgos ' });
+    const hint = Object.assign(document.createElement('p'), { className: 'swipe-hint' });
+    hint.append(button('↔️', () => cardKeys.flip(1), 'arrow'), ' Desliza la tarjeta para ' + (close ? 'girarla · ' : 'ver sus rasgos '));
+    if (close) hint.append(button('⬇️', close, 'arrow'), ' para cerrarla ');
     hint.append(button('✕', () => { remember('gestures-learned'); hint.remove(); }, 'dismiss'));
     $('#card').append(hint);
   }
   renderTraits(card, a, save);
-  q('.sticker').addEventListener('load', () => evenFaces(card), { once: true });
   fillSpeciesList();
   return { where: q('.where'), sticker: q('.sticker') };
 }
@@ -369,6 +371,13 @@ function learned(gesture) {
   remember(`used-${gesture}`);
   if (remembered('used-flip') && remembered('used-close')) remember('gestures-learned');
 }
+
+let cardKeys = null; // flip / close of the card on screen, for the keyboard
+addEventListener('keydown', e => {
+  if ($('#view').hidden || !cardKeys || e.target.closest?.('input, textarea') || document.querySelector('dialog[open]')) return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); cardKeys.flip(e.key === 'ArrowLeft' ? -1 : 1); }
+  else if (e.key === 'ArrowDown' && cardKeys.close) { e.preventDefault(); cardKeys.close(); }
+});
 
 // Touch gestures on the big card. Sideways: the card turns with the finger, past 60 px it flips.
 // Down (only with the card layer scrolled to the top, and only if `onClose`): it follows the finger, past 110 px it closes.
@@ -407,17 +416,6 @@ function swipes(card, onFlip, onClose) {
     else if (m === 'flip') spring();
     else if (m === 'close') dy > 110 ? onClose() : spring(); // closing morphs from where the finger left the card
   });
-}
-
-// Both faces get the height of the taller one, so the card never changes size when it turns.
-// Measured by switching faces without a paint in between (no flicker). Called on open, image load and trait edits.
-function evenFaces(card) {
-  card.style.minHeight = '';
-  const shown = card.offsetHeight;
-  card.classList.toggle('show-back');
-  const other = card.offsetHeight;
-  card.classList.toggle('show-back');
-  card.style.minHeight = `${Math.max(shown, other)}px`;
 }
 
 // Card flip: turn to 90°, swap faces, turn back from -90°. The back has the traits and the note, all editable.
@@ -462,7 +460,7 @@ function renderTraits(card, a, save) {
     });
     const paint = () => stars.forEach((b, i) => { b.replaceChildren(icon('star', i >= t.stars)); b.classList.toggle('on', i < t.stars); });
     paint();
-    li.append(name, ...stars, button('✕', () => { a.traits.splice(a.traits.indexOf(t), 1); li.remove(); empty(); evenFaces(card); save(); }, 'drop'));
+    li.append(name, ...stars, button('✕', () => { a.traits.splice(a.traits.indexOf(t), 1); li.remove(); empty(); save(); }, 'drop'));
     return li;
   };
   list.replaceChildren(...a.traits.map(t => row(t)));
@@ -475,11 +473,9 @@ function renderTraits(card, a, save) {
     const li = row(t, true);
     list.append(li);
     li.querySelector('input').select();
-    evenFaces(card);
     save();
   };
   card.querySelector('.back h3').onclick = () => flip(card, a, save);
-  evenFaces(card);
 }
 
 const FAV = 'fav'; // filter value for favourites; species are stored lowercase Spanish, so no clash with a real one
