@@ -212,6 +212,10 @@ lookups one at a time for records that have `location` but no `place`.
   flips past 60 px (a tap on the photo or the back's title flips too); swipe down, with `#view` scrolled to the top,
   closes the detail past 110 px (never on a new catch). The detail is a history entry (`pushState`), so the
   phone's Back gesture closes it as well; everything that closes a detail goes through `history.back()`.
+- **Every big card has the same shape** (v0.17.2): a fixed-height photo area (`.sticker-wrap`, 30dvh; the img keeps
+  its own aspect inside it) and `min-height: calc(30dvh + 420px)` with the buttons pushed to the bottom. 420 px fits
+  the longest card (date + place + 2-line sightings + 2 rows of buttons); raise it if the card gets more lines.
+  Tile names are one line (ellipsis), so tiles match too.
 - **The open card is a fixed full-screen layer** (`#view`, `overscroll-behavior: contain`) sized to fit a phone
   screen (sticker max 30dvh, one row of short action labels): the app behind never scrolls. Pull-to-refresh is
   off for the whole app (`overscroll-behavior-y: none` on html/body): a pull at the top reloaded the page
