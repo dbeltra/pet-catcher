@@ -972,7 +972,8 @@ $('#reset').onclick = async () => {
   if (!await ask({ title: '¿Seguro del todo?', text: 'No se puede deshacer. Si quieres conservarlos, cancela y guarda antes una copia.', yes: '🗑️ Borrar todo', danger: true })) return;
   (await db).close();
   await new Promise(res => { const r = indexedDB.deleteDatabase('pet-catcher'); r.onsuccess = r.onerror = r.onblocked = res; });
-  try { localStorage.clear(); } catch {}
+  // Only Bichidex's own keys: dbeltra.github.io is one origin shared with David's other apps (their data lives here too).
+  try { for (const k of ['bday-seen', 'gestures-learned', 'used-flip', 'used-close']) localStorage.removeItem(k); } catch {}
   location.replace(location.pathname);
 };
 

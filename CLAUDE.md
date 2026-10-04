@@ -168,7 +168,9 @@ lookups one at a time for records that have `location` but no `place`.
 - **Collection numbers** (`numberAll`, `fmtNo`): every record gets `no` once, in catch order; the memories
   first (Kurko #001, Kiffy #002, in `SEEDS` order), then by catch time. Shown above the tile name and in the
   card's rarity line. Memories sort by number. A restored new animal whose number is taken gets a fresh one.
-- **Reset** ("🗑️ Restablecer la app" in settings, two confirms): deletes the IndexedDB and localStorage and
+- **Shared origin:** `dbeltra.github.io` also hosts David's other apps (sitges-planner…), so localStorage, cookies and
+  "clear site data" are shared with them. Never `localStorage.clear()`; remove only Bichidex's keys.
+- **Reset** ("🗑️ Restablecer la app" in settings, two confirms): deletes the IndexedDB and Bichidex's localStorage keys and
   reloads, so the app starts like the first day. The cached models stay.
 - **Settings** ("⚙️ Ajustes" link next to the version at the bottom of the list; a native `<dialog>`; David
   did not want it in a primary spot): backup, restore, "🎂 Ver la felicitación", version.
