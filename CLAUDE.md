@@ -58,7 +58,7 @@ title (v0.3) was hard to read.
 | `test.mjs` | Unit check for `lib.mjs`. Run `node test.mjs` → prints `ok`. |
 | `style.css` | Mobile-first styles, light/dark through `prefers-color-scheme`. The sticker outline is a stack of CSS `drop-shadow`s. |
 | `sw.js` | Service worker: cache-first. Two caches: `shell-<VERSION>` (own files), `cdn-v1` (MediaPipe lib, Leaflet, models, font; hosts in `CDN_HOSTS`). Other origins (Nominatim, map tiles) pass through uncached, so the map has no tiles offline. It is registered with `updateViaCache: 'none'` and installs the shell with `cache: 'reload'`; without both, GitHub Pages' 10 min HTTP cache delays updates or mixes old and new files. |
-| `manifest.webmanifest`, `icon-192.png`, `icon-512.png` | PWA install data. The icon is an open book (David's picture, redrawn as SVG in the app's colours: butter-yellow cover on the pale page background), rendered from `icon-source.html` (see below). |
+| `manifest.webmanifest`, `favicon.ico`, `apple-touch-icon.png`, `icon-*.png` | PWA install data and icons (see App icons). |
 | `seed/*.png` | Stickers of her past pets (placeholders until David sends photos). |
 | `e2e/run.sh`, `e2e/harness.html` | End-to-end check in headless Chrome (see Testing). |
 
@@ -319,16 +319,11 @@ from the manifest by itself (it can take up to a day and may ask to confirm).
 
 Install on the phone: Android Chrome → menu → "Install app". iPhone Safari → Share → "Add to Home Screen".
 
-## Regenerate the PNG icons
+## App icons
 
-The icon is the open book drawn as SVG in `icon-source.html` (since v0.15; before, a 🐱 emoji).
-Render 512 px and scale down: headless Chrome has a minimum window width, so a 192 px screenshot is cropped.
-
-```sh
-C="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-"$C" --headless --hide-scrollbars --window-size=512,512 --screenshot="$PWD/icon-512.png" "file://$PWD/icon-source.html"
-sips -Z 192 icon-512.png --out icon-192.png
-```
+The icon is a notebook with an orange cat, made by David with an icon generator (v0.17; `~/Downloads/app-icons/web`).
+Files at the root: `favicon.ico`, `apple-touch-icon.png` (iPhone), `icon-192/512.png`, `icon-192/512-maskable.png`
+(Android shapes). To change it, replace those files and bump `?v=N` in the manifest, the `<link>`s and the SW `SHELL`.
 
 ## Known limits and ideas for next iterations
 

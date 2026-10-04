@@ -4,7 +4,7 @@ const SHELL_CACHE = `shell-${self.VERSION}`;
 // Other origins (the Nominatim place lookup) are never cached.
 const CDN_CACHE = 'cdn-v1';
 const CDN_HOSTS = ['cdn.jsdelivr.net', 'storage.googleapis.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
-const SHELL = ['./', 'index.html', 'version.js', 'style.css', 'app.js', 'lib.mjs', 'manifest.webmanifest', 'icon-192.png?v=6', 'icon-512.png?v=6', 'seed/kurko.png', 'seed/kiffy.png',
+const SHELL = ['./', 'index.html', 'version.js', 'style.css', 'app.js', 'lib.mjs', 'manifest.webmanifest', 'favicon.ico?v=7', 'apple-touch-icon.png?v=7', 'icon-192.png?v=7', 'icon-512.png?v=7', 'icon-192-maskable.png?v=7', 'icon-512-maskable.png?v=7', 'seed/kurko.png', 'seed/kiffy.png',
   ...['book', 'cake', 'camera', 'folder', 'gallery', 'heart', 'magnifier', 'map', 'shine', 'star', 'male', 'female', 'question-mark'].map(n => `assets/icons/${n}.png`)];
 
 self.addEventListener('install', e => e.waitUntil(
