@@ -145,7 +145,7 @@ lookups one at a time for records that have `location` but no `place`.
 - **Birthday surprise:** `#bday` overlay ("¡Feliz cumpleaños Mari! Te quiero ❤️", CSS confetti) shows on the
   first open **of the installed app** (`display-mode: standalone` / `navigator.standalone`), never in a browser
   tab, so David can install it on her phone without seeing it. It is marked seen (`localStorage` `bday-seen`)
-  only when its button is tapped: closing the app without tapping keeps it for next time. Replay: tap the ✿ next to the title, or open with `?cumple`.
+  only when its button is tapped: closing the app without tapping keeps it for next time. Replay: tap the ✿ next to the title, or open with `?cumple`. (`?shiny` makes every catch shiny, for testing.)
   Its button also asks for `DeviceOrientationEvent.requestPermission()` (iOS needs a tap for the holo tilt).
 - **Recuerdos (her past pets):** `SEEDS` in `lib.mjs` (Kurko 🐶 perro, Kiffy 🐱 gato) with fixed ids
   `seed-kurko` / `seed-kiffy`. `ensureMemories()` re-adds any that is missing on **every** start, so they can

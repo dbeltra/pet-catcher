@@ -831,6 +831,9 @@ function failed(e) {
 
 // fromGallery: the date and place come from the photo (EXIF), not from now and here. Without GPS in the
 // photo the card says "Elegir lugar" and she taps it to set the place by hand.
+// Test switch: open the app with ?shiny and every catch comes out shiny (like ?cumple for the greeting).
+const FORCE_SHINY = new URLSearchParams(location.search).has('shiny');
+
 async function onPhoto(file, fromGallery = false) {
   showView('view');
   const exif = fromGallery ? readExif(await file.arrayBuffer()) : null;
@@ -838,7 +841,7 @@ async function onPhoto(file, fromGallery = false) {
   const takenAt = fromGallery ? exif.takenAt ?? file.lastModified ?? Date.now() : Date.now();
   try {
     const cut = await stickerFrom(file);
-    const a = normalize({ id: crypto.randomUUID(), name: randomName('x'), nameAuto: true, gender: 'x', species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits(), shiny: rollShiny() });
+    const a = normalize({ id: crypto.randomUUID(), name: randomName('x'), nameAuto: true, gender: 'x', species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits(), shiny: FORCE_SHINY || rollShiny() });
     const placed = resolvePlace(a);
     const showPreview = () => {
       const f = renderCard(a, [
