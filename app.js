@@ -272,7 +272,7 @@ function renderCard(a, actions, save = () => {}, close = null) {
   card.classList.toggle('memory', a.memory);
   const paintRarity = () => {
     card.dataset.rarity = rarityFor(a);
-    q('.rarity').textContent = (a.no ? `${fmtNo(a.no)} · ` : '') + RARITY_LABEL[rarityFor(a)] + (a.shiny ? ' · ✨ Shiny' : '');
+    q('.rarity').textContent = (a.no ? `${fmtNo(a.no)} · ` : '') + RARITY_LABEL[rarityFor(a)] + (a.shiny ? ' · 🌈 Shiny' : '');
   };
   card.classList.toggle('shiny', a.shiny);
   paintRarity();
@@ -597,7 +597,7 @@ async function renderList() {
     el.querySelector(STICKER).src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.no').textContent = a.no ? fmtNo(a.no) : '';
-    el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.shiny ? ' ✨' : '') + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
+    el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.shiny ? ' 🌈' : '') + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
     el.dataset.rarity = rarityFor(a);
     el.classList.toggle('shiny', a.shiny);
     el.querySelector('.heart').hidden = !a.fav;
@@ -852,7 +852,7 @@ async function onPhoto(file, fromGallery = false) {
           a.sticker = await cut.recut();
           showPreview();
         }),
-        button('¡Me lo quedo! ⭐', async () => {
+        button('¡Me lo quedo!', async () => {
           await put(a); // if the place lookup is still running, renderList retries it
           await numberRecords();
           navigator.storage?.persist?.();
@@ -919,7 +919,7 @@ $('#restore').onchange = async e => {
   try {
     const data = parseBackup(await file.text());
     $('#settings').close();
-    if (!await ask({ title: '¿Recuperar la copia?', text: `Se añadirán ${data.animals.length} bichitos. Los que ya tienes se quedan.`, yes: '📂 Recuperar' })) return;
+    if (!await ask({ title: '¿Recuperar la copia?', text: `Se añadirán ${data.animals.length} bichitos. Los que ya tienes se quedan.`, yes: 'Recuperar' })) return;
     const local = await getAll();
     const ids = new Set(local.map(a => a.id)), used = new Set(local.map(a => a.no));
     for (const a of data.animals) {
