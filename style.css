@@ -184,6 +184,7 @@ h1 {
     rgba(255, 236, 130, .36) 50%, rgba(150, 245, 200, .3) 58%, rgba(255, 255, 255, .55) 63%, transparent 74%);
   background-size: 260% 260%;
   animation: holo-drift 5s ease-in-out infinite alternate;
+  animation-delay: var(--foil-delay, 0s); /* set per tile: neighbours don't shine in sync */
 }
 :is(.tile, .card)[data-rarity="épico"] > .foil, .slot.got[data-rarity="épico"]::after { opacity: .55; }
 html.tilt .foil, html.tilt .slot.got::after { animation: none; background-position: var(--hx) var(--hy); }
@@ -201,6 +202,7 @@ html.tilt .shiny > .foil { animation: shiny-twinkle 1.6s ease-in-out infinite; b
       rgba(110, 190, 255, .28) 75%, rgba(200, 140, 255, .26));
   background-size: 100% 100%, 100% 100%, 100% 100%, 260% 260%;
   animation: holo-drift 4s ease-in-out infinite alternate, shiny-twinkle 1.6s ease-in-out infinite;
+  animation-delay: var(--foil-delay, 0s);
 }
 :is(.tile, .card).shiny { border-color: #fff6a8; }
 @keyframes shiny-twinkle { 50% { filter: brightness(1.15) saturate(1.3); } }
@@ -209,6 +211,12 @@ html.tilt .shiny > .foil { animation: shiny-twinkle 1.6s ease-in-out infinite; b
 #card .swipe-hint .dismiss { font: inherit; border: 0; background: none; color: inherit; padding: 4px 8px; cursor: pointer; }
 /* Chrome draws a ▾ on inputs with suggestions (datalist); the suggestions still show while typing */
 .card input::-webkit-calendar-picker-indicator { display: none !important; }
+.gender { display: flex; gap: 6px; justify-content: center; margin: 2px 0 4px; }
+.gender button { font: inherit; font-size: .85rem; padding: 4px 10px; border-radius: 999px; border: 2px solid rgba(90, 70, 50, .2);
+  background: rgba(255, 255, 255, .6); color: var(--ink); cursor: pointer; }
+.gender button.on { background: var(--selected); border-color: var(--selected); }
+.back .gender { margin: 0 0 12px; }
+.gender .fixed { font-weight: 600; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, .6); }
 .card .rarity { font-weight: 600; font-size: .85rem; letter-spacing: .4px; }
 
 /* ---------- recuerdos: her past pets. Golden frame, soft glow, ribbon; they cannot be released ---------- */

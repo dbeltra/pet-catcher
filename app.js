@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -62,10 +62,11 @@ async function ensureMemories() {
   for (const s of SEEDS) {
     const a = have.get(s.id);
     if (a && !a.location) await put(Object.assign(a, { location: s.location, place: s.place })); // memories from before v0.11.3
+    if (a && a.gender === 'x') await put(Object.assign(a, { gender: s.gender })); // memories from before v0.15 (both males)
     if (a && (a.customPhoto || (a.seedPhoto ?? 1) >= s.photo)) continue;
     const sticker = await (await fetch(s.file)).blob();
     await put(a ? { ...a, sticker, seedPhoto: s.photo }
-      : normalize({ id: s.id, name: s.name, species: s.species, sticker, seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: s.place, location: s.location, traits: randomTraits() }));
+      : normalize({ id: s.id, name: s.name, species: s.species, gender: s.gender, sticker, seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: s.place, location: s.location, traits: randomTraits() }));
   }
 }
 
@@ -269,7 +270,30 @@ function renderCard(a, actions, save = () => {}, close = null) {
     if (a.fav) fav.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 400, easing: 'cubic-bezier(.34, 1.56, .64, 1)' });
     save();
   };
-  q('.name').onchange = () => { a.name = q('.name').value.trim() || a.name; q('.name').value = a.name; save(); };
+  // Gender: while the random name is untouched (`nameAuto`), a new one with a matching title replaces it;
+  // the traits on the back switch form (Glotón / Glotona / Glotón/a).
+  const paintGender = () => q('.gender').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.g === a.gender));
+  // On the back of the card, next to the traits. Her Recuerdos (both males) show it as fixed text.
+  if (a.memory) {
+    const fixed = Object.assign(document.createElement('span'), { className: 'fixed', textContent: ` ${GENDERS[a.gender]}` });
+    fixed.prepend(icon(GENDER_ICONS[a.gender]));
+    q('.gender').replaceChildren(fixed);
+  }
+  else q('.gender').replaceChildren(...Object.entries(GENDERS).map(([g, label]) => {
+    const b = button(label, () => {
+      if (a.gender === g) return;
+      a.gender = g;
+      if (a.nameAuto) { a.name = randomName(g); q('.name').value = a.name; }
+      paintGender();
+      renderTraits(card, a, save);
+      save();
+    });
+    b.dataset.g = g;
+    b.prepend(icon(GENDER_ICONS[g]), ' ');
+    return b;
+  }));
+  paintGender();
+  q('.name').onchange = () => { a.nameAuto = false; a.name = q('.name').value.trim() || a.name; q('.name').value = a.name; save(); };
   q('.species').onchange = () => {
     a.species = cleanSpecies(q('.species').value);
     paintRarity();
@@ -379,13 +403,14 @@ async function turnCard(card, dir, start, swap, { base = '', ms = 170 } = {}) {
 function renderTraits(card, a, save) {
   const list = card.querySelector('.traits');
   card.querySelector('.back h3').textContent = `Así es ${a.name}`;
+  $('#traits-list').replaceChildren(...TRAITS.map(t => new Option(traitLabel(t, a.gender)))); // suggestions in her gender
   const empty = () => { if (!a.traits.length) list.replaceChildren(Object.assign(document.createElement('li'), { className: 'none', textContent: 'Todavía sin rasgos (・・ )' })); };
   const row = (t, isNew = false) => {
     const li = document.createElement('li');
     li.classList.toggle('new', isNew); // only an added trait pops in: on a flip the rows are simply there
-    const name = Object.assign(document.createElement('input'), { value: t.name, maxLength: 20, ariaLabel: 'Rasgo' });
+    const name = Object.assign(document.createElement('input'), { value: traitLabel(t.name, a.gender), maxLength: 20, ariaLabel: 'Rasgo' });
     name.setAttribute('list', 'traits-list');
-    name.onchange = () => { t.name = name.value.trim() || t.name; name.value = t.name; save(); };
+    name.onchange = () => { t.name = traitKey(name.value) || t.name; name.value = traitLabel(t.name, a.gender); save(); };
     const stars = [1, 2, 3, 4, 5].map(n => {
       const b = button('', () => { t.stars = n; paint(); save(); }, 'star');
       b.setAttribute('aria-label', `${n} estrellas`);
@@ -523,7 +548,7 @@ async function renderList() {
   const shown = all.filter(a => !filter || (filter === FAV ? a.fav : a.species === filter));
   if (tab === 'map') await renderMap(shown); // awaited so a transition snapshots the pins
 
-  $('#grid').replaceChildren(...shown.map(a => {
+  $('#grid').replaceChildren(...shown.map((a, i) => {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
     el.querySelector(STICKER).src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
@@ -535,6 +560,7 @@ async function renderList() {
     el.classList.toggle('memory', a.memory);
     el.dataset.id = a.id;
     el.style.setProperty('--pastel', pastelFor(a.id));
+    el.style.setProperty('--foil-delay', foilDelay(i));
     el.onclick = () => openDetail(a, el);
     return el;
   }));
@@ -549,6 +575,9 @@ async function renderList() {
     }
   })();
 }
+
+// The foil shine starts at a different point on each card (a negative delay), so neighbours never shine together.
+const foilDelay = i => `${-((i * 1.7) % 5).toFixed(1)}s`;
 
 // Album: progress, then one slot per species. A caught slot shows the newest sticker; tapping it
 // opens the collection filtered to that species.
@@ -567,8 +596,9 @@ function renderAlbum(all) {
     el.querySelector('.desc').textContent = x.desc;
     return el;
   }));
-  $('#album-grid').replaceChildren(...slots.map(s => {
+  $('#album-grid').replaceChildren(...slots.map((s, i) => {
     const el = $('#slot-tpl').content.firstElementChild.cloneNode(true);
+    el.style.setProperty('--foil-delay', foilDelay(i));
     el.dataset.rarity = s.rarity;
     el.classList.toggle('got', !!s.count);
     if (s.latest) {
@@ -769,7 +799,7 @@ async function onPhoto(file, fromGallery = false) {
   const takenAt = fromGallery ? exif.takenAt ?? file.lastModified ?? Date.now() : Date.now();
   try {
     const cut = await stickerFrom(file);
-    const a = normalize({ id: crypto.randomUUID(), name: randomName(), species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits(), shiny: rollShiny() });
+    const a = normalize({ id: crypto.randomUUID(), name: randomName('x'), nameAuto: true, gender: 'x', species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits(), shiny: rollShiny() });
     const placed = resolvePlace(a);
     const showPreview = () => {
       const f = renderCard(a, [
@@ -935,7 +965,6 @@ addEventListener('deviceorientation', e => {
 // ---------- start ----------
 
 $('#version').textContent = `v${self.VERSION}`;
-$('#traits-list').replaceChildren(...TRAITS.map(t => new Option(t)));
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }); // else GitHub Pages' 10 min HTTP cache delays updates
 let seen = false;
 try { seen = localStorage.getItem('bday-seen') === '1'; } catch {}

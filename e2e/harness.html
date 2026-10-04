@@ -6,7 +6,7 @@ const f = document.getElementById('f');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const wait = (step, fn, ms = 120000) => new Promise((res, rej) => { const t0 = Date.now(); const i = setInterval(() => { const v = fn(); if (v) { clearInterval(i); res(v); } else if (Date.now() - t0 > ms) { clearInterval(i); rej(new Error(`timeout at ${step} after ${(Date.now() - t0) / 1000}s, status: ` + f.contentDocument.querySelector('#status')?.textContent)); } }, 250); });
 const btn = (d, text) => [...d.querySelectorAll('.actions button')].find(b => b.textContent.startsWith(text));
-const names = d => [...d.querySelectorAll('.tile .name')].map(n => n.textContent);
+const names = d => [...d.querySelectorAll('.tile .name')].map(n => n.textContent.replace(/ [♂♀]$/, '')); // without the gender mark
 // A finger swipe on el, in steps (synthetic touch events).
 async function swipe(w, el, dx, dy) {
   const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + Math.min(120, r.height / 2);
@@ -34,7 +34,7 @@ f.onload = async () => {
     await wait('memories', () => names(d).includes('Kurko') && names(d).includes('Kiffy'), 10000);
     await sleep(300);
     if (![...d.querySelectorAll('.tile')].every(t => t.querySelector('.pic img').src.startsWith('blob:'))) throw new Error('a tile has no sticker');
-    const order = [...d.querySelectorAll('.tile')].slice(0, 2).map(t => t.querySelector('.no').textContent + ' ' + t.querySelector('.name').textContent).join(', ');
+    const order = [...d.querySelectorAll('.tile')].slice(0, 2).map(t => t.querySelector('.no').textContent + ' ' + t.querySelector('.name').textContent).join(', '); // "#001 Kurko, #002 Kiffy"
 
     // A memory cannot be released.
     d.querySelector('.tile.memory').click();
@@ -62,6 +62,12 @@ f.onload = async () => {
     const x = c.getContext('2d'); x.drawImage(img, 0, 0); const px = x.getImageData(0, 0, c.width, c.height).data;
     let clear = 0; for (let i = 3; i < px.length; i += 4) if (px[i] === 0) clear++;
     d.querySelector('.fav').click(); // favourite it
+    // Gender: female → a female title on the untouched random name, traits in their feminine form, ♀ on the tile.
+    const nameBefore = d.querySelector('.card .name').value;
+    [...d.querySelectorAll('.gender button')].find(b => b.dataset.g === 'f').click();
+    const nameAfter = d.querySelector('.card .name').value;
+    const femTitle = /^(Doña|Capitana|Lady|Señorita|Pequeña|Princesa|Profe|Gran) /.test(nameAfter);
+    const traitsNow = [...d.querySelectorAll('.traits input')].map(i => i.value).join(',');
     const info = `species=${d.querySelector('.species').value} sticker=${c.width}x${c.height} transparent=${(clear / (px.length / 4) * 100).toFixed(0)}% place=${where.textContent}`;
     keep.click();
     await wait('gallery', () => d.querySelectorAll('.tile').length === 3, 10000);
@@ -86,6 +92,7 @@ f.onload = async () => {
     d.querySelector('.pick .tile').click();
     await wait('visit 2', () => !d.querySelector('#list').hidden && d.querySelector('.tile:not(.memory) .meta').textContent.includes('👀3'), 15000);
     const loyal = await wait('loyal toast', () => d.querySelector('#toast').textContent.includes('Amiga fiel') && 'yes', 8000).catch(() => 'no');
+    const noMarkOnTile = [...d.querySelectorAll('.tile .name')].some(n => n.textContent === nameAfter); // gender only on the back
     const hearts = [...d.querySelectorAll('.tile .heart')].filter(h => !h.hidden).length;
     d.querySelector('#tabs [data-tab=map]').click();
     await wait('map', () => d.querySelectorAll('.pin').length, 20000);
@@ -116,7 +123,7 @@ f.onload = async () => {
     d.querySelector('#tabs [data-tab=grid]').click();
     await wait('grid again', () => !d.querySelector('#grid').hidden && names(d).includes('Kurko'), 10000);
     await sleep(800);
-    [...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Kurko').click();
+    [...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent.startsWith('Kurko')).click();
     await wait('kurko card', () => btn(d, '📷 Foto'));
     const rarity = d.querySelector('.card').dataset.rarity;
     await sleep(700);
@@ -141,7 +148,7 @@ f.onload = async () => {
     await wait('front before close', () => !d.querySelector('.card.show-back'), 3000);
     await wait('closed from back', () => !d.querySelector('#list').hidden, 5000);
     await sleep(600);
-    [...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Kurko').click();
+    [...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent.startsWith('Kurko')).click();
     await wait('kurko again', () => btn(d, '📷'));
     await sleep(500);
     w.history.back();
@@ -167,7 +174,7 @@ f.onload = async () => {
     await wait('discarded', () => !d.querySelector('#list').hidden, 5000);
     await sleep(500);
 
-    const summary = `gallery[${gallery}] order="${order}" restoredNo=${[...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent === 'Restaurado').querySelector('.no').textContent}`;
+    const summary = `gallery[${gallery}] order="${order}" restoredNo=${[...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent.startsWith('Restaurado')).querySelector('.no').textContent}`;
 
     // Reset: everything goes, the app starts like the first day (birthday, only Kurko and Kiffy).
     const reloaded = new Promise(r => f.addEventListener('load', r, { once: true }));
@@ -181,7 +188,7 @@ f.onload = async () => {
     // In a browser tab (not the installed app) the greeting stays hidden, and it was not marked as seen.
     const reset = `${names(d2).join('+')},greetingInTab=${!d2.querySelector('#bday').hidden},seenFlag=${f.contentWindow.localStorage.getItem('bday-seen')}`;
 
-    log(`OK reset=${reset} ${summary} shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    log(`OK gender[${nameBefore} → ${nameAfter} femTitle=${femTitle} noMarkOnTile=${noMarkOnTile} traits=${traitsNow}] reset=${reset} ${summary} shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };

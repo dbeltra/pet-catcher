@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict';
-import { readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
-assert.equal(randomName(() => 0), 'Don Galleta');
+assert.equal(randomName('m', () => 0), 'Don Galleta');
+assert.equal(randomName('f', () => 0), 'Doña Galleta');
+assert.equal(randomName('x', () => 0), 'Mini Galleta');
+assert.equal(randomName(undefined, () => 0), 'Mini Galleta');
 assert.match(randomName(), /^\S+ \S+$/);
+assert.deepEqual(['m', 'f', 'x'].map(g => traitLabel('Glotón', g)), ['Glotón', 'Glotona', 'Glotón/a']);
+assert.deepEqual(['m', 'f', 'x'].map(g => traitLabel('Valiente', g)), ['Valiente', 'Valiente', 'Valiente']);
+assert.equal(traitLabel('Saltarín', 'f'), 'Saltarín'); // typed by her: shown as stored
+assert.deepEqual(['Glotón', 'Glotona', 'Glotón/a', ' Dormilona '].map(traitKey), ['Glotón', 'Glotón', 'Glotón', 'Dormilón']);
+assert.equal(traitKey('Saltarina'), 'Saltarina');
 
-assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, note: '', traits: [], visits: [], memory: false, shiny: false, id: 'x' });
+assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, note: '', traits: [], visits: [], memory: false, shiny: false, gender: 'x', nameAuto: false, id: 'x' });
 {
   const recs = [{ id: 'c2', takenAt: 20 }, { id: 'seed-kiffy', memory: true }, { id: 'c1', takenAt: 10 }, { id: 'seed-kurko', memory: true }].map(normalize);
   assert.equal(numberAll(recs).length, 4);
@@ -14,6 +22,7 @@ assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, note: '', trait
   assert.deepEqual(numberAll(recs).map(a => [a.id, a.no]), [['c3', 5]]); // existing numbers never change
   assert.equal(fmtNo(5), '#005');
 }
+assert.ok(SEEDS.every(s => s.gender === 'm'));
 assert.ok(SEEDS.every(s => s.place === 'Martos, Jaén' && Math.abs(s.location.lat - 37.7197) < 1e-3 && Math.abs(s.location.lon + 3.9697) < 1e-3));
 assert.equal(rollShiny(() => SHINY_CHANCE - 0.001), true);
 assert.equal(rollShiny(() => SHINY_CHANCE), false);

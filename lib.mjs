@@ -23,7 +23,11 @@ export const PASTELS = ['#fff0bf', '#dcf4e4', '#dcedff', '#ffe4cc', '#e9f2d2'];
 export const pastelFor = id => PASTELS[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % PASTELS.length];
 
 // Fills the fields newer versions added, so records from any older version keep working.
-export const normalize = a => ({ fav: false, note: '', traits: [], visits: [], memory: false, shiny: false, ...a });
+export const normalize = a => ({ fav: false, note: '', traits: [], visits: [], memory: false, shiny: false, gender: 'x', nameAuto: false, ...a });
+
+// Gender: 'm' male, 'f' female, 'x' unknown (the default). Names and traits follow it.
+export const GENDERS = { m: 'Macho', f: 'Hembra', x: 'No sé' };
+export const GENDER_ICONS = { m: 'male', f: 'female', x: 'question-mark' }; // assets/icons/*.png
 
 // Shiny: any new catch (not a Recuerdo) has this chance of a sparkling rainbow foil, whatever its species.
 export const SHINY_CHANCE = 1 / 15;
@@ -35,8 +39,8 @@ export const rollShiny = (rnd = Math.random) => rnd() < SHINY_CHANCE;
 // Both lived in Martos (Jaén).
 const MARTOS = { location: { lat: 37.719658366690034, lon: -3.9696664869193734 }, place: 'Martos, Jaén' };
 export const SEEDS = [
-  { id: 'seed-kurko', name: 'Kurko', species: 'perro', file: 'seed/kurko.png', photo: 2, ...MARTOS },
-  { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', file: 'seed/kiffy.png', photo: 2, ...MARTOS },
+  { id: 'seed-kurko', name: 'Kurko', species: 'perro', gender: 'm', file: 'seed/kurko.png', photo: 2, ...MARTOS },
+  { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', gender: 'm', file: 'seed/kiffy.png', photo: 2, ...MARTOS },
 ];
 
 // Memories first, in their number order (Kurko, then Kiffy); then newest first.
@@ -92,6 +96,19 @@ export function albumSlots(animals) {
 // Trading-card personality: 3 random traits with 1-5 stars. All editable on the back of the card.
 export const TRAITS = ['Dormilón', 'Glotón', 'Juguetón', 'Mimoso', 'Curioso', 'Valiente', 'Tímido', 'Travieso',
   'Elegante', 'Gruñón', 'Presumido', 'Aventurero', 'Cariñoso', 'Charlatán', 'Despistado', 'Veloz'];
+// Traits are stored in their masculine form (`name`) and shown by gender: Glotón / Glotona / Glotón/a.
+// Words that don't change (Valiente, Elegante, Veloz) and traits she typed herself are shown as stored.
+const TRAIT_F = {
+  Dormilón: 'Dormilona', Glotón: 'Glotona', Juguetón: 'Juguetona', Mimoso: 'Mimosa', Curioso: 'Curiosa', Tímido: 'Tímida',
+  Travieso: 'Traviesa', Gruñón: 'Gruñona', Presumido: 'Presumida', Aventurero: 'Aventurera', Cariñoso: 'Cariñosa',
+  Charlatán: 'Charlatana', Despistado: 'Despistada',
+};
+export const traitLabel = (name, g) => (!TRAIT_F[name] || g === 'm' ? name : g === 'f' ? TRAIT_F[name] : `${name}/a`);
+// What she typed → what to store: any gendered form of a known trait becomes its masculine form.
+export const traitKey = text => {
+  const t = text.trim();
+  return Object.keys(TRAIT_F).find(m => [m, TRAIT_F[m], `${m}/a`].includes(t)) ?? t;
+};
 export function randomTraits(rnd = Math.random) {
   const pool = [...TRAITS];
   return Array.from({ length: 3 }, () => ({ name: pool.splice(Math.floor(rnd() * pool.length), 1)[0], stars: 1 + Math.floor(rnd() * 5) }));
@@ -119,7 +136,7 @@ export const ACHIEVEMENTS = [
   { id: 'epic', emoji: '✨', title: 'Épica', desc: 'Atrapa un bichito épico', test: all => catches(all).some(a => rarityOf(a.species) === 'épico') },
   { id: 'legend', emoji: '🌟', title: 'Leyenda', desc: 'Atrapa un bichito legendario', test: all => catches(all).some(a => rarityOf(a.species) === 'legendario') },
   { id: 'mystery', emoji: '❓', title: 'Misterio', desc: 'Un bichito que nadie conoce', test: all => catches(all).some(a => a.species === UNKNOWN) },
-  { id: 'night', emoji: '🌙', title: 'Cazadora nocturna', desc: 'Una captura entre las 22 y las 6', test: all => sightings(all).some(t => hour(t) >= 22 || hour(t) < 6) },
+  { id: 'night', emoji: '🌙', title: 'Atrapadora nocturna', desc: 'Una captura entre las 22 y las 6', test: all => sightings(all).some(t => hour(t) >= 22 || hour(t) < 6) },
   { id: 'early', emoji: '🌅', title: 'Madrugadora', desc: 'Una captura entre las 6 y las 8', test: all => sightings(all).some(t => hour(t) >= 6 && hour(t) < 8) },
   { id: 'travel', emoji: '🧭', title: 'Viajera', desc: 'Capturas en 3 lugares', test: all => places(all).size >= 3 },
   { id: 'world', emoji: '✈️', title: 'Trotamundos', desc: 'Capturas en 10 lugares', test: all => places(all).size >= 10 },
@@ -131,11 +148,18 @@ export const unlockedIds = all => ACHIEVEMENTS.filter(x => x.test(all)).map(x =>
 
 export const cleanSpecies = s => s.trim().toLowerCase() || UNKNOWN;
 
-const TITLE = ['Don', 'Doña', 'Capitán', 'Princesa', 'Profe', 'Mini', 'Sir', 'Lady', 'Bebé', 'Señorito', 'Gran', 'Pequeño'];
+// The title carries the gender ("Don Churro", "Doña Churro", "Mini Churro"); the nouns are cute food words for all.
+const TITLES = {
+  m: ['Don', 'Capitán', 'Sir', 'Señorito', 'Pequeño', 'Príncipe', 'Profe', 'Gran'],
+  f: ['Doña', 'Capitana', 'Lady', 'Señorita', 'Pequeña', 'Princesa', 'Profe', 'Gran'],
+  x: ['Mini', 'Bebé', 'Peque', 'Súper', 'Profe', 'Gran'],
+};
 const NOUN = ['Galleta', 'Churro', 'Pepinillo', 'Fideo', 'Gofre', 'Croqueta', 'Mochi', 'Bollito', 'Nube', 'Garbanzo', 'Turrón', 'Chispa'];
 
-export const randomName = (rnd = Math.random) =>
-  `${TITLE[Math.floor(rnd() * TITLE.length)]} ${NOUN[Math.floor(rnd() * NOUN.length)]}`;
+export const randomName = (g = 'x', rnd = Math.random) => {
+  const titles = TITLES[g] ?? TITLES.x;
+  return `${titles[Math.floor(rnd() * titles.length)]} ${NOUN[Math.floor(rnd() * NOUN.length)]}`;
+};
 
 // Best-scoring animal across all detections, or null.
 export function pickAnimal(detections) {

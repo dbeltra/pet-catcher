@@ -13,7 +13,7 @@ Everything she sees should feel warm and personal; never ship something that can
 
 **Always light:** no dark theme (`color-scheme: light`), also when the phone is in dark mode (David's choice, v0.13.1).
 
-**The UI language is Spanish.** All visible text, species names and random names are Spanish.
+**The UI language is Spanish.** The verb is "atrapar", never "cazar" (David, v0.15). All visible text, species names and random names are Spanish.
 The look is kawaii but **not girly**: soft butter-yellow accent (`--accent: #f7d98b`) with dark-brown text on it,
 the light cream polka-dot background (`--bg: #fffdf5`, softer dots since v0.13), butter/mint/sky/peach/pistachio pastels, the rounded font Fredoka, kaomoji,
 ⭐ not hearts, the rolling ✿ next to the title, a highlighter band behind the title, gentle animations.
@@ -58,7 +58,7 @@ title (v0.3) was hard to read.
 | `test.mjs` | Unit check for `lib.mjs`. Run `node test.mjs` → prints `ok`. |
 | `style.css` | Mobile-first styles, light/dark through `prefers-color-scheme`. The sticker outline is a stack of CSS `drop-shadow`s. |
 | `sw.js` | Service worker: cache-first. Two caches: `shell-<VERSION>` (own files), `cdn-v1` (MediaPipe lib, Leaflet, models, font; hosts in `CDN_HOSTS`). Other origins (Nominatim, map tiles) pass through uncached, so the map has no tiles offline. It is registered with `updateViaCache: 'none'` and installs the shell with `cache: 'reload'`; without both, GitHub Pages' 10 min HTTP cache delays updates or mixes old and new files. |
-| `manifest.webmanifest`, `icon-192.png`, `icon-512.png` | PWA install data. The icon is the 🐱 emoji as a sticker on the butter-yellow dots, rendered from `icon-source.html` (see below). |
+| `manifest.webmanifest`, `icon-192.png`, `icon-512.png` | PWA install data. The icon is an open book (David's picture, redrawn as SVG in the app's colours: butter-yellow cover on the pale page background), rendered from `icon-source.html` (see below). |
 | `seed/*.png` | Stickers of her past pets (placeholders until David sends photos). |
 | `e2e/run.sh`, `e2e/harness.html` | End-to-end check in headless Chrome (see Testing). |
 
@@ -177,7 +177,7 @@ lookups one at a time for records that have `location` but no `place`.
   emoji and "???"; a caught slot shows its newest sticker and opens the collection filtered to it.
 - **Rarity** (`rarityOf` / `rarityFor`): común, raro (blue frame), épico (gold frame + soft shine), legendario
   (holographic). Custom species are raro; her Recuerdos are always legendario. The shine is a rainbow
-  layer that follows the phone tilt (`deviceorientation` → `--hx/--hy`, class `html.tilt`) or drifts. On tiles and
+  layer (each tile starts it at its own point, `--foil-delay`, so neighbours never shine together) that follows the phone tilt (`deviceorientation` → `--hx/--hy`, class `html.tilt`) or drifts. On tiles and
   cards it is a real element (`.foil`), so it gets its own view-transition-name and flies above the sticker
   during open/close (as a `::after` of the card it vanished behind the flying sticker). The "Recuerdo" ribbon
   gets the same treatment (`ribbon`, z-index 4), or it slid under the photo and popped back at the end. Album slots use `::after`.
@@ -186,6 +186,11 @@ lookups one at a time for records that have `location` but no `place`.
   `SHINY_CHANCE = 1/15`, whatever its species. A shiny gets a stronger sparkling rainbow foil (`.shiny > .foil`),
   "· ✨ Shiny" after the rarity, ✨ on the tile, a special toast + confetti in the preview, and the "¡Un shiny!"
   achievement. Text and buttons sit above the foil (z-index 3) so it never washes them out.
+- **Gender** (`gender`: `m` / `f` / `x` = unknown, the default; "Macho · Hembra · No sé" with David's male/female/question-mark icons on the back of the card,
+  chosen at catch time or later): while the random name is untouched (`nameAuto`), changing it picks a new
+  random name with a matching title (`randomName(g)`: Don/Doña/Mini…). Traits are stored in the masculine form
+  and shown by gender (`traitLabel`: Glotón / Glotona / Glotón/a; `traitKey` maps what she types back). The tile
+  shows nothing: gender lives only on the back of the card (David). Kurko and Kiffy are males, shown as fixed text.
 - **Traits** (flip the card): 3 random `TRAITS` with 1-5 stars on each new catch and memory.
   All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper. The card keeps the front's
@@ -310,7 +315,7 @@ Install on the phone: Android Chrome → menu → "Install app". iPhone Safari �
 
 ## Regenerate the PNG icons
 
-The icon is the 🐱 emoji itself (David wants it to stay the emoji, also after Kiffy's real photo arrives).
+The icon is the open book drawn as SVG in `icon-source.html` (since v0.15; before, a 🐱 emoji).
 Render 512 px and scale down: headless Chrome has a minimum window width, so a 192 px screenshot is cropped.
 
 ```sh
