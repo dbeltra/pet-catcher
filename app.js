@@ -160,9 +160,33 @@ let urls = [];
 const blobUrl = b => { const u = URL.createObjectURL(b); urls.push(u); return u; };
 const freeUrls = () => { urls.forEach(URL.revokeObjectURL); urls = []; };
 
-const status = t => { $('#status').textContent = t; $('#status').hidden = !t; };
+const status = (t, searching = false) => { $('#status').textContent = t; $('#status').hidden = !t; $('#searching').hidden = !searching; };
+// David's icons (assets/icons/*.png, 64 px, flat colour). `off` greys one out (empty heart, empty star).
+const icon = (name, off = false) => Object.assign(document.createElement('img'), { className: `ico${off ? ' off' : ''}`, src: `assets/icons/${name}.png`, alt: '' });
 const fmtWhen = t => new Date(t).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' });
 const fmtWhere = a => a.place ?? (a.location ? 'Buscando el nombre del lugar…' : 'Elegir lugar');
+
+// The app's own question pop-up (in place of the browser's confirm). Resolves true for `yes`; the safe
+// answer (`no`) has the focus, and closing it any other way counts as no.
+function ask({ title, text, yes, no = 'Cancelar', danger = false, pic = null }) {
+  const d = $('#ask');
+  d.querySelector('h2').textContent = title;
+  d.querySelector('p').textContent = text;
+  d.querySelector('.ask-pic').hidden = !pic;
+  if (pic) d.querySelector('.ask-pic').src = pic;
+  const y = d.querySelector('.yes'), n = d.querySelector('.no');
+  y.textContent = yes; n.textContent = no;
+  y.className = `yes ${danger ? 'danger' : 'primary'}`;
+  d.showModal();
+  n.focus();
+  return new Promise(res => {
+    const done = v => { d.onclose = null; d.close(); res(v); };
+    y.onclick = () => done(true);
+    n.onclick = () => done(false);
+    // The close event arrives late: the previous question's close can land after this one opened. Only a real close counts.
+    d.onclose = () => { if (!d.open) res(false); };
+  });
+}
 
 let toastTimer;
 function toast(text) {
@@ -237,7 +261,7 @@ function renderCard(a, actions, save = () => {}, close = null) {
   }
   q('.note').value = a.note;
   const fav = q('.fav');
-  const paintFav = () => { fav.textContent = a.fav ? '❤️' : '🤍'; fav.classList.toggle('on', a.fav); };
+  const paintFav = () => { fav.replaceChildren(icon('heart', !a.fav)); fav.classList.toggle('on', a.fav); };
   paintFav();
   fav.onclick = () => {
     a.fav = !a.fav;
@@ -255,14 +279,27 @@ function renderCard(a, actions, save = () => {}, close = null) {
   q('.actions').append(...actions);
 
   q('.sticker-wrap').onclick = () => flip(card, a, save); // tap = the same as a sideways swipe
-  swipes(card, dir => flip(card, a, save, dir), close);
-  const hint = Object.assign(document.createElement('p'), { className: 'swipe-hint',
-    textContent: close ? '↔️ Desliza la tarjeta para girarla · ⬇️ para cerrarla' : '↔️ Desliza la tarjeta para ver sus rasgos' });
-  $('#card').replaceChildren(card, hint);
+  swipes(card, dir => { learned('flip'); flip(card, a, save, dir); }, close && (() => { learned('close'); close(); }));
+  $('#card').replaceChildren(card);
+  if (!remembered('gestures-learned')) {
+    const hint = Object.assign(document.createElement('p'), { className: 'swipe-hint',
+      textContent: close ? '↔️ Desliza la tarjeta para girarla · ⬇️ para cerrarla ' : '↔️ Desliza la tarjeta para ver sus rasgos ' });
+    hint.append(button('✕', () => { remember('gestures-learned'); hint.remove(); }, 'dismiss'));
+    $('#card').append(hint);
+  }
   renderTraits(card, a, save);
   q('.sticker').addEventListener('load', () => evenFaces(card), { once: true });
   fillSpeciesList();
   return { where: q('.where'), sticker: q('.sticker') };
+}
+
+// The gesture hint under the card goes away for good when she taps its ✕, or once she has both flipped and
+// closed a card with a swipe. Kept in localStorage (a reset brings it back, which is right).
+const remembered = k => { try { return localStorage.getItem(k) === '1'; } catch { return false; } };
+const remember = k => { try { localStorage.setItem(k, '1'); } catch {} };
+function learned(gesture) {
+  remember(`used-${gesture}`);
+  if (remembered('used-flip') && remembered('used-close')) remember('gestures-learned');
 }
 
 // Touch gestures on the big card. Sideways: the card turns with the finger, past 60 px it flips.
@@ -354,7 +391,7 @@ function renderTraits(card, a, save) {
       b.setAttribute('aria-label', `${n} estrellas`);
       return b;
     });
-    const paint = () => stars.forEach((b, i) => { b.textContent = i < t.stars ? '★' : '☆'; });
+    const paint = () => stars.forEach((b, i) => { b.replaceChildren(icon('star', i >= t.stars)); b.classList.toggle('on', i < t.stars); });
     paint();
     li.append(name, ...stars, button('✕', () => { a.traits.splice(a.traits.indexOf(t), 1); li.remove(); empty(); evenFaces(card); save(); }, 'drop'));
     return li;
@@ -429,7 +466,7 @@ async function pickLocation(start) {
       ll ? done({ lat: ll.lat, lon: ll.lng }) : toast('Toca el mapa para poner el sitio 👆');
     };
     $('#loc-cancel').onclick = () => done(null);
-    dlg.onclose = () => res(null); // Escape / back
+    dlg.onclose = () => { if (!dlg.open) res(null); }; // Escape / back (a late close event of the previous use doesn't count)
   });
 }
 
@@ -469,10 +506,13 @@ async function renderList() {
   $('#count').textContent = all.length ? `${all.length} ${all.length === 1 ? 'atrapado' : 'atrapados'}` : '';
   $('#empty').hidden = all.length > 0;
   $('#filters').hidden = tab === 'album' || (counts.length < 2 && !favs);
-  const chip = (label, value) => button(label, () => transition(() => { filter = value; return renderList(); }, 'filter'),
-    `chip${filter === value ? ' on' : ''}`);
-  $('#filters').replaceChildren(chip(`✨ Todos ${all.length}`, null),
-    ...(favs ? [chip(`❤️ Favoritos ${favs}`, FAV)] : []),
+  const chip = (label, value, ico) => {
+    const b = button(label, () => transition(() => { filter = value; return renderList(); }, 'filter'), `chip${filter === value ? ' on' : ''}`);
+    if (ico) b.prepend(icon(ico), ' ');
+    return b;
+  };
+  $('#filters').replaceChildren(chip(`Todos ${all.length}`, null, 'shine'),
+    ...(favs ? [chip(`Favoritos ${favs}`, FAV, 'heart')] : []),
     ...counts.map(([s, n]) => chip(`${emojiFor(s)} ${s} ${n}`, s)));
 
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === tab);
@@ -485,7 +525,7 @@ async function renderList() {
 
   $('#grid').replaceChildren(...shown.map(a => {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
-    el.querySelector('img').src = blobUrl(a.sticker);
+    el.querySelector(STICKER).src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.no').textContent = a.no ? fmtNo(a.no) : '';
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.shiny ? ' ✨' : '') + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
@@ -555,18 +595,23 @@ async function transition(fn, type) {
   delete document.documentElement.dataset.vt;
 }
 
-// A tile (or the big card) morphs as `card`, its sticker as `sticker` and its foil as `foil`; a map pin has
+// The sticker image of a tile or card (a tile also holds the heart icon, so never just 'img').
+const STICKER = '.pic img, img.sticker';
+
+// A tile (or the big card) morphs as `card`, its sticker as `sticker`, its foil as `foil` and its ribbon as `ribbon`; a map pin has
 // only a sticker. Only one visible element may hold each name, so names are set just for the transition.
 function tag(el, on) {
   if (!el) return;
-  const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+  const img = el.tagName === 'IMG' ? el : el.querySelector(STICKER);
   if (img !== el) {
     el.style.viewTransitionName = on ? 'card' : '';
     el.querySelector(':scope > .foil').style.viewTransitionName = on ? 'foil' : '';
+    // The "Recuerdo" ribbon too: inside the card snapshot it slid under the flying sticker, then popped back on top
+    el.querySelector('.ribbon').style.viewTransitionName = on ? 'ribbon' : '';
   }
   img.style.viewTransitionName = on ? 'sticker' : '';
 }
-const decoded = el => (el?.tagName === 'IMG' ? el : el?.querySelector('img'))?.decode().catch(() => {});
+const decoded = el => (el?.tagName === 'IMG' ? el : el?.querySelector(STICKER))?.decode().catch(() => {});
 
 let listScroll = 0;
 
@@ -616,7 +661,13 @@ function detailCard(a) {
     button('📷 Foto', () => { rephotoTarget = a; $('#refile').click(); }),
     // Memories (her past pets) cannot be released.
     ...(a.memory ? [] : [button('🕊️ Liberar', async () => {
-      if (!confirm(`¿Liberar a ${a.name}? Se borrará de tu colección.`)) return;
+      const card = $('#view .card');
+      if (!await ask({ title: `¿Liberar a ${a.name}?`, text: 'Volverá a su vida libre y saldrá de tu colección. No se puede deshacer.',
+        yes: '🕊️ Liberar', no: 'Quedármelo', danger: true, pic: card.querySelector('.sticker').src })) return;
+      // It flies away before the view closes.
+      await card.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(-70vh) rotate(-10deg) scale(.6)', opacity: 0 }],
+        { duration: 650, easing: 'cubic-bezier(.5, -.4, .7, .4)', fill: 'forwards' }).finished;
+      toast(`🕊️ ${a.name} vuela libre`);
       await remove(a.id);
       closeDetail();
     }, 'danger')]),
@@ -642,7 +693,7 @@ async function pickExisting(caught, placed, back) {
   const grid = Object.assign(document.createElement('div'), { className: 'pick' });
   grid.append(...others.map(a => {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
-    el.querySelector('img').src = blobUrl(a.sticker);
+    el.querySelector(STICKER).src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
     el.querySelector('.heart').hidden = !a.fav;
@@ -679,16 +730,16 @@ function openDetail(a, from) {
 
 // Photo → sticker: detect the animal, or let the user tap it, then cut it out. Uses #view's status and stage.
 async function stickerFrom(file) {
-  status('Despertando al detector de bichitos… (◕‿◕) La primera vez descarga unos 13 MB.');
+  status('Despertando al detector de bichitos… (◕‿◕) La primera vez descarga unos 13 MB.', true);
   const img = await toCanvas(file);
   img.className = 'photo';
   const { detector, segmenter } = await loadModels();
 
-  status('Buscando al bichito… (・・ ) ?');
+  status('Buscando al bichito… (・・ ) ?', true);
   const hit = pickAnimal(detector.detect(img).detections);
   let point = hit ? boxCenter(hit.box, img) : await askTap(img, 'No lo encuentro (｡•́︿•̀｡) Toca al animal en la foto.');
 
-  status('Recortando con cuidado… ✂️');
+  status('Recortando con cuidado… ✂️', true);
   let sticker = await cutout(segmenter, img, point);
   while (!sticker) {
     point = await askTap(img, 'Ups, no he podido recortarlo. Toca al animal otra vez.');
@@ -796,7 +847,7 @@ $('#restore').onchange = async e => {
   try {
     const data = parseBackup(await file.text());
     $('#settings').close();
-    if (!confirm(`¿Recuperar ${data.animals.length} bichitos de la copia? Los que ya tienes se quedan.`)) return;
+    if (!await ask({ title: '¿Recuperar la copia?', text: `Se añadirán ${data.animals.length} bichitos. Los que ya tienes se quedan.`, yes: '📂 Recuperar' })) return;
     const local = await getAll();
     const ids = new Set(local.map(a => a.id)), used = new Set(local.map(a => a.no));
     for (const a of data.animals) {
@@ -844,8 +895,9 @@ $('#replay-bday').onclick = () => { $('#settings').close(); showBirthday(); };
 // Reset ("Restablecer"): deletes everything of hers on this phone and starts like the first day (birthday screen,
 // Kurko and Kiffy back). Two confirmations; the downloaded models stay cached (they are not her data).
 $('#reset').onclick = async () => {
-  if (!confirm('¿Restablecer Bichidex? Se borrarán todos tus bichitos, notas y logros. Kurko y Kiffy volverán.')) return;
-  if (!confirm('¿Seguro del todo? No se puede deshacer.\nSi quieres conservarlos, cancela y guarda antes una copia.')) return;
+  $('#settings').close();
+  if (!await ask({ title: '¿Restablecer Bichidex?', text: 'Se borrarán todos tus bichitos, notas y logros. Kurko y Kiffy volverán.', yes: 'Seguir', danger: true })) return;
+  if (!await ask({ title: '¿Seguro del todo?', text: 'No se puede deshacer. Si quieres conservarlos, cancela y guarda antes una copia.', yes: '🗑️ Borrar todo', danger: true })) return;
   (await db).close();
   await new Promise(res => { const r = indexedDB.deleteDatabase('pet-catcher'); r.onsuccess = r.onerror = r.onblocked = res; });
   try { localStorage.clear(); } catch {}

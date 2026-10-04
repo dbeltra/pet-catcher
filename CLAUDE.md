@@ -179,7 +179,8 @@ lookups one at a time for records that have `location` but no `place`.
   (holographic). Custom species are raro; her Recuerdos are always legendario. The shine is a rainbow
   layer that follows the phone tilt (`deviceorientation` → `--hx/--hy`, class `html.tilt`) or drifts. On tiles and
   cards it is a real element (`.foil`), so it gets its own view-transition-name and flies above the sticker
-  during open/close (as a `::after` of the card it vanished behind the flying sticker). Album slots use `::after`.
+  during open/close (as a `::after` of the card it vanished behind the flying sticker). The "Recuerdo" ribbon
+  gets the same treatment (`ribbon`, z-index 4), or it slid under the photo and popped back at the end. Album slots use `::after`.
   Use normal blending: `color-dodge` washes out to white on the pastels.
 - **Shiny:** every new catch (not a Recuerdo, not a "Ya lo tenía" visit) rolls `rollShiny()` with
   `SHINY_CHANCE = 1/15`, whatever its species. A shiny gets a stronger sparkling rainbow foil (`.shiny > .foil`),
@@ -195,7 +196,8 @@ lookups one at a time for records that have `location` but no `place`.
   and is as wide as its text, so emoji + word sit centred.
   The ▾ Chrome draws on datalist inputs is hidden (`::-webkit-calendar-picker-indicator`).
 - **Gestures** (`swipes()`, touch events, no buttons for these; they work from anywhere on the card, text fields
-  included: a tap still edits, a real swipe flips and closes the keyboard; the hint sits below the card): sideways swipe turns the card with the finger and
+  included: a tap still edits, a real swipe flips and closes the keyboard; the hint sits below the card, has a ✕,
+  and disappears for good (`localStorage` `gestures-learned`) after the ✕ or once she has swiped to flip and to close): sideways swipe turns the card with the finger and
   flips past 60 px (a tap on the photo or the back's title flips too); swipe down, with `#view` scrolled to the top,
   closes the detail past 110 px (never on a new catch). The detail is a history entry (`pushState`), so the
   phone's Back gesture closes it as well; everything that closes a detail goes through `history.back()`.

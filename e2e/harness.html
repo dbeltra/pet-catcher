@@ -22,7 +22,8 @@ f.onload = async () => {
     const d = f.contentDocument, w = f.contentWindow;
     // Headless Chrome has no position: fake one in Sitges so the real place lookup runs.
     w.navigator.geolocation.getCurrentPosition = ok => ok({ coords: { latitude: 41.2372, longitude: 1.8059 } });
-    w.confirm = () => true;
+    // The app asks with its own pop-up (#ask): answer yes when it opens.
+    const yes = async step => { await wait(step, () => d.querySelector('#ask').open, 5000); d.querySelector('#ask .yes').click(); };
 
     // First open: the birthday surprise, then her two memories.
     await wait('birthday', () => !d.querySelector('#bday').hidden, 10000);
@@ -32,6 +33,7 @@ f.onload = async () => {
     d.querySelector('#bday button').click();
     await wait('memories', () => names(d).includes('Kurko') && names(d).includes('Kiffy'), 10000);
     await sleep(300);
+    if (![...d.querySelectorAll('.tile')].every(t => t.querySelector('.pic img').src.startsWith('blob:'))) throw new Error('a tile has no sticker');
     const order = [...d.querySelectorAll('.tile')].slice(0, 2).map(t => t.querySelector('.no').textContent + ' ' + t.querySelector('.name').textContent).join(', ');
 
     // A memory cannot be released.
@@ -99,6 +101,7 @@ f.onload = async () => {
     backup.animals = backup.animals.filter(a => !a.memory).map(a => ({ ...a, id: 'restored', name: 'Restaurado' }));
     const rt = new DataTransfer(); rt.items.add(new File([JSON.stringify(backup)], 'copia.json', { type: 'application/json' }));
     const restore = d.querySelector('#restore'); restore.files = rt.files; restore.dispatchEvent(new Event('change'));
+    await yes('ask restore');
     d.querySelector('#tabs [data-tab=grid]').click();
     await wait('restore', () => names(d).includes('Restaurado'), 10000);
 
@@ -126,7 +129,7 @@ f.onload = async () => {
     d.querySelectorAll('.traits li')[0].querySelectorAll('.star')[2].click();
     d.querySelector('.add-trait').click();
     const traits = d.querySelectorAll('.traits li').length;
-    const stars = d.querySelectorAll('.traits li')[0].textContent.split('★').length - 1;
+    const stars = d.querySelectorAll('.traits li')[0].querySelectorAll('.star.on').length;
     d.querySelector('.back h3').click(); // a tap flips back too
     await wait('unflip', () => !d.querySelector('.card.show-back'), 5000);
     await sleep(500);
@@ -150,6 +153,7 @@ f.onload = async () => {
     const gal = d.querySelector('#gallery-file'); gal.files = dt3.files; gal.dispatchEvent(new Event('change'));
     await wait('gallery preview', () => btn(d, '¡Me lo quedo!'));
     const galleryWhen = d.querySelector('.card .when').textContent;
+    const hintGone = !d.querySelector('#card .swipe-hint'); // she has flipped and closed with swipes by now
     const noPlace = d.querySelector('.card .where').textContent;
     d.querySelector('.card .where').click();
     await wait('picker', () => d.querySelector('#locpick').open, 10000);
@@ -158,7 +162,7 @@ f.onload = async () => {
     await wait('search', () => d.querySelector('.loc-pin'), 15000);
     d.querySelector('#loc-ok').click();
     await wait('picked place', () => d.querySelector('.card .where').textContent.includes('Martos'), 15000);
-    const gallery = `when="${galleryWhen}" before="${noPlace}" after="${d.querySelector('.card .where').textContent}"`;
+    const gallery = `hintGone=${hintGone} when="${galleryWhen}" before="${noPlace}" after="${d.querySelector('.card .where').textContent}"`;
     btn(d, 'Descartar').click();
     await wait('discarded', () => !d.querySelector('#list').hidden, 5000);
     await sleep(500);
@@ -168,6 +172,9 @@ f.onload = async () => {
     // Reset: everything goes, the app starts like the first day (birthday, only Kurko and Kiffy).
     const reloaded = new Promise(r => f.addEventListener('load', r, { once: true }));
     d.querySelector('#reset').click();
+    await yes('ask reset 1');
+    await sleep(300);
+    await yes('ask reset 2');
     await reloaded;
     const d2 = f.contentDocument;
     await wait('memories after reset', () => d2.querySelectorAll('.tile').length === 2, 10000);
