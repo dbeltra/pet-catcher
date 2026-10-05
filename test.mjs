@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Galleta');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -197,6 +197,10 @@ assert.equal(alpha(6, 5), 0);
   assert.equal(noteText('cumple-2027'), 'Feliz cumpleaños! 🎁');
   assert.equal(noteText('first'), NOTES[0].text);
   assert.equal(DATE_NOTES.length, 5);
+  assert.equal(noteWhy('shiny'), 'Tu primer shiny');
+  assert.equal(noteWhy('santjordi-2027'), 'Sant Jordi 2027');
+  assert.equal(dueNotes([], at(4, 23, 9, 2027), [])[0].why, 'Sant Jordi 2027');
+  assert.ok([...NOTES, ...DATE_NOTES].every(n => n.why));
 }
 
 console.log('ok');

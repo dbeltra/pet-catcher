@@ -321,33 +321,40 @@ export function nextFriendship(a) {
 // Texts are David's, word for word. Moments never count her Recuerdos.
 const inJapan = all => catches(all).some(a => a.country === 'jp' || a.visits.some(v => v.country === 'jp'));
 export const NOTES = [
-  { id: 'first', text: 'Tu primer bichito! Espero que te entretengas mucho con esta app 🙌🏻', test: all => catches(all).length >= 1 },
-  { id: 'ten', text: '10 ya! Aún sigues usando la app?', test: all => catches(all).length >= 10 },
-  { id: 'fifty', text: 'A este paso tienes mas fotos de bichitos que mías 🤔', test: all => catches(all).length >= 50 },
-  { id: 'shiny', text: 'A quien no le gusta un poco de brilli brilli? ✨', test: all => catches(all).some(a => a.shiny) },
-  { id: 'legend', text: 'Legendario. Será que hoy es tu dia de suerte?', test: all => catches(all).some(a => rarityOf(a.species) === 'legendario') },
-  { id: 'night', text: 'Que haces fotografiando bichos a estas horas? A la camaaaa', test: all => sightings(all).some(t => hour(t) >= 23 || hour(t) < 6) },
-  { id: 'early', text: 'Despierta a estas horas seguro que no eres Mari, devuélvele el telefono!', test: all => sightings(all).some(t => hour(t) === 6) },
-  { id: 'friend', text: 'Vas a ser más amiga de éste bichito que de mi? 😱', test: all => catches(all).some(a => friendshipOf(a)?.key === 'oro') },
-  { id: 'fav', text: 'Tu también eres mi favorita', test: all => catches(all).some(a => a.fav) },
-  { id: 'japan', text: 'Quien te iba a decir que volveriamos? 🇯🇵', test: inJapan },
+  { id: 'first', why: 'Tu primera captura', text: 'Tu primer bichito! Espero que te entretengas mucho con esta app 🙌🏻', test: all => catches(all).length >= 1 },
+  { id: 'ten', why: '10 capturas', text: '10 ya! Aún sigues usando la app?', test: all => catches(all).length >= 10 },
+  { id: 'fifty', why: '50 capturas', text: 'A este paso tienes mas fotos de bichitos que mías 🤔', test: all => catches(all).length >= 50 },
+  { id: 'shiny', why: 'Tu primer shiny', text: 'A quien no le gusta un poco de brilli brilli? ✨', test: all => catches(all).some(a => a.shiny) },
+  { id: 'legend', why: 'Tu primer legendario', text: 'Legendario. Será que hoy es tu dia de suerte?', test: all => catches(all).some(a => rarityOf(a.species) === 'legendario') },
+  { id: 'night', why: 'Una captura de madrugada', text: 'Que haces fotografiando bichos a estas horas? A la camaaaa', test: all => sightings(all).some(t => hour(t) >= 23 || hour(t) < 6) },
+  { id: 'early', why: 'Una captura al amanecer', text: 'Despierta a estas horas seguro que no eres Mari, devuélvele el telefono!', test: all => sightings(all).some(t => hour(t) === 6) },
+  { id: 'friend', why: 'Tu primera amistad de oro', text: 'Vas a ser más amiga de éste bichito que de mi? 😱', test: all => catches(all).some(a => friendshipOf(a)?.key === 'oro') },
+  { id: 'fav', why: 'Tu primer favorito', text: 'Tu también eres mi favorita', test: all => catches(all).some(a => a.fav) },
+  { id: 'japan', why: 'Tu primera captura en Japón', text: 'Quien te iba a decir que volveriamos? 🇯🇵', test: inJapan },
 ];
 // Every year on these days (month 1-12). `skip`: years without it (2026: her birthday greeting already says it).
 export const DATE_NOTES = [
-  { key: 'santjordi', month: 4, day: 23, text: 'Feliç Sant Jordi! Te quiero ❤️' },
-  { key: 'navidad', month: 12, day: 25, text: 'Feliz Navidad! 🎄' },
-  { key: 'anonuevo', month: 1, day: 1, text: 'Feliz año nuevo! Por muchos mas a tu lado!' },
-  { key: 'cumple', month: 10, day: 15, text: 'Feliz cumpleaños! 🎁', skip: [2026] },
-  { key: 'aniversario', month: 4, day: 18, text: 'Feliz aniversario! ❤️' },
+  { key: 'santjordi', why: 'Sant Jordi', month: 4, day: 23, text: 'Feliç Sant Jordi! Te quiero ❤️' },
+  { key: 'navidad', why: 'Navidad', month: 12, day: 25, text: 'Feliz Navidad! 🎄' },
+  { key: 'anonuevo', why: 'Año nuevo', month: 1, day: 1, text: 'Feliz año nuevo! Por muchos mas a tu lado!' },
+  { key: 'cumple', why: 'Tu cumpleaños', month: 10, day: 15, text: 'Feliz cumpleaños! 🎁', skip: [2026] },
+  { key: 'aniversario', why: 'Nuestro aniversario', month: 4, day: 18, text: 'Feliz aniversario! ❤️' },
 ];
 // Letters that are due now and not opened yet: [{ id, text }]. Date letters get the year in their id.
 export function dueNotes(all, now, opened) {
   const d = new Date(now), y = d.getFullYear();
   return [
-    ...NOTES.filter(n => n.test(all)).map(n => ({ id: n.id, text: n.text })),
+    ...NOTES.filter(n => n.test(all)).map(n => ({ id: n.id, why: n.why, text: n.text })),
     ...DATE_NOTES.filter(n => n.month === d.getMonth() + 1 && n.day === d.getDate() && !n.skip?.includes(y))
-      .map(n => ({ id: `${n.key}-${y}`, text: n.text })),
+      .map(n => ({ id: `${n.key}-${y}`, why: `${n.why} ${y}`, text: n.text })),
   ].filter(n => !opened.includes(n.id));
 }
 // The text of an opened letter, by id (for the "Cartas" list).
 export const noteText = id => (NOTES.find(n => n.id === id) ?? DATE_NOTES.find(n => id.startsWith(`${n.key}-`)))?.text ?? '';
+// Why a letter arrived: "Tu primer shiny", "Sant Jordi 2027"…
+export function noteWhy(id) {
+  const n = NOTES.find(x => x.id === id);
+  if (n) return n.why;
+  const d = DATE_NOTES.find(x => id.startsWith(`${x.key}-`));
+  return d ? `${d.why} ${id.slice(d.key.length + 1)}` : '';
+}

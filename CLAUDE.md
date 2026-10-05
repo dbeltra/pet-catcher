@@ -198,7 +198,7 @@ lookups one at a time for records that have `location` but no `place`.
   and shown by gender (`traitLabel`: Glotón / Glotona / Glotón/a; `traitKey` maps what she types back). The tile
   shows nothing: gender lives only on the back of the card (David). Kurko and Kiffy are males, shown as fixed text.
 - **Traits** (flip the card): 3 random `TRAITS` with 1-5 stars on each new catch and memory.
-  All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
+  Editable on the back: rename (with suggestions) and tap stars. `flip()` turns the card with
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper. The card keeps the front's
   Both faces share the card's fixed 5:7 shape.
   Edits change rows in place: never rebuild the list. On a flip the rows are simply there; only an added row
@@ -245,9 +245,12 @@ lookups one at a time for records that have `location` but no `place`.
   Jordi 23/4, aniversario 18/4, Navidad, Año nuevo, cumpleaños 15/10 except 2026). Her Recuerdos never count.
   `checkNotes()` shows the next due letter as an envelope (`#letter`), **only on the list screen** (never over a
   card, a catch, the birthday or a dialog); opened ones go to meta `notes-opened` and Ajustes → "💌 Cartas".
+  Each letter has a `why` ("Tu primer shiny", "Sant Jordi 2027"; `noteWhy`), shown on the envelope and in the list.
 - **Card layout (v0.19.1):** the front is photo-first: photo, name, species, number · rarity, and date · place on one
   line. The back has gender, traits, then friendship · sightings on one line ("🥉 Bronce, 2 más para plata · 👀 3 veces")
-  and a saved card's buttons (¡Otra vez!, Foto, Liberar), smaller. A new catch keeps its buttons on the front.
+  and a saved card's buttons (¡Otra vez!, Foto, Liberar) on one line (they shrink on narrow phones, never wrap).
+  A new catch keeps its buttons on the front. Exactly 3 traits, editable, no add / remove (v0.19.4), so the back
+  never scrolls (`overflow: hidden`; scrolling inside it fought with the swipes). Checked down to 320 px wide.
 - **Friendship** (`friendshipOf`): 3 sightings bronce 🥉, 5 plata 🥈, 10 oro 🥇. A metal ring inside the card
   (`data-friend`), the medal after the number on the tile, a line on the card, a toast (confetti at gold).
 - **Pack reveal** (`reveal()`): a new catch arrives face down (`.cover`, the Bichidex card back), wobbles, flips, and

@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { friendshipOf, nextFriendship, dueNotes, noteText, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -507,14 +507,19 @@ async function turnCard(card, dir, start, swap, { base = '', ms = 170 } = {}) {
 }
 
 // Edits change rows in place: rebuilding the list replayed the pop-in and looked like flicker.
+// Always exactly 3 traits (they fit the back without scrolling): rename them and set their stars; no adding or
+// removing. Older cards with more keep the first 3; with fewer, random ones fill up to 3.
 function renderTraits(card, a, save) {
   const list = card.querySelector('.traits');
   card.querySelector('.back h3').textContent = `Así es ${a.name}`;
   $('#traits-list').replaceChildren(...TRAITS.map(t => new Option(traitLabel(t, a.gender)))); // suggestions in her gender
-  const empty = () => { if (!a.traits.length) list.replaceChildren(Object.assign(document.createElement('li'), { className: 'none', textContent: 'Todavía sin rasgos (・・ )' })); };
-  const row = (t, isNew = false) => {
+  if (a.traits.length !== 3) {
+    const used = new Set(a.traits.map(t => t.name));
+    a.traits = [...a.traits, ...randomTraits().filter(t => !used.has(t.name))].slice(0, 3);
+    save();
+  }
+  list.replaceChildren(...a.traits.map(t => {
     const li = document.createElement('li');
-    li.classList.toggle('new', isNew); // only an added trait pops in: on a flip the rows are simply there
     const name = Object.assign(document.createElement('input'), { value: traitLabel(t.name, a.gender), maxLength: 20, ariaLabel: 'Rasgo' });
     name.setAttribute('list', 'traits-list');
     name.onchange = () => { t.name = traitKey(name.value) || t.name; name.value = traitLabel(t.name, a.gender); save(); };
@@ -525,21 +530,9 @@ function renderTraits(card, a, save) {
     });
     const paint = () => stars.forEach((b, i) => { b.replaceChildren(icon('star', i >= t.stars)); b.classList.toggle('on', i < t.stars); });
     paint();
-    li.append(name, ...stars, button('✕', () => { a.traits.splice(a.traits.indexOf(t), 1); li.remove(); empty(); save(); }, 'drop'));
+    li.append(name, ...stars);
     return li;
-  };
-  list.replaceChildren(...a.traits.map(t => row(t)));
-  empty();
-  card.querySelector('.add-trait').onclick = () => {
-    const used = new Set(a.traits.map(t => t.name));
-    const t = { name: TRAITS.find(n => !used.has(n)) ?? 'Especial', stars: 3 };
-    a.traits.push(t);
-    list.querySelector('.none')?.remove();
-    const li = row(t, true);
-    list.append(li);
-    li.querySelector('input').select();
-    save();
-  };
+  }));
   card.querySelector('.back h3').onclick = () => flip(card, a, save);
 }
 
@@ -1078,6 +1071,7 @@ async function checkNotes() {
   const d = $('#letter');
   d.classList.remove('open');
   d.querySelector('.note-text').textContent = next.text;
+  d.querySelector('.note-why').textContent = next.why;
   d.showModal();
   d.querySelector('.envelope').onclick = () => d.classList.add('open');
   d.onclose = async () => {
@@ -1092,7 +1086,8 @@ $('#open-letters').onclick = async () => {
   const opened = (await getMeta('notes-opened')) ?? [];
   $('#letters-list').replaceChildren(...[...opened].reverse().map(o => {
     const li = document.createElement('li');
-    li.append(Object.assign(document.createElement('p'), { textContent: noteText(o.id) }),
+    li.append(Object.assign(document.createElement('strong'), { textContent: noteWhy(o.id) }),
+      Object.assign(document.createElement('p'), { textContent: noteText(o.id) }),
       Object.assign(document.createElement('small'), { textContent: new Date(o.at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) }));
     return li;
   }));

@@ -350,7 +350,7 @@ html.tilt .shiny > .foil::before { animation: shiny-pulse 1.6s ease-in-out infin
 /* ---------- back of the card: traits ---------- */
 .card:not(.show-back) .back, .card.show-back > :not(.back, .foil) { display: none; }
 .back { width: 100%; padding-top: 18px; }
-.card.show-back .back { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; }
+.card.show-back .back { flex: 1; min-height: 0; overflow: hidden; /* fixed content, never scrolls (scroll + swipes was buggy) */ display: flex; flex-direction: column; justify-content: flex-start; align-items: center; }
 .back .traits { align-self: stretch; }
 .back h3 { margin: 0 0 12px; font-size: 1.4rem; }
 .traits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -358,19 +358,9 @@ html.tilt .shiny > .foil::before { animation: shiny-pulse 1.6s ease-in-out infin
   display: flex; align-items: center; gap: 2px; padding: 6px 6px 6px 12px;
   background: rgba(255, 255, 255, .6); border-radius: 14px;
 }
-.traits li.new { animation: rise .45s cubic-bezier(.34, 1.56, .64, 1) both; }
-.traits li.new:nth-child(2) { animation-delay: .06s; }
-.traits li.new:nth-child(3) { animation-delay: .12s; }
-.traits li.new:nth-child(n+4) { animation-delay: .18s; }
-.traits li.none { justify-content: center; color: rgba(90, 70, 50, .6); }
 .card .traits input { flex: 1; min-width: 0; text-align: left; font-weight: 600; border-bottom-style: none; }
-.traits .star, .traits .drop { font: inherit; border: 0; background: none; padding: 4px; cursor: pointer; }
-.traits .star { font-size: 1.15rem; padding: 3px 2px; color: #e8b84a; line-height: 1; }
-.traits .drop { color: rgba(90, 70, 50, .45); margin-left: 4px; }
-.add-trait {
-  margin-top: 10px; font: inherit; padding: 8px 16px; border-radius: 999px; cursor: pointer;
-  border: 2px dashed rgba(90, 70, 50, .35); background: none; color: var(--ink);
-}
+.traits .star { font: inherit; border: 0; background: none; padding: 4px; cursor: pointer; }
+.traits .star { font-size: clamp(.85rem, 4vw, 1.15rem); padding: 3px 1px; color: #e8b84a; line-height: 1; }
 /* Closing: the text and buttons go at once (no pause), so the shrinking card is just colour, sticker and foil */
 .card.leaving > :not(.sticker-wrap, .foil) { opacity: 0; }
 .sticker-wrap::before, .sticker-wrap::after { position: absolute; font-size: 1.4rem; animation: twinkle 2.4s ease-in-out infinite; }
@@ -392,7 +382,9 @@ html.tilt .shiny > .foil::before { animation: shiny-pulse 1.6s ease-in-out infin
 .card .when-where { font-size: .9rem; }
 .where::before { content: ' · 📍 '; }
 .card .bond { margin: 12px 0 0; font-size: .9rem; font-weight: 600; }
-.back-actions { margin-top: 10px; }
+/* The 3 buttons of a saved card always on one line: they shrink on narrow phones instead of wrapping */
+.actions.back-actions { margin-top: 10px; flex-wrap: nowrap; gap: 6px; width: 100%; } /* .actions.back-actions: beats the general .actions wrap */
+.actions.back-actions button { flex: 0 1 auto; min-width: 0; white-space: nowrap; padding: 6px clamp(6px, 2.4vw, 10px); font-size: clamp(.72rem, 3.6vw, .9rem); }
 .when::before { content: '🕒 '; }
 
 .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
@@ -631,5 +623,7 @@ html[data-vt]::view-transition-group(content) { animation: none; }
 
 #letters-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 55dvh; overflow-y: auto; text-align: left; }
 #letters-list li { background: #fffdf5 repeating-linear-gradient(transparent 0 23px, rgba(90, 70, 50, .07) 23px 24px); border-radius: 14px; padding: 10px 14px; box-shadow: 0 2px 6px rgba(90, 70, 50, .12); }
-#letters-list p { margin: 0 0 4px; }
+#letters-list p { margin: 2px 0 4px; }
+#letters-list strong { font-size: .85rem; color: var(--accent-deep); }
+#letter .note-why { margin: -8px 0 0; color: var(--accent-deep); font-weight: 600; font-size: .95rem; }
 #letters-list small { color: var(--muted); }
