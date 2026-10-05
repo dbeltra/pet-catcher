@@ -194,7 +194,8 @@ lookups one at a time for records that have `location` but no `place`.
   achievement. Text and buttons sit above the foil (z-index 3) so it never washes them out.
 - **Gender** (`gender`: `m` / `f` / `x` = unknown, the default; "Macho · Hembra · No sé" with David's male/female/question-mark icons on the back of the card,
   chosen at catch time or later): while the random name is untouched (`nameAuto`), changing it picks a new
-  random name with a matching title (`randomName(g)`: Don/Doña/Mini…). Traits are stored in the masculine form
+  random name with a matching title and word (`randomName(g)`: 16 masculine words for males, 16 feminine for females,
+  all 32 for unknown; "Don Churro", "Doña Galleta", "Mini Pompón"). Traits are stored in the masculine form
   and shown by gender (`traitLabel`: Glotón / Glotona / Glotón/a; `traitKey` maps what she types back). The tile
   shows nothing: gender lives only on the back of the card (David). Kurko and Kiffy are males, shown as fixed text.
 - **Traits** (flip the card): 3 random `TRAITS` with 1-5 stars on each new catch and memory.

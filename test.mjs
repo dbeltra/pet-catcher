@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
 import { FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
-assert.equal(randomName('m', () => 0), 'Don Galleta');
+assert.equal(randomName('m', () => 0), 'Don Churro');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
-assert.equal(randomName('x', () => 0), 'Mini Galleta');
-assert.equal(randomName(undefined, () => 0), 'Mini Galleta');
+assert.equal(randomName('x', () => 0), 'Mini Churro');
+assert.equal(randomName(undefined, () => 0), 'Mini Churro');
+assert.equal(randomName('f', () => 0.999), 'Gran Mandarina');
+assert.equal(randomName('x', () => 0.999), 'Gran Mandarina'); // unknown: words of both genders
+{ // a male never gets a feminine word, and the other way round
+  const fem = ['Galleta', 'Croqueta', 'Nube', 'Chispa', 'Pelusa', 'Motita', 'Manchitas', 'Canela', 'Trufa', 'Magdalena', 'Bellota', 'Rosquilla', 'Ensaimada', 'Almendra', 'Pipa', 'Mandarina'];
+  for (let i = 0; i < 300; i++) {
+    assert.ok(!fem.includes(randomName('m').split(' ')[1]));
+    assert.ok(fem.includes(randomName('f').split(' ')[1]));
+  }
+}
 assert.match(randomName(), /^\S+ \S+$/);
 assert.deepEqual(['m', 'f', 'x'].map(g => traitLabel('Glotón', g)), ['Glotón', 'Glotona', 'Glotón/a']);
 assert.deepEqual(['m', 'f', 'x'].map(g => traitLabel('Valiente', g)), ['Valiente', 'Valiente', 'Valiente']);

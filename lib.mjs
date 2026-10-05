@@ -148,17 +148,23 @@ export const unlockedIds = all => ACHIEVEMENTS.filter(x => x.test(all)).map(x =>
 
 export const cleanSpecies = s => s.trim().toLowerCase() || UNKNOWN;
 
-// The title carries the gender ("Don Churro", "Doña Churro", "Mini Churro"); the nouns are cute food words for all.
+// The title carries the gender ("Don", "Doña", "Mini").
 const TITLES = {
   m: ['Don', 'Capitán', 'Sir', 'Señorito', 'Pequeño', 'Príncipe', 'Profe', 'Gran'],
   f: ['Doña', 'Capitana', 'Lady', 'Señorita', 'Pequeña', 'Princesa', 'Profe', 'Gran'],
   x: ['Mini', 'Bebé', 'Peque', 'Súper', 'Profe', 'Gran'],
 };
-const NOUN = ['Galleta', 'Churro', 'Pepinillo', 'Fideo', 'Gofre', 'Croqueta', 'Mochi', 'Bollito', 'Nube', 'Garbanzo', 'Turrón', 'Chispa'];
+// The word matches the title's grammatical gender ("Don Churro", "Doña Galleta"); unknown gender takes any word.
+const WORDS = {
+  m: ['Churro', 'Pepinillo', 'Fideo', 'Gofre', 'Mochi', 'Bollito', 'Garbanzo', 'Turrón',
+    'Copito', 'Pompón', 'Bigotes', 'Polvorón', 'Bombón', 'Calcetín', 'Pantuflo', 'Cascabel'],
+  f: ['Galleta', 'Croqueta', 'Nube', 'Chispa', 'Pelusa', 'Motita', 'Manchitas', 'Canela',
+    'Trufa', 'Magdalena', 'Bellota', 'Rosquilla', 'Ensaimada', 'Almendra', 'Pipa', 'Mandarina'],
+};
 
 export const randomName = (g = 'x', rnd = Math.random) => {
-  const titles = TITLES[g] ?? TITLES.x;
-  return `${titles[Math.floor(rnd() * titles.length)]} ${NOUN[Math.floor(rnd() * NOUN.length)]}`;
+  const titles = TITLES[g] ?? TITLES.x, words = WORDS[g] ?? [...WORDS.m, ...WORDS.f];
+  return `${titles[Math.floor(rnd() * titles.length)]} ${words[Math.floor(rnd() * words.length)]}`;
 };
 
 // Best-scoring animal across all detections, or null.
