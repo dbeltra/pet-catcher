@@ -52,6 +52,7 @@ h1 {
 #count:not(:empty)::before { content: '· '; }
 
 /* ---------- filters ---------- */
+#album-jump { display: flex; gap: 8px; flex: 1; justify-content: center; }
 #controls { display: flex; align-items: center; gap: 8px; padding: 10px 0 6px; }
 #filters { display: flex; gap: 8px; overflow-x: auto; padding: 2px; scrollbar-width: none; flex: 1; min-width: 0; }
 .chip {

@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -82,10 +82,11 @@ async function ensureMemories() {
     const a = have.get(s.id);
     if (a && !a.location) await put(Object.assign(a, { location: s.location, place: s.place })); // memories from before v0.11.3
     if (a && a.gender === 'x') await put(Object.assign(a, { gender: s.gender })); // memories from before v0.15 (both males)
+    if (a && JSON.stringify(a.traits) !== JSON.stringify(seedTraits(s))) await put(Object.assign(a, { traits: seedTraits(s) })); // fixed (v0.20.6)
     if (a && (a.customPhoto || (a.seedPhoto ?? 1) >= s.photo)) continue;
     const sticker = await (await fetch(s.file)).blob();
     await put(a ? { ...a, sticker, thumb: await makeThumb(sticker), seedPhoto: s.photo }
-      : normalize({ id: s.id, name: s.name, species: s.species, gender: s.gender, sticker, thumb: await makeThumb(sticker), seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: s.place, location: s.location, traits: randomTraits() }));
+      : normalize({ id: s.id, name: s.name, species: s.species, gender: s.gender, sticker, thumb: await makeThumb(sticker), seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: s.place, location: s.location, traits: seedTraits(s) }));
   }
 }
 
@@ -557,11 +558,11 @@ function renderTraits(card, a, save) {
   }
   list.replaceChildren(...a.traits.map(t => {
     const li = document.createElement('li');
-    const name = Object.assign(document.createElement('input'), { value: traitLabel(t.name, a.gender), maxLength: 20, ariaLabel: 'Rasgo' });
+    const name = Object.assign(document.createElement('input'), { value: traitLabel(t.name, a.gender), maxLength: 20, ariaLabel: 'Rasgo', readOnly: a.memory });
     name.setAttribute('list', 'traits-list');
     name.onchange = () => { t.name = traitKey(name.value) || t.name; name.value = traitLabel(t.name, a.gender); save(); };
     const stars = [1, 2, 3, 4, 5].map(n => {
-      const b = button('', () => { t.stars = n; paint(); save(); }, 'star');
+      const b = button('', () => { if (a.memory) return; t.stars = n; paint(); save(); }, 'star'); // her Recuerdos: fixed
       b.setAttribute('aria-label', `${n} estrellas`);
       return b;
     });
@@ -707,6 +708,7 @@ async function renderList() {
   $('#empty').hidden = all.length > 0;
   $('#filters').hidden = tab === 'album' || (counts.length < 2 && !favs);
   $('#sortbar').hidden = tab !== 'grid' || all.length < 3; // order only matters in the grid
+  $('#album-jump').hidden = tab !== 'album';
   const chip = (label, value, ico) => {
     const b = button(label, () => transition(() => { filter = value; return renderList(); }, 'filter'), `chip${filter === value ? ' on' : ''}`);
     if (ico) b.prepend(icon(ico), ' ');
@@ -751,6 +753,12 @@ async function renderList() {
     }
   })();
 }
+
+// Album: two chips in the pinned row jump to "Especies" or "Logros".
+for (const b of document.querySelectorAll('#album-jump button')) b.onclick = () => {
+  const target = $(b.dataset.to), pinned = $('header').getBoundingClientRect().bottom;
+  scrollTo({ top: scrollY + target.getBoundingClientRect().top - pinned - 8, behavior: 'smooth' });
+};
 
 // The foil shine starts at a different point on each card (a negative delay), so neighbours never shine together.
 const foilDelay = i => `${-((i * 1.7) % 5).toFixed(1)}s`;

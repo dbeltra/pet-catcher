@@ -264,7 +264,10 @@ lookups one at a time for records that have `location` but no `place`.
   ({ at, count }) is set by every saved copy; `backup-snooze`. Runs after the letters, on the list screen only.
 - **Map pin groups** (`clusterPoints`): pins within 46 px merge into a bubble with a count; tapping zooms to fit the group;
   at one spot it fans out one pin per animal (circle up to 8, else a sunflower spiral). Regrouped on every zoom.
-- **Album counts only her catches** (not Kurko and Kiffy).
+- **Album counts only her catches** (not Kurko and Kiffy). Its pinned row has two chips (`#album-jump`) that scroll
+  smoothly to "Especies" or "Logros".
+- **Kurko and Kiffy's traits are fixed** (`SEEDS[].traits`, all 5 stars, `seedTraits`; reapplied on every start, read-only
+  on the card): Kurko Glotón, Cariñoso, Aventurero; Kiffy Sigiloso, Glotón, Temperamental.
 - **Sorting** (v0.19.8; `SORTS`, `sortAnimals` in `lib.mjs`): funnel sort select (David's icon, `assets/icons/filter.png`) at the start of the filter row (native `<select>`,
   shown in Colección with 3+ cards): Recientes, Número, Nombre (A–Z, accents ignored), Rareza (legendario first, shiny
   before non-shiny), Amistad (most seen first). Kurko and Kiffy stay first in every order. Combines with the filters;

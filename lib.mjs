@@ -38,9 +38,11 @@ export const rollShiny = (rnd = Math.random) => rnd() < SHINY_CHANCE;
 // `photo` counts versions of the seed file: 1 = the emoji placeholder, 2 = the real photo (v0.11.2).
 // Both lived in Martos (Jaén).
 const MARTOS = { location: { lat: 37.719658366690034, lon: -3.9696664869193734 }, place: 'Martos, Jaén' };
+// Their traits are David's, always 5 stars (`seedTraits`); set on every start, so they never drift.
+export const seedTraits = s => s.traits.map(name => ({ name, stars: 5 }));
 export const SEEDS = [
-  { id: 'seed-kurko', name: 'Kurko', species: 'perro', gender: 'm', file: 'seed/kurko.png', photo: 2, ...MARTOS },
-  { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', gender: 'm', file: 'seed/kiffy.png', photo: 2, ...MARTOS },
+  { id: 'seed-kurko', name: 'Kurko', species: 'perro', gender: 'm', traits: ['Glotón', 'Cariñoso', 'Aventurero'], file: 'seed/kurko.png', photo: 2, ...MARTOS },
+  { id: 'seed-kiffy', name: 'Kiffy', species: 'gato', gender: 'm', traits: ['Sigiloso', 'Glotón', 'Temperamental'], file: 'seed/kiffy.png', photo: 2, ...MARTOS },
 ];
 
 // Memories first, in their number order (Kurko, then Kiffy); then newest first.
@@ -95,13 +97,13 @@ export function albumSlots(animals) {
 
 // Trading-card personality: 3 random traits with 1-5 stars. All editable on the back of the card.
 export const TRAITS = ['Dormilón', 'Glotón', 'Juguetón', 'Mimoso', 'Curioso', 'Valiente', 'Tímido', 'Travieso',
-  'Elegante', 'Gruñón', 'Presumido', 'Aventurero', 'Cariñoso', 'Charlatán', 'Despistado', 'Veloz'];
+  'Elegante', 'Gruñón', 'Presumido', 'Aventurero', 'Cariñoso', 'Charlatán', 'Despistado', 'Veloz', 'Sigiloso', 'Temperamental'];
 // Traits are stored in their masculine form (`name`) and shown by gender: Glotón / Glotona / Glotón/a.
 // Words that don't change (Valiente, Elegante, Veloz) and traits she typed herself are shown as stored.
 const TRAIT_F = {
   Dormilón: 'Dormilona', Glotón: 'Glotona', Juguetón: 'Juguetona', Mimoso: 'Mimosa', Curioso: 'Curiosa', Tímido: 'Tímida',
   Travieso: 'Traviesa', Gruñón: 'Gruñona', Presumido: 'Presumida', Aventurero: 'Aventurera', Cariñoso: 'Cariñosa',
-  Charlatán: 'Charlatana', Despistado: 'Despistada',
+  Charlatán: 'Charlatana', Despistado: 'Despistada', Sigiloso: 'Sigilosa',
 };
 export const traitLabel = (name, g) => (!TRAIT_F[name] || g === 'm' ? name : g === 'f' ? TRAIT_F[name] : `${name}/a`);
 // What she typed → what to store: any gendered form of a known trait becomes its masculine form.

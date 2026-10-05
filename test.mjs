@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Churro');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -32,6 +32,9 @@ assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, traits: [], vis
   assert.equal(fmtNo(5), '#005');
 }
 assert.ok(SEEDS.every(s => s.gender === 'm'));
+assert.deepEqual(seedTraits(SEEDS[0]), [{ name: 'Glotón', stars: 5 }, { name: 'Cariñoso', stars: 5 }, { name: 'Aventurero', stars: 5 }]);
+assert.deepEqual(SEEDS[1].traits, ['Sigiloso', 'Glotón', 'Temperamental']);
+assert.equal(traitLabel('Sigiloso', 'f'), 'Sigilosa');
 assert.ok(SEEDS.every(s => s.place === 'Martos, Jaén' && Math.abs(s.location.lat - 37.7197) < 1e-3 && Math.abs(s.location.lon + 3.9697) < 1e-3));
 assert.equal(rollShiny(() => SHINY_CHANCE - 0.001), true);
 assert.equal(rollShiny(() => SHINY_CHANCE), false);
