@@ -208,7 +208,7 @@ lookups one at a time for records that have `location` but no `place`.
 - **Gestures** (`swipes()`, touch events, no buttons for these; they work from anywhere on the card, text fields
   included: a tap still edits, a real swipe flips and closes the keyboard; the hint sits below the card, has a ✕,
   and disappears for good (`localStorage` `gestures-learned`) after the ✕ or once she has swiped to flip and to close): sideways swipe turns the card with the finger and
-  flips past 60 px (a tap on the photo or the back's title flips too); swipe down, with `#view` scrolled to the top,
+  flips past 60 px (a tap on the photo or the back's title flips too); swipe down (with `#view` at the top) or up (at the bottom),
   closes the detail past 110 px (never on a new catch). The detail is a history entry (`pushState`), so the
   phone's Back gesture closes it as well; everything that closes a detail goes through `history.back()`.
 - **Trading-card shape** (v0.17.3): tiles and the big card are 5:7 (63 × 88 mm, `aspect-ratio: 5 / 7`); the big card
@@ -233,6 +233,11 @@ lookups one at a time for records that have `location` but no `place`.
   in a new catch's preview opens a picker, and the catch's time and place become a visit of the chosen animal
   (no new card). The card shows "Visto N veces · la última…", the tile "👀N", the map a smaller pin per visit.
   Visit places resolve like catches (`resolvePlace` on the visit; `renderList` retries).
+
+- **Animation performance rule (v0.18.5):** looping animations may only change `transform` or `opacity` (the GPU
+  does those without repainting). The foil shine is an oversized `.foil::before` that slides; sparkles and the
+  memory glow fade on their own layers. Animating `background-position`, `box-shadow` or `filter` in a loop dropped
+  the list to 29 fps on a 6×-throttled phone (60 fps after). Album slots keep a still foil.
 
 ## Data model
 

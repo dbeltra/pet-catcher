@@ -281,3 +281,25 @@ export function keepComponent(mask, w, h, p, minShare = 0.15) {
   const keep = sizes.map((n, id) => id === seed || n >= minShare * sizes[seed]);
   return Uint8Array.from(label, id => (id >= 0 && keep[id] ? 1 : 0));
 }
+
+// ---------- card treatments (v0.18): all fixed per animal, so a card always looks the same ----------
+const hashOf = (id, salt) => [...`${salt}${id}`].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+
+// A soft pattern over the pastel, picked independently of the colour.
+export const PATTERNS = ['dots', 'stripes', 'gingham', 'waves', 'hearts', 'paws', 'stars'];
+export const patternFor = id => PATTERNS[hashOf(id, 'pattern') % PATTERNS.length];
+
+// Finish of the foil on shinies and legendarios (épico keeps its soft rainbow).
+export const FOILS = ['rainbow', 'galaxy', 'gold'];
+export const foilFor = a => (a.memory ? 'gold' // her Recuerdos always shine gold
+  : a.shiny || rarityFor(a) === 'legendario' ? FOILS[hashOf(a.id, 'foil') % FOILS.length] : null);
+
+// Time of the catch → the photo background. Memories (no catch time) have none.
+export function timeOfDay(t) {
+  if (!t) return null;
+  const h = new Date(t).getHours();
+  return h >= 6 && h < 12 ? 'mañana' : h >= 12 && h < 19 ? 'tarde' : h >= 19 && h < 22 ? 'atardecer' : 'noche';
+}
+
+// Milestone numbers get a gold stamp: #010, #025, #050, #100, then every hundred.
+export const isMilestone = no => [10, 25, 50].includes(no) || (no >= 100 && no % 100 === 0);

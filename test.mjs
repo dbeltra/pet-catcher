@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Galleta');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -147,6 +147,22 @@ assert.equal(alpha(6, 5), 0);
   const k = keepComponent(m, 6, 4, { x: 0.1, y: 0.1 });
   assert.deepEqual([...k], [1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]); // 1-px speck dropped, 2-px piece kept (2 ≥ 15% of 7)
   assert.equal(keepComponent(m, 6, 4, { x: 0.1, y: 0.1 }, 0.5)[22], 0); // with a stricter share it goes too
+}
+
+{
+  const ids = Array.from({ length: 400 }, (_, i) => `id-${i}`);
+  assert.equal(patternFor('abc'), patternFor('abc'));
+  assert.deepEqual(new Set(ids.map(patternFor)).size, PATTERNS.length); // every pattern is used
+  assert.equal(foilFor(normalize({ id: 'x', species: 'gato' })), null);
+  assert.ok(FOILS.includes(foilFor(normalize({ id: 'x', species: 'gato', shiny: true }))));
+  assert.ok(FOILS.includes(foilFor(normalize({ id: 'x', species: 'jirafa' }))));
+  assert.equal(foilFor(normalize({ id: 'x', species: 'zorro' })), null); // épico: soft rainbow only
+  assert.ok(ids.every(id => foilFor(normalize({ id, species: 'perro', memory: true })) === 'gold'));
+  assert.deepEqual(new Set(ids.map(id => foilFor(normalize({ id, species: 'gato', shiny: true })))).size, FOILS.length);
+  const at = h => new Date(2026, 9, 5, h).getTime();
+  assert.deepEqual([6, 11, 12, 18, 19, 21, 22, 3].map(h => timeOfDay(at(h))), ['mañana', 'mañana', 'tarde', 'tarde', 'atardecer', 'atardecer', 'noche', 'noche']);
+  assert.equal(timeOfDay(null), null);
+  assert.deepEqual([9, 10, 25, 50, 99, 100, 150, 200].map(isMilestone), [false, true, true, true, false, true, false, true]);
 }
 
 console.log('ok');

@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -263,18 +263,30 @@ async function fillSpeciesList() {
     .filter(s => s !== UNKNOWN).sort().map(s => new Option(s)));
 }
 
+// Everything that makes a card look like itself (tiles, the picker and the big card share it): colour, pattern,
+// rarity frame, shiny, foil finish, time-of-day photo background, milestone number.
+function dress(el, a) {
+  el.style.setProperty('--pastel', pastelFor(a.id));
+  el.dataset.pattern = patternFor(a.id);
+  el.dataset.rarity = rarityFor(a);
+  el.classList.toggle('shiny', a.shiny);
+  const foil = foilFor(a), time = timeOfDay(a.takenAt);
+  if (foil) el.dataset.foil = foil; else delete el.dataset.foil;
+  if (time) el.dataset.time = time; else delete el.dataset.time;
+  el.classList.toggle('milestone', isMilestone(a.no));
+}
+
 // Big card, used for the new-catch preview and for the detail view. `save` runs after each edit (detail only).
 // `close`: what a swipe down does (detail only; a new catch is never discarded by a swipe).
 function renderCard(a, actions, save = () => {}, close = null) {
   const card = $('#card-tpl').content.firstElementChild.cloneNode(true);
   const q = s => card.querySelector(s);
-  card.style.setProperty('--pastel', pastelFor(a.id)); // same colour as its tile
   card.classList.toggle('memory', a.memory);
   const paintRarity = () => {
-    card.dataset.rarity = rarityFor(a);
-    q('.rarity').textContent = (a.no ? `${fmtNo(a.no)} · ` : '') + RARITY_LABEL[rarityFor(a)] + (a.shiny ? ' · 🌈 Shiny' : '');
+    dress(card, a); // same look as its tile
+    const no = Object.assign(document.createElement('span'), { className: 'no', textContent: a.no ? fmtNo(a.no) : '' });
+    q('.rarity').replaceChildren(...(a.no ? [no, ' · '] : []), RARITY_LABEL[rarityFor(a)] + (a.shiny ? ' · 🌈 Shiny' : ''));
   };
-  card.classList.toggle('shiny', a.shiny);
   paintRarity();
   q('.sticker').src = blobUrl(a.sticker);
   tag(card, true);
@@ -354,7 +366,7 @@ function renderCard(a, actions, save = () => {}, close = null) {
   if (!remembered('gestures-learned')) {
     const hint = Object.assign(document.createElement('p'), { className: 'swipe-hint' });
     hint.append(button('↔️', () => cardKeys.flip(1), 'arrow'), ' Desliza la tarjeta para ' + (close ? 'girarla · ' : 'ver sus rasgos '));
-    if (close) hint.append(button('⬇️', close, 'arrow'), ' para cerrarla ');
+    if (close) hint.append(button('↕️', close, 'arrow'), ' para cerrarla ');
     hint.append(button('✕', () => { remember('gestures-learned'); hint.remove(); }, 'dismiss'));
     $('#card').append(hint);
   }
@@ -376,11 +388,12 @@ let cardKeys = null; // flip / close of the card on screen, for the keyboard
 addEventListener('keydown', e => {
   if ($('#view').hidden || !cardKeys || e.target.closest?.('input, textarea') || document.querySelector('dialog[open]')) return;
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); cardKeys.flip(e.key === 'ArrowLeft' ? -1 : 1); }
-  else if (e.key === 'ArrowDown' && cardKeys.close) { e.preventDefault(); cardKeys.close(); }
+  else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && cardKeys.close) { e.preventDefault(); cardKeys.close(); }
 });
 
 // Touch gestures on the big card. Sideways: the card turns with the finger, past 60 px it flips.
-// Down (only with the card layer scrolled to the top, and only if `onClose`): it follows the finger, past 110 px it closes.
+// Down or up (only if `onClose`, and only when the card layer can't scroll further that way): it follows the finger,
+// past 110 px it closes.
 // Anything else gives the touch back to the browser (scrolling). Works from anywhere on the card, inputs included.
 function swipes(card, onFlip, onClose) {
   let x0, y0, dx, dy, mode;
@@ -397,7 +410,8 @@ function swipes(card, onFlip, onClose) {
     if (mode === 'off') return;
     dx = e.touches[0].clientX - x0; dy = e.touches[0].clientY - y0;
     if (!mode && Math.hypot(dx, dy) > 12) {
-      mode = Math.abs(dx) > Math.abs(dy) ? 'flip' : dy > 0 && onClose && $('#view').scrollTop <= 0 ? 'close' : 'off';
+      const v = $('#view'), atTop = v.scrollTop <= 0, atBottom = v.scrollTop + v.clientHeight >= v.scrollHeight - 1;
+      mode = Math.abs(dx) > Math.abs(dy) ? 'flip' : onClose && ((dy > 0 && atTop) || (dy < 0 && atBottom)) ? 'close' : 'off';
     }
     if (mode === 'flip') {
       e.preventDefault();
@@ -406,7 +420,7 @@ function swipes(card, onFlip, onClose) {
       card.style.transform = `perspective(900px) rotateY(${deg}deg)`;
     } else if (mode === 'close') {
       e.preventDefault(); // also stops pull-to-refresh
-      card.style.transform = `translateY(${dy * .6}px) scale(${1 - Math.min(dy, 300) / 1500})`;
+      card.style.transform = `translateY(${dy * .6}px) scale(${1 - Math.min(Math.abs(dy), 300) / 1500})`;
     }
   }, { passive: false });
   card.addEventListener('touchend', () => {
@@ -414,7 +428,7 @@ function swipes(card, onFlip, onClose) {
     mode = null;
     if (m === 'flip' && Math.abs(dx) > 60) { document.activeElement?.blur(); onFlip(dx > 0 ? 1 : -1); } // blur: close the keyboard
     else if (m === 'flip') spring();
-    else if (m === 'close') dy > 110 ? onClose() : spring(); // closing morphs from where the finger left the card
+    else if (m === 'close') Math.abs(dy) > 110 ? onClose() : spring(); // closing morphs from where the finger left the card
   });
 }
 
@@ -594,12 +608,10 @@ async function renderList() {
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.no').textContent = a.no ? fmtNo(a.no) : '';
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.shiny ? ' 🌈' : '') + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
-    el.dataset.rarity = rarityFor(a);
-    el.classList.toggle('shiny', a.shiny);
+    dress(el, a);
     el.querySelector('.heart').hidden = !a.fav;
     el.classList.toggle('memory', a.memory);
     el.dataset.id = a.id;
-    el.style.setProperty('--pastel', pastelFor(a.id));
     el.style.setProperty('--foil-delay', foilDelay(i));
     el.onclick = () => openDetail(a, el);
     return el;
@@ -767,9 +779,7 @@ async function pickExisting(caught, placed, back) {
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
     el.querySelector('.heart').hidden = !a.fav;
-    el.dataset.rarity = rarityFor(a);
-    el.classList.toggle('shiny', a.shiny);
-    el.style.setProperty('--pastel', pastelFor(a.id));
+    dress(el, a);
     el.onclick = async () => {
       await placed;
       a.visits.push({ at: caught.takenAt, location: caught.location, place: caught.place });
