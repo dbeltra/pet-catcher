@@ -248,7 +248,8 @@ lookups one at a time for records that have `location` but no `place`.
   card, a catch, the birthday or a dialog); opened ones go to meta `notes-opened` and Ajustes → "💌 Cartas".
   Each letter has a `why` ("Tu primer shiny", "Sant Jordi 2027"; `noteWhy`), shown on the envelope and in the list.
 - **Sticky header** (v0.19.11): the title scrolls away; the tabs and one row (`#controls`: funnel sort select + filter
-  chips + ⚙️ settings button) stay pinned. The header has its own view-transition-name above the sliding content
+  chips + ⚙️ settings button) stay pinned. During tab and filter transitions only, the header has its own
+  view-transition-name above the sliding content (on card open/close it must not, or it faded out by itself)
   (v0.20: cards slid over it). A tab switch scrolls back to the top of the new tab, keeping the header pinned.
   The chip row fades at the edge where more chips are hidden (`fadeChips`). `pinHeader()` sets `header.style.top` from where the tabs start (again after fonts load / resize).
 - **Speed with many catches (v0.20):** each record has `thumb` (≤ 320 px WebP, `makeThumb`), used by tiles, map pins and

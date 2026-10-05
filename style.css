@@ -517,8 +517,10 @@ html[data-vt]::view-transition-new(card):only-child { animation: vt-pop .45s cub
 html[data-vt]::view-transition-old(card):only-child { animation: vt-shrink .25s ease-in both; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .3s; }
 
-/* The pinned header is its own layer above the sliding content (otherwise cards slid over it while scrolled) */
-header { view-transition-name: header; }
+/* The pinned header is its own layer above the sliding content (otherwise cards slid over it while scrolled).
+   Only for tab switches and filters: when a card opens or closes the header is just part of the page (as its own
+   layer it faded out on its own while the card grew, which looked like a bug). */
+html:is([data-vt^="slide-"], [data-vt="filter"]) header { view-transition-name: header; }
 ::view-transition-group(header) { z-index: 60; animation: none; }
 ::view-transition-group(tab-on) { z-index: 61; }
 
