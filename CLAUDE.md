@@ -156,7 +156,7 @@ lookups one at a time for records that have `location` but no `place`.
   (v0.11.2; Kurko is cropped as a bust because the segmenter took his owner's lap too). Each seed has a `photo`
   version; `ensureMemories()` gives a memory a newer seed photo (`seedPhoto` < `photo`) unless it was changed
   by hand ("📷 Foto" sets `customPhoto`). To ship a new seed photo: replace the file and bump its `photo`.
-- **Favourites and notes:** ❤️ button on the card, a note textarea; the "❤️ Favoritos" filter chip (`FAV`).
+- **Favourites:** ❤️ button on the card; the "❤️ Favoritos" filter chip (`FAV`). (The note field was removed in v0.19.1.)
 - **Gallery import** (🖼️ next to "¡Atrapar!", an input without `capture`): `onPhoto(file, true)` takes the date
   and GPS from the photo's EXIF (`readExif` in `lib.mjs`), not now/here. Phones often strip GPS from picked
   photos; then the place says "Elegir lugar".
@@ -200,7 +200,7 @@ lookups one at a time for records that have `location` but no `place`.
 - **Traits** (flip the card): 3 random `TRAITS` with 1-5 stars on each new catch and memory.
   All editable on the back: rename (with suggestions), tap stars, ✕ remove, ＋ add. `flip()` turns the card with
   the Web Animations API (0→90°, swap faces via `.show-back`, -90→0); no 3D wrapper. The card keeps the front's
-  The back also holds the note. Both faces share the card's fixed 5:7 shape.
+  Both faces share the card's fixed 5:7 shape.
   Edits change rows in place: never rebuild the list. On a flip the rows are simply there; only an added row
   pops in (`li.new`). Every card shows its rarity line, "Común" included. The species field has no underline
   and is as wide as its text, so emoji + word sit centred.
@@ -245,6 +245,9 @@ lookups one at a time for records that have `location` but no `place`.
   Jordi 23/4, aniversario 18/4, Navidad, Año nuevo, cumpleaños 15/10 except 2026). Her Recuerdos never count.
   `checkNotes()` shows the next due letter as an envelope (`#letter`), **only on the list screen** (never over a
   card, a catch, the birthday or a dialog); opened ones go to meta `notes-opened` and Ajustes → "💌 Cartas".
+- **Card layout (v0.19.1):** the front is photo-first: photo, name, species, number · rarity, and date · place on one
+  line. The back has gender, traits, then friendship · sightings on one line ("🥉 Bronce, 2 más para plata · 👀 3 veces")
+  and a saved card's buttons (¡Otra vez!, Foto, Liberar), smaller. A new catch keeps its buttons on the front.
 - **Friendship** (`friendshipOf`): 3 sightings bronce 🥉, 5 plata 🥈, 10 oro 🥇. A metal ring inside the card
   (`data-friend`), the medal after the number on the tile, a line on the card, a toast (confetti at gold).
 - **Pack reveal** (`reveal()`): a new catch arrives face down (`.cover`, the Bichidex card back), wobbles, flips, and
@@ -267,7 +270,7 @@ Every record goes through `normalize()` on read, which fills fields added later.
   takenAt: 1759400000000,   // ms since epoch
   place: 'Sitges, Garraf' | null,   // null while the lookup is pending or with no position
   location: { lat, lon } | null,     // for the map
-  fav: false, note: '',
+  fav: false,
   memory: false,                     // true for her past pets (SEEDS)
   seedPhoto: 2, customPhoto: false,  // memories only: which seed photo it shows / photo changed by hand
   traits: [{ name: 'Dormilón', stars: 1..3 }],

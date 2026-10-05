@@ -12,7 +12,7 @@ assert.equal(traitLabel('Saltarín', 'f'), 'Saltarín'); // typed by her: shown 
 assert.deepEqual(['Glotón', 'Glotona', 'Glotón/a', ' Dormilona '].map(traitKey), ['Glotón', 'Glotón', 'Glotón', 'Dormilón']);
 assert.equal(traitKey('Saltarina'), 'Saltarina');
 
-assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, note: '', traits: [], visits: [], memory: false, shiny: false, gender: 'x', nameAuto: false, id: 'x' });
+assert.deepEqual(normalize({ id: 'x', fav: true }), { fav: true, traits: [], visits: [], memory: false, shiny: false, gender: 'x', nameAuto: false, id: 'x' });
 {
   const recs = [{ id: 'c2', takenAt: 20 }, { id: 'seed-kiffy', memory: true }, { id: 'c1', takenAt: 10 }, { id: 'seed-kurko', memory: true }].map(normalize);
   assert.equal(numberAll(recs).length, 4);

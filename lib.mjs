@@ -23,7 +23,7 @@ export const PASTELS = ['#fff0bf', '#dcf4e4', '#dcedff', '#ffe4cc', '#e9f2d2'];
 export const pastelFor = id => PASTELS[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % PASTELS.length];
 
 // Fills the fields newer versions added, so records from any older version keep working.
-export const normalize = a => ({ fav: false, note: '', traits: [], visits: [], memory: false, shiny: false, gender: 'x', nameAuto: false, ...a });
+export const normalize = a => ({ fav: false, traits: [], visits: [], memory: false, shiny: false, gender: 'x', nameAuto: false, ...a });
 
 // Gender: 'm' male, 'f' female, 'x' unknown (the default). Names and traits follow it.
 export const GENDERS = { m: 'Macho', f: 'Hembra', x: 'No sé' };

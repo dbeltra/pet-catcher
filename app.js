@@ -210,7 +210,7 @@ const freeUrls = () => { urls.forEach(URL.revokeObjectURL); urls = []; };
 const status = (t, searching = false) => { $('#status').textContent = t; $('#status').hidden = !t; $('#searching').hidden = !searching; };
 // David's icons (assets/icons/*.png, 64 px, flat colour). `off` greys one out (empty heart, empty star).
 const icon = (name, off = false) => Object.assign(document.createElement('img'), { className: `ico${off ? ' off' : ''}`, src: `assets/icons/${name}.png`, alt: '' });
-const fmtWhen = t => new Date(t).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' });
+const fmtWhen = t => new Date(t).toLocaleString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 const fmtWhere = a => a.place ?? (a.location ? 'Buscando el nombre del lugar…' : 'Elegir lugar');
 
 // The app's own question pop-up (in place of the browser's confirm). Resolves true for `yes`; the safe
@@ -314,17 +314,14 @@ function renderCard(a, actions, save = () => {}, close = null) {
     q('.where').textContent = fmtWhere(a);
     save();
   };
+  // Back of the card: friendship and sightings on one line ("🥉 Bronce, 2 más para plata · 👀 3 veces").
   const fr = friendshipOf(a), nx = nextFriendship(a);
-  q('.friend').hidden = !fr && !a.visits.length;
-  q('.friend').textContent = fr ? `${fr.medal} Amistad de ${fr.label.toLowerCase()}` + (nx ? ` · ${nx.left} más para ${nx.label.toLowerCase()}` : ' · ¡la máxima!')
-    : `🤝 ${nx.left} más para ser amigos`;
-  q('.seen').hidden = !a.visits.length;
-  if (a.visits.length) {
-    const last = a.visits.reduce((x, y) => (y.at > x.at ? y : x));
-    q('.seen').textContent = `Visto ${timesSeen(a)} veces · la última el ${new Date(lastSeen(a)).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
-      + (last.place ? ` en ${last.place}` : '');
-  }
-  q('.note').value = a.note;
+  const bond = [];
+  if (fr) bond.push(`${fr.medal} ${fr.label}` + (nx ? `, ${nx.left} más para ${nx.label.toLowerCase()}` : ', ¡la máxima!'));
+  else if (a.visits.length) bond.push(`🤝 ${nx.left} más para ser amigos`);
+  if (a.visits.length) bond.push(`👀 ${timesSeen(a)} veces`);
+  q('.bond').textContent = bond.join(' · ');
+  q('.bond').hidden = !bond.length;
   const fav = q('.fav');
   const paintFav = () => { fav.replaceChildren(icon('heart', !a.fav)); fav.classList.toggle('on', a.fav); };
   paintFav();
@@ -363,8 +360,8 @@ function renderCard(a, actions, save = () => {}, close = null) {
     paintRarity();
     save();
   };
-  q('.note').onchange = () => { a.note = q('.note').value.trim(); save(); };
-  q('.actions').append(...actions);
+  // A saved card keeps its buttons on the back (the front is the photo); a new catch keeps them on the front.
+  (close ? q('.back-actions') : q('.actions')).append(...actions);
 
   // Tap the photo = flip (like a sideways swipe); press and hold it = pet the animal.
   let petted = false, pressTimer, px, py;

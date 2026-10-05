@@ -95,7 +95,7 @@ f.onload = async () => {
     [...d.querySelectorAll('.tile')].find(t => !t.classList.contains('memory')).click();
     await wait('cat card', () => btn(d, '👀'));
     btn(d, '👀').click();
-    await wait('seen again', () => !d.querySelector('.card .seen').hidden && d.querySelector('.card .seen').textContent.includes('2 veces'), 15000);
+    await wait('seen again', () => !d.querySelector('.card .bond').hidden && d.querySelector('.card .bond').textContent.includes('2 veces'), 15000);
     await sleep(600);
     await swipe(w, d.querySelector('.card'), 0, -200); // swipe up closes too
     await wait('back 2', () => !d.querySelector('#list').hidden, 5000);
