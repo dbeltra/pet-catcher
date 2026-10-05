@@ -720,6 +720,7 @@ async function renderList() {
   requestAnimationFrame(fadeChips);
 
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === tab);
+  placePill();
   $('#grid').hidden = tab !== 'grid';
   $('#album').hidden = tab !== 'album';
   $('#map-wrap').hidden = tab !== 'map';
@@ -1243,6 +1244,17 @@ const fadeChips = () => {
 };
 $('#filters').addEventListener('scroll', fadeChips, { passive: true });
 addEventListener('resize', fadeChips);
+// The pill under the selected tab (it slides by CSS transition; first placement without it).
+function placePill() {
+  const b = $('#tabs button.on'), pill = $('#tabs .pill');
+  if (!b) return;
+  pill.style.width = `${b.offsetWidth}px`;
+  pill.style.transform = `translateX(${b.offsetLeft}px)`;
+}
+addEventListener('resize', placePill);
+document.fonts?.ready.then(placePill);
+requestAnimationFrame(() => requestAnimationFrame(() => $('#tabs').classList.add('ready')));
+
 // The sticky header slides up until only the tabs and the filter row show (the title scrolls away).
 const pinHeader = () => { $('header').style.top = `${-($('#tabs').offsetTop - 8)}px`; };
 pinHeader();

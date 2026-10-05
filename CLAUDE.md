@@ -99,7 +99,7 @@ where unsupported, e.g. iOS < 18). `type` goes to `html[data-vt]`, and `style.cs
 | type | when | animation |
 |---|---|---|
 | `open` / `close` | open / close a card | the tile (`card`) grows into the big card with an overshoot; its sticker (`sticker`) flies on top with a wiggle; the card contents then pop in one by one (`rise`). Closing: the contents first drop away (`.leaving`, 150 ms), then the plain card shrinks into the tile with less bounce |
-| `slide-left` / `slide-right` | tab switch (direction from the order in `TABS`) | `main` (`content`) swings out to one side and bounces in from the other; the yellow tab pill (`tab-on`) slides |
+| `slide-left` / `slide-right` | tab switch (direction from the order in `TABS`) | `main` (`content`) swings out to one side and bounces in from the other; the tab pill (`#tabs .pill`, its own element behind the labels, `placePill()`) slides by CSS transition inside the live header snapshot (no header cross-fade) |
 | `filter` | filter chip | the grid or map shrinks away and pops back |
 
 Each animal has a fixed pastel (`pastelFor(id)`, a hash of the id), used by its tile **and** its big card,

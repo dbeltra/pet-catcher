@@ -64,7 +64,12 @@ h1 {
 
 #tabs { display: inline-flex; gap: 4px; margin-top: 12px; padding: 4px; border-radius: 999px; background: var(--card); box-shadow: var(--shadow); }
 #tabs button { font: inherit; border: 0; background: none; color: var(--text); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
-#tabs button.on { background: var(--selected); color: var(--text); }
+/* The selected-tab pill is its own element behind the labels and slides (placePill in app.js); the labels never move.
+   (When the selected button itself carried the transition, its label slid across and the target label vanished.) */
+#tabs { position: relative; }
+#tabs .pill { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: 999px; background: var(--selected); }
+#tabs.ready .pill { transition: transform .45s cubic-bezier(.34, 1.56, .64, 1), width .45s cubic-bezier(.34, 1.56, .64, 1); }
+#tabs button { position: relative; z-index: 1; }
 
 /* ---------- album ---------- */
 #album .progress { margin: 14px 0 12px; text-align: center; font-weight: 600; }
@@ -523,11 +528,10 @@ html[data-vt]::view-transition-old(card):only-child { animation: vt-shrink .25s 
    layer it faded out on its own while the card grew, which looked like a bug). */
 html:is([data-vt^="slide-"], [data-vt="filter"]) header { view-transition-name: header; }
 ::view-transition-group(header) { z-index: 60; animation: none; }
-::view-transition-group(tab-on) { z-index: 61; }
+/* No cross-fade of the header: only the live new state shows, where the pill slides by itself */
+::view-transition-old(header) { animation: none; opacity: 0; }
+::view-transition-new(header) { animation: none; }
 
-/* The yellow tab pill slides to the other tab */
-#tabs button.on { view-transition-name: tab-on; }
-::view-transition-group(tab-on) { animation-duration: .5s; animation-timing-function: cubic-bezier(.34, 1.56, .64, 1); }
 
 /* Tabs: the content swings out to one side and bounces in from the other (direction = tab order) */
 html[data-vt^="slide-"] main { view-transition-name: content; }
