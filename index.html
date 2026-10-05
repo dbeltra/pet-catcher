@@ -31,6 +31,7 @@
     <div id="controls">
       <label id="sortbar" hidden><img class="ico" src="assets/icons/filter.png" alt=""><select id="sort" aria-label="Ordenar por"></select></label>
       <nav id="filters" hidden></nav>
+      <button id="open-settings" class="gear" aria-label="Ajustes">⚙️</button>
     </div>
   </header>
 
@@ -56,12 +57,13 @@
     <section id="view" hidden>
       <img id="searching" src="assets/icons/magnifier.png" alt="" hidden>
       <p id="status" hidden></p>
+      <div id="progress" hidden><span></span></div>
       <div id="stage"></div>
       <div id="card"></div>
     </section>
   </main>
 
-  <footer id="footer"><button id="open-settings">⚙️ Ajustes</button> · <span id="version"></span></footer>
+  <footer id="footer"><span id="version"></span></footer>
 
   <dialog id="settings">
     <h2>⚙️ Ajustes</h2>

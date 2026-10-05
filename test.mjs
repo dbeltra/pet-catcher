@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Churro');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -230,6 +230,24 @@ assert.equal(alpha(6, 5), 0);
   assert.equal(ids('friend'), 'kurko,kiffy,c,b,a,d');
   assert.equal(ids('nonsense'), ids('recent'));
   assert.deepEqual(Object.keys(SORTS), ['recent', 'no', 'name', 'rarity', 'friend']);
+}
+
+{
+  const D = 864e5, now = 100 * D;
+  const r = o => needsBackupReminder({ now, firstAt: now - 2 * D, ...o });
+  assert.equal(r({ count: 2 }), false); // too early to nag
+  assert.equal(r({ count: 5 }), false); // first catch 2 days ago, never saved, < 20
+  assert.equal(r({ count: 5, firstAt: now - 31 * D }), true); // a month without a copy
+  assert.equal(r({ count: 25 }), true); // 20+ new since never
+  assert.equal(r({ count: 25, backup: { at: now - D, count: 10 } }), false); // 15 new, saved yesterday
+  assert.equal(r({ count: 30, backup: { at: now - D, count: 10 } }), true); // 20 new
+  assert.equal(r({ count: 11, backup: { at: now - 40 * D, count: 10 } }), true); // a month and something new
+  assert.equal(r({ count: 10, backup: { at: now - 40 * D, count: 10 } }), false); // nothing new since the copy
+  assert.equal(r({ count: 30, snoozeUntil: now + D }), false); // snoozed
+  assert.equal(catchCount([normalize({ id: 'seed-kurko', memory: true }), normalize({ id: 'x' })]), 1);
+  const g = clusterPoints([{ x: 0, y: 0, id: 'a' }, { x: 10, y: 5, id: 'b' }, { x: 200, y: 0, id: 'c' }, { x: 5, y: 30, id: 'd' }]);
+  assert.deepEqual(g.map(x => x.items.map(i => i.id).join('')), ['abd', 'c']);
+  assert.ok(Math.abs(g[0].x - 5) < 1e-9 && Math.abs(g[0].y - 35 / 3) < 1e-9);
 }
 
 console.log('ok');

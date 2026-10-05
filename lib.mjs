@@ -378,3 +378,28 @@ export function sortAnimals(list, key = 'recent') {
   const by = ORDER[key] ?? ORDER.recent;
   return [...list].sort((a, b) => (b.memory - a.memory) || (a.memory ? (a.no ?? 0) - (b.no ?? 0) : by(a, b) || ORDER.recent(a, b)));
 }
+
+// ---------- backup reminder (v0.20) ----------
+// Her data lives only on the phone. Ask (gently) to save a copy after 20 new catches, or a month after the last copy
+// (or after her first catch, if she never saved one) when there is something new. "Ahora no" snoozes it for a week.
+// backup: { at, count } of the last copy; firstAt: her first catch; snoozeUntil: a time.
+export function needsBackupReminder({ count, backup, firstAt, snoozeUntil = 0, now }) {
+  const DAY = 864e5;
+  if (count < 3 || now < snoozeUntil) return false;
+  const since = count - (backup?.count ?? 0);
+  if (since <= 0) return false;
+  return since >= 20 || now - (backup?.at ?? firstAt ?? now) >= 30 * DAY;
+}
+export const catchCount = all => catches(all).length;
+
+// ---------- map pin groups (v0.20) ----------
+// Points in screen pixels { x, y, ...} → groups of points closer than `radius` (greedy, in the given order).
+export function clusterPoints(points, radius = 44) {
+  const groups = [];
+  for (const p of points) {
+    const g = groups.find(g => Math.hypot(g.x - p.x, g.y - p.y) < radius);
+    if (g) { g.items.push(p); g.x = (g.x * (g.items.length - 1) + p.x) / g.items.length; g.y = (g.y * (g.items.length - 1) + p.y) / g.items.length; }
+    else groups.push({ x: p.x, y: p.y, items: [p] });
+  }
+  return groups;
+}

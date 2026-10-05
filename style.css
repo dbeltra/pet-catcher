@@ -53,7 +53,6 @@ h1 {
 
 /* ---------- filters ---------- */
 #controls { display: flex; align-items: center; gap: 8px; padding: 10px 0 6px; }
-#controls:not(:has(> :not([hidden]))) { display: none; }
 #filters { display: flex; gap: 8px; overflow-x: auto; padding: 2px; scrollbar-width: none; flex: 1; min-width: 0; }
 .chip {
   flex: none; border: 2px solid var(--dots); background: var(--card); color: var(--text);
@@ -158,6 +157,13 @@ h1 {
 }
 
 #footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 28px; color: var(--muted); font-size: .85rem; }
+#open-settings.gear { flex: none; margin-left: auto; width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--dots); background: var(--card); font-size: 1.1rem; text-decoration: none; padding: 0; }
+/* Fades on the chip row where more chips are hidden (set by fadeChips) */
+#filters.more-right { -webkit-mask: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+#filters.more-left { -webkit-mask: linear-gradient(90deg, transparent, #000 36px); mask: linear-gradient(90deg, transparent, #000 36px); }
+#filters.more-left.more-right { -webkit-mask: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+#progress { height: 8px; margin: 0 auto 12px; width: min(260px, 80%); border-radius: 999px; background: var(--dots); overflow: hidden; }
+#progress span { display: block; height: 100%; background: var(--accent-deep); transform-origin: left; transform: scaleX(0); transition: transform .2s; }
 #open-settings { font: inherit; color: inherit; background: none; border: 0; padding: 4px; text-decoration: underline dotted; cursor: pointer; }
 #settings {
   border: 4px solid #fff; border-radius: 30px; padding: 22px 20px; width: min(340px, calc(100vw - 32px));
@@ -467,6 +473,12 @@ html.tilt .shiny > .foil::before { animation: shiny-pulse 1.6s ease-in-out infin
 #locpick .hint { margin: 0; text-align: center; font-size: .8rem; color: var(--muted); }
 .loc-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .loc-actions .primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); box-shadow: 0 4px 0 var(--accent-deep); }
+.pin-group { position: relative; }
+.pin-group .count {
+  position: absolute; right: -4px; top: -4px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px;
+  background: var(--accent); color: var(--on-accent); border: 2px solid #fff; font: 600 .8rem/20px Fredoka, system-ui, sans-serif; text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
+}
 .loc-pin { font-size: 2.2rem; line-height: 1; text-align: center; filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .3)); }
 /* the place line on a card is a button: tap to set it on the map */
 .card .where { cursor: pointer; text-decoration: underline dotted rgba(90, 70, 50, .35); text-underline-offset: 3px; }
@@ -504,6 +516,11 @@ html[data-vt="close"]::view-transition-group(ribbon) {
 html[data-vt]::view-transition-new(card):only-child { animation: vt-pop .45s cubic-bezier(.34, 1.56, .64, 1) both; }
 html[data-vt]::view-transition-old(card):only-child { animation: vt-shrink .25s ease-in both; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .3s; }
+
+/* The pinned header is its own layer above the sliding content (otherwise cards slid over it while scrolled) */
+header { view-transition-name: header; }
+::view-transition-group(header) { z-index: 60; animation: none; }
+::view-transition-group(tab-on) { z-index: 61; }
 
 /* The yellow tab pill slides to the other tab */
 #tabs button.on { view-transition-name: tab-on; }

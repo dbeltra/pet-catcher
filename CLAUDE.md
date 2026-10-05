@@ -248,7 +248,22 @@ lookups one at a time for records that have `location` but no `place`.
   card, a catch, the birthday or a dialog); opened ones go to meta `notes-opened` and Ajustes → "💌 Cartas".
   Each letter has a `why` ("Tu primer shiny", "Sant Jordi 2027"; `noteWhy`), shown on the envelope and in the list.
 - **Sticky header** (v0.19.11): the title scrolls away; the tabs and one row (`#controls`: funnel sort select + filter
-  chips) stay pinned. `pinHeader()` sets `header.style.top` from where the tabs start (again after fonts load / resize).
+  chips + ⚙️ settings button) stay pinned. The header has its own view-transition-name above the sliding content
+  (v0.20: cards slid over it). A tab switch scrolls back to the top of the new tab, keeping the header pinned.
+  The chip row fades at the edge where more chips are hidden (`fadeChips`). `pinHeader()` sets `header.style.top` from where the tabs start (again after fonts load / resize).
+- **Speed with many catches (v0.20):** each record has `thumb` (≤ 320 px WebP, `makeThumb`), used by tiles, map pins and
+  album slots; the full `sticker` only for the open card. `ensureThumbs()` fills old/restored records in the background;
+  backups leave thumbs out. Tile images are `loading="lazy"`; closing a card only decodes the target tile's image
+  (decoding all of them, or a lazy one, made the close wait). Measured at 6× CPU, 82 cards: close 286 → 200 ms.
+- **Model download:** ~25 MB (vision runtime 11 MB + 2 models). `prefetchModels()` downloads them with a progress
+  count (the SW caches them): in the background 5 s after start (not on cellular / data saver), or on the first catch
+  with "Descargando el detector… N%" and a bar.
+- **Backup reminder** (`needsBackupReminder`): after 20 new catches since the last copy, or 30 days (since the last copy,
+  or her first catch) with something new, the app asks "¿Guardamos una copia?"; "Ahora no" waits 7 days. Meta `backup`
+  ({ at, count }) is set by every saved copy; `backup-snooze`. Runs after the letters, on the list screen only.
+- **Map pin groups** (`clusterPoints`): pins within 46 px merge into a bubble with a count; tapping zooms to fit the group;
+  at one spot it fans out one pin per animal (circle up to 8, else a sunflower spiral). Regrouped on every zoom.
+- **Album counts only her catches** (not Kurko and Kiffy).
 - **Sorting** (v0.19.8; `SORTS`, `sortAnimals` in `lib.mjs`): funnel sort select (David's icon, `assets/icons/filter.png`) at the start of the filter row (native `<select>`,
   shown in Colección with 3+ cards): Recientes, Número, Nombre (A–Z, accents ignored), Rareza (legendario first, shiny
   before non-shiny), Amistad (most seen first). Kurko and Kiffy stay first in every order. Combines with the filters;
@@ -375,5 +390,4 @@ Files at the root: `favicon.ico`, `apple-touch-icon.png` (iPhone), `icon-192/512
   strip GPS anyway).
 - No export/backup. Data lives in one browser on one phone.
 - The detector's species list is fixed; custom species are free text, so typos make separate filter chips.
-- Map pins at the same spot overlap (no clustering).
 - Ideas: species via Claude vision, Supabase sync, a map of catches, rarity/stats, sharing a card as an image.

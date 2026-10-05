@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { SORTS, sortAnimals, friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -11,16 +11,35 @@ const $ = s => document.querySelector(s);
 
 // ---------- models ----------
 
+// The first catch needs ~25 MB (the vision runtime + 2 models). prefetchModels() downloads them with a progress count
+// (the service worker keeps them, so MediaPipe then reads them from the cache): quietly in the background on Wi-Fi,
+// or with a percentage on the first catch. Sizes are a fallback where the CDN sends no Content-Length.
+const DET_URL = `${MODELS}/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite`;
+const SEG_URL = `${MODELS}/interactive_segmenter/magic_touch/float32/1/magic_touch.tflite`;
+const DOWNLOADS = [[`${MP}/vision_wasm_internal.wasm`, 11153617], [`${MP}/vision_wasm_internal.js`, 322044], [DET_URL, 7254339], [SEG_URL, 6227884]];
+const progress = { loaded: 0, total: DOWNLOADS.reduce((n, [, size]) => n + size, 0) };
+let fetching;
+const prefetchModels = () => fetching ??= (async () => {
+  for (const [url, size] of DOWNLOADS) {
+    if (await caches.match(url).catch(() => null)) { progress.loaded += size; continue; }
+    const res = await fetch(url);
+    const reader = res.body.getReader();
+    for (let r; !(r = await reader.read()).done;) progress.loaded += r.value.length;
+  }
+  progress.loaded = progress.total;
+})().catch(e => { fetching = undefined; progress.loaded = 0; throw e; });
+
 let models;
 function loadModels() {
   models ??= (async () => {
+    await prefetchModels().catch(() => {}); // a failed prefetch is fine: MediaPipe fetches what it needs itself
     const fs = await FilesetResolver.forVisionTasks(MP);
     const detector = await ObjectDetector.createFromOptions(fs, {
-      baseOptions: { modelAssetPath: `${MODELS}/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite` },
+      baseOptions: { modelAssetPath: DET_URL },
       runningMode: 'IMAGE', scoreThreshold: 0.3, maxResults: 5,
     });
     const segmenter = await InteractiveSegmenter.createFromOptions(fs, {
-      baseOptions: { modelAssetPath: `${MODELS}/interactive_segmenter/magic_touch/float32/1/magic_touch.tflite` },
+      baseOptions: { modelAssetPath: SEG_URL },
       outputCategoryMask: true, outputConfidenceMasks: false,
     });
     return { detector, segmenter };
@@ -65,9 +84,24 @@ async function ensureMemories() {
     if (a && a.gender === 'x') await put(Object.assign(a, { gender: s.gender })); // memories from before v0.15 (both males)
     if (a && (a.customPhoto || (a.seedPhoto ?? 1) >= s.photo)) continue;
     const sticker = await (await fetch(s.file)).blob();
-    await put(a ? { ...a, sticker, seedPhoto: s.photo }
-      : normalize({ id: s.id, name: s.name, species: s.species, gender: s.gender, sticker, seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: s.place, location: s.location, traits: randomTraits() }));
+    await put(a ? { ...a, sticker, thumb: await makeThumb(sticker), seedPhoto: s.photo }
+      : normalize({ id: s.id, name: s.name, species: s.species, gender: s.gender, sticker, thumb: await makeThumb(sticker), seedPhoto: s.photo, memory: true, fav: true, takenAt: null, place: s.place, location: s.location, traits: randomTraits() }));
   }
+}
+
+// A small copy of the sticker (max 320 px) for tiles, map pins and album slots; the full sticker is only for the
+// open card. With hundreds of catches, full-size stickers in every tile made the list slow.
+async function makeThumb(blob) {
+  const bmp = await createImageBitmap(blob);
+  const k = Math.min(1, 320 / Math.max(bmp.width, bmp.height));
+  const c = Object.assign(document.createElement('canvas'), { width: Math.round(bmp.width * k), height: Math.round(bmp.height * k) });
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close();
+  return new Promise(res => c.toBlob(res, 'image/webp', .9)); // keeps transparency; PNG where WebP is not supported
+}
+// Records from before v0.20 (or restored from a copy, which has no thumbs) get theirs in the background.
+async function ensureThumbs() {
+  for (const a of await getAll()) if (!a.thumb) { a.thumb = await makeThumb(a.sticker); await put(a); }
 }
 
 // Every record gets its collection number once (see numberAll). Run on start, after a keep and a restore.
@@ -557,7 +591,8 @@ let tab = 'grid';
 function goTab(to) {
   if (tab === to) return;
   const dir = TABS.indexOf(to) > TABS.indexOf(tab) ? 'slide-left' : 'slide-right';
-  return transition(() => { tab = to; return renderList(); }, dir);
+  // The new tab starts at its top; the header stays pinned if it was (the title stays scrolled away).
+  return transition(async () => { tab = to; await renderList(); scrollTo(0, Math.min(scrollY, $('#tabs').offsetTop - 8)); }, dir);
 }
 for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => goTab(b.dataset.tab);
 
@@ -607,29 +642,58 @@ async function pickLocation(start) {
 }
 
 let map, pins;
+// Pins closer than ~46 px on screen merge into a bubble with a count; tapping it zooms in, or, when they are at the
+// same spot (no zoom can separate them), fans them out around it. Regrouped on every zoom.
+let mapSpots = [], spider;
 async function renderMap(animals) {
   const L = await leaflet();
   if (!map) {
     map = L.map('map', { zoomControl: false });
     osmTiles(L).addTo(map);
     pins = L.layerGroup().addTo(map);
+    spider = L.layerGroup().addTo(map);
+    map.on('zoomend', () => drawPins(L));
+    map.on('movestart zoomstart', () => spider.clearLayers());
   }
   map.invalidateSize(); // the map was hidden, Leaflet must measure it again
-  pins.clearLayers();
-  // ponytail: catches at the same spot stack on top of each other; add marker clustering if that gets crowded
   // One pin per catch, and a smaller one per re-encounter. All open the same card.
-  const spots = animals.flatMap(a => [
+  mapSpots = animals.flatMap(a => [
     ...(a.location ? [{ a, loc: a.location, size: 56 }] : []),
     ...a.visits.filter(v => v.location).map(v => ({ a, loc: v.location, size: 40 })),
   ]);
-  for (const { a, loc, size } of spots) {
-    const icon = L.divIcon({ className: 'pin', html: `<img src="${blobUrl(a.sticker)}" data-id="${a.id}" alt="">`, iconSize: [size, size], iconAnchor: [size / 2, size - 4] });
-    L.marker([loc.lat, loc.lon], { icon, title: a.name, zIndexOffset: size })
-      .on('click', e => openDetail(a, e.target.getElement().querySelector('img'))).addTo(pins);
+  $('#map-empty').hidden = mapSpots.length > 0;
+  if (mapSpots.length) map.fitBounds(mapSpots.map(s => [s.loc.lat, s.loc.lon]), { padding: [48, 48], maxZoom: 16, animate: false });
+  else map.setView([40.4, -3.7], 5, { animate: false });
+  drawPins(L);
+}
+
+function drawPins(L) {
+  pins.clearLayers();
+  spider.clearLayers();
+  const pinIcon = (a, size) => L.divIcon({ className: 'pin', html: `<img src="${blobUrl(a.thumb ?? a.sticker)}" data-id="${a.id}" alt="">`, iconSize: [size, size], iconAnchor: [size / 2, size - 4] });
+  const pin = ({ a, size }, at, layer) => L.marker(at, { icon: pinIcon(a, size), title: a.name, zIndexOffset: size })
+    .on('click', e => openDetail(a, e.target.getElement().querySelector('img'))).addTo(layer);
+  const points = mapSpots.map(s => ({ ...s, ...map.latLngToContainerPoint([s.loc.lat, s.loc.lon]) }));
+  for (const g of clusterPoints(points, 46)) {
+    if (g.items.length === 1) { pin(g.items[0], [g.items[0].loc.lat, g.items[0].loc.lon], pins); continue; }
+    const top = g.items[0].a;
+    const icon = L.divIcon({ className: 'pin pin-group', iconSize: [60, 60], iconAnchor: [30, 56],
+      html: `<img src="${blobUrl(top.thumb ?? top.sticker)}" alt=""><span class="count">${g.items.length}</span>` });
+    L.marker(map.containerPointToLatLng([g.x, g.y]), { icon, zIndexOffset: 100 }).on('click', () => {
+      const bounds = L.latLngBounds(g.items.map(i => [i.loc.lat, i.loc.lon]));
+      if (map.getZoom() < 18 && bounds.getNorthEast().distanceTo(bounds.getSouthWest()) > 5) { // metres apart: zoom in
+        map.fitBounds(bounds, { padding: [70, 70], maxZoom: 18 }); // zoom until the group fills the screen
+      } else { // same spot: one pin per animal (a cat seen there 10 times is one pin), fanned out
+        spider.clearLayers();
+        const animals = [...new Map(g.items.map(i => [i.a.id, { ...i, size: 44 }])).values()];
+        animals.forEach((it, k) => { // up to 8: a circle; more: a compact sunflower spiral that stays on screen
+          const ang = animals.length <= 8 ? (k / animals.length) * 2 * Math.PI - Math.PI / 2 : k * 2.39996;
+          const r = animals.length <= 8 ? 56 : 30 * Math.sqrt(k + 1);
+          pin(it, map.containerPointToLatLng([g.x + r * Math.cos(ang), g.y + r * Math.sin(ang)]), spider);
+        });
+      }
+    }).addTo(pins);
   }
-  $('#map-empty').hidden = spots.length > 0;
-  if (spots.length) map.fitBounds(spots.map(s => [s.loc.lat, s.loc.lon]), { padding: [48, 48], maxZoom: 16 });
-  else map.setView([40.4, -3.7], 5);
 }
 
 async function renderList() {
@@ -651,6 +715,7 @@ async function renderList() {
   $('#filters').replaceChildren(chip(`Todos ${all.length}`, null, 'shine'),
     ...(favs ? [chip(`Favoritos ${favs}`, FAV, 'heart')] : []),
     ...counts.map(([s, n]) => chip(`${emojiFor(s)} ${s} ${n}`, s)));
+  requestAnimationFrame(fadeChips);
 
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === tab);
   $('#grid').hidden = tab !== 'grid';
@@ -662,7 +727,8 @@ async function renderList() {
 
   $('#grid').replaceChildren(...sortAnimals(shown, sortKey).map((a, i) => {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
-    el.querySelector(STICKER).src = blobUrl(a.sticker);
+    el.querySelector(STICKER).src = blobUrl(a.thumb ?? a.sticker);
+    Object.assign(el.querySelector(STICKER), { loading: 'lazy', decoding: 'async' });
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.no').textContent = (a.no ? fmtNo(a.no) : '') + (friendshipOf(a) ? ` ${friendshipOf(a).medal}` : '');
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.shiny ? ' 🌈' : '') + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
@@ -692,7 +758,7 @@ const foilDelay = i => `${-((i * 1.7) % 5).toFixed(1)}s`;
 // Album: progress, then one slot per species. A caught slot shows the newest sticker; tapping it
 // opens the collection filtered to that species.
 function renderAlbum(all) {
-  const slots = albumSlots(all);
+  const slots = albumSlots(all.filter(a => !a.memory && !String(a.id).startsWith('seed-'))); // her catches only
   const got = slots.filter(s => s.count).length;
   $('#album-progress').textContent = `${got} / ${slots.length} especies`;
   $('#album-bar').style.setProperty('--p', `${(got / slots.length) * 100}%`);
@@ -712,7 +778,7 @@ function renderAlbum(all) {
     el.dataset.rarity = s.rarity;
     el.classList.toggle('got', !!s.count);
     if (s.latest) {
-      el.querySelector('img').src = blobUrl(s.latest.sticker);
+      el.querySelector('img').src = blobUrl(s.latest.thumb ?? s.latest.sticker);
       el.querySelector('.n').textContent = `×${s.count}`;
       el.onclick = () => { filter = s.species; goTab('grid'); };
     } else {
@@ -766,8 +832,9 @@ async function backToList(id) {
     ? turnCard(open, 1, 0, () => open.classList.remove('show-back'), { base: open.style.transform, ms: 130 }) : null;
   if (tab !== 'map') {
     await renderList();
-    // every tile image, not just the target: undecoded images made the first paint of the list slow
-    await Promise.all([...$('#grid').querySelectorAll('img')].map(i => i.decode().catch(() => {})));
+    // only the tile the card shrinks into (the others are small thumbs that load as they come into view)
+    const img = id && $(`.tile[data-id="${id}"] .pic img`);
+    if (img) { img.loading = 'eager'; await Promise.race([img.decode().catch(() => {}), new Promise(r => setTimeout(r, 400))]); }
   }
   await front;
   // The card's text and buttons go at once, so the shrinking card is just its colour, sticker and foil
@@ -847,7 +914,8 @@ async function pickExisting(caught, placed, back) {
   const grid = Object.assign(document.createElement('div'), { className: 'pick' });
   grid.append(...others.map(a => {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
-    el.querySelector(STICKER).src = blobUrl(a.sticker);
+    el.querySelector(STICKER).src = blobUrl(a.thumb ?? a.sticker);
+    Object.assign(el.querySelector(STICKER), { loading: 'lazy', decoding: 'async' });
     el.querySelector('.name').textContent = a.name;
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}`;
     el.querySelector('.heart').hidden = !a.fav;
@@ -883,10 +951,18 @@ function openDetail(a, from) {
 
 // Photo → sticker: detect the animal, or let the user tap it, then cut it out. Uses #view's status and stage.
 async function stickerFrom(file) {
-  status('Despertando al detector de bichitos… (◕‿◕) La primera vez descarga unos 13 MB.', true);
+  status('Despertando al detector de bichitos… (◕‿◕)', true);
   const img = await toCanvas(file);
   img.className = 'photo';
-  const { detector, segmenter } = await loadModels();
+  const bar = $('#progress');
+  const tick = setInterval(() => { // only while the first download runs
+    if (!fetching || progress.loaded >= progress.total) return;
+    const pct = Math.round(progress.loaded / progress.total * 100);
+    status(`Descargando el detector de bichitos… ${pct}% (solo la primera vez, unos 25 MB)`, true);
+    bar.hidden = false;
+    bar.firstElementChild.style.transform = `scaleX(${pct / 100})`;
+  }, 200);
+  const { detector, segmenter } = await loadModels().finally(() => { clearInterval(tick); bar.hidden = true; });
 
   status('Buscando al bichito… (・・ ) ?', true);
   const hit = pickAnimal(detector.detect(img).detections);
@@ -932,6 +1008,7 @@ async function onPhoto(file, fromGallery = false) {
           showPreview();
         }),
         button('¡Me lo quedo!', async () => {
+          a.thumb = await makeThumb(a.sticker);
           await put(a); // if the place lookup is still running, renderList retries it
           await numberRecords();
           navigator.storage?.persist?.();
@@ -957,6 +1034,7 @@ async function rePhoto(a, file) {
   try {
     a.sticker = (await stickerFrom(file)).sticker;
     a.customPhoto = true; // a later seed photo never overwrites this
+    a.thumb = await makeThumb(a.sticker);
     await put(a);
     detailCard(a);
   } catch (e) { failed(e); }
@@ -977,15 +1055,18 @@ $('#refile').onchange = onFile(file => rePhoto(rephotoTarget, file));
 const toDataUrl = blob => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
 
 $('#backup').onclick = async () => {
-  const animals = await Promise.all((await getAll()).map(async a => ({ ...a, sticker: await toDataUrl(a.sticker) })));
+  // Thumbs stay out of the copy (they are rebuilt from the sticker after a restore)
+  const animals = await Promise.all((await getAll()).map(async a => ({ ...a, sticker: await toDataUrl(a.sticker), thumb: undefined })));
   const day = new Date().toISOString().slice(0, 10);
   const file = new File([JSON.stringify({ app: 'pet-catcher', version: self.VERSION, savedAt: Date.now(), animals, meta: await getAllMeta() })],
     `bichidex-${day}.json`, { type: 'application/json' });
   // Share sheet first: on phones (iOS standalone above all) a plain download is unreliable.
+  const saved = async () => setMeta('backup', { at: Date.now(), count: catchCount(await getAll()) }); // for the reminder
   if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'Copia de Bichidex' }); return; }
+    try { await navigator.share({ files: [file], title: 'Copia de Bichidex' }); await saved(); return; }
     catch (e) { if (e.name === 'AbortError') return; }
   }
+  await saved();
   const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: file.name });
   link.click();
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
@@ -1009,6 +1090,7 @@ $('#restore').onchange = async e => {
     }
     await numberRecords();
     for (const [k, v] of Object.entries(data.meta ?? {})) await setMeta(k, v);
+    await ensureThumbs();
     await renderList();
     toast(`¡Listo! ${data.animals.length} bichitos recuperados 🐾`);
     checkAchievements();
@@ -1083,7 +1165,7 @@ async function checkNotes() {
   if (noteBusy || !$('#bday').hidden || !$('#view').hidden || document.querySelector('dialog[open]')) return;
   const opened = (await getMeta('notes-opened')) ?? [];
   const [next] = dueNotes(await getAll(), Date.now(), opened.map(o => o.id));
-  if (!next) return;
+  if (!next) return checkBackup(); // no letter waiting: maybe time for a backup reminder
   noteBusy = true;
   const d = $('#letter');
   d.classList.remove('open');
@@ -1097,6 +1179,21 @@ async function checkNotes() {
     noteBusy = false;
     setTimeout(checkNotes, 600); // the next one, if several were due
   };
+}
+
+// A gentle "save a copy" once in a while (rule in needsBackupReminder). "Ahora no" waits a week.
+async function checkBackup() {
+  if (noteBusy || !$('#bday').hidden || !$('#view').hidden || document.querySelector('dialog[open]')) return;
+  const all = await getAll(), mine = all.filter(a => !a.memory && !String(a.id).startsWith('seed-'));
+  const now = Date.now();
+  if (!needsBackupReminder({ count: catchCount(all), backup: await getMeta('backup'), snoozeUntil: (await getMeta('backup-snooze')) ?? 0,
+    firstAt: Math.min(...mine.map(a => a.takenAt ?? now)), now })) return;
+  noteBusy = true;
+  const yes = await ask({ title: '¿Guardamos una copia? 💾', text: 'Tus bichitos solo viven en este móvil. Una copia los protege si lo pierdes o lo cambias.',
+    yes: '💾 Guardar copia', no: 'Ahora no' });
+  noteBusy = false;
+  if (yes) $('#backup').click();
+  else await setMeta('backup-snooze', now + 7 * 864e5);
 }
 
 $('#open-letters').onclick = async () => {
@@ -1130,6 +1227,14 @@ addEventListener('deviceorientation', e => {
 // ---------- start ----------
 
 $('#version').textContent = `v${self.VERSION}`;
+// The chip row scrolls sideways: fade the edge(s) where more chips are hidden.
+const fadeChips = () => {
+  const f = $('#filters');
+  f.classList.toggle('more-left', f.scrollLeft > 2);
+  f.classList.toggle('more-right', f.scrollLeft + f.clientWidth < f.scrollWidth - 2);
+};
+$('#filters').addEventListener('scroll', fadeChips, { passive: true });
+addEventListener('resize', fadeChips);
 // The sticky header slides up until only the tabs and the filter row show (the title scrolls away).
 const pinHeader = () => { $('header').style.top = `${-($('#tabs').offsetTop - 8)}px`; };
 pinHeader();
@@ -1142,4 +1247,9 @@ try { seen = localStorage.getItem('bday-seen') === '1'; } catch {}
 // seeing it, and the first time she opens it from the home screen it is there. ?cumple forces it anywhere.
 const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 if ((installed && !seen) || new URLSearchParams(location.search).has('cumple')) showBirthday();
-ensureMemories().then(numberRecords).catch(console.error).finally(() => { renderList(); checkAchievements(); });
+ensureMemories().then(numberRecords).catch(console.error).finally(() => { renderList(); checkAchievements(); ensureThumbs().catch(console.error); });
+// Get the detector ready in the background, so the first catch is instant (never on mobile data or data saver).
+setTimeout(() => {
+  const c = navigator.connection;
+  if (navigator.onLine && !c?.saveData && c?.type !== 'cellular') prefetchModels().catch(() => {});
+}, 5000);
