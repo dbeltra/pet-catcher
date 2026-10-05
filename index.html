@@ -27,12 +27,15 @@
       <button data-tab="album"><img class="ico" src="assets/icons/book.png" alt=""> Álbum</button>
       <button data-tab="map"><img class="ico" src="assets/icons/map.png" alt=""> Mapa</button>
     </nav>
+    <!-- Sort (funnel) and filter chips share one row, so the sticky header stays short -->
+    <div id="controls">
+      <label id="sortbar" hidden><img class="ico" src="assets/icons/filter.png" alt=""><select id="sort" aria-label="Ordenar por"></select></label>
+      <nav id="filters" hidden></nav>
+    </div>
   </header>
 
   <main>
     <section id="list">
-      <nav id="filters" hidden></nav>
-      <div id="sortbar" hidden><label><img class="ico" src="assets/icons/filter.png" alt=""> Ordenar por <select id="sort" aria-label="Ordenar"></select></label></div>
       <div id="empty" hidden>
         <p class="kaomoji">(｡•ᴗ•｡)</p>
         <p>Todavía no has atrapado ningún bichito.<br>¡Sal a buscar uno!</p>

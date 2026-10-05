@@ -36,7 +36,12 @@ body {
   padding: env(safe-area-inset-top) 16px calc(110px + env(safe-area-inset-bottom));
 }
 
-header { text-align: center; padding: 18px 0 6px; }
+/* Sticky header (v0.19.11): the title scrolls away, the tabs + sort + filters stay pinned (top is set in app.js
+   from where the tabs start). Full-bleed background so the cards slide under it. */
+header {
+  position: sticky; z-index: 20; text-align: center; padding: 18px 16px 4px; margin: 0 -16px;
+  background: var(--bg); box-shadow: 0 8px 10px -10px rgba(90, 70, 50, .25);
+}
 /* Highlighter band behind the title. A 3px offset text-shadow made the letters hard to read. */
 h1 {
   display: inline-block; font-size: 2rem; font-weight: 600; margin: 0; padding: 0 8px; color: var(--text); letter-spacing: .5px;
@@ -47,7 +52,9 @@ h1 {
 #count:not(:empty)::before { content: '· '; }
 
 /* ---------- filters ---------- */
-#filters { display: flex; gap: 8px; overflow-x: auto; padding: 12px 2px; scrollbar-width: none; }
+#controls { display: flex; align-items: center; gap: 8px; padding: 10px 0 6px; }
+#controls:not(:has(> :not([hidden]))) { display: none; }
+#filters { display: flex; gap: 8px; overflow-x: auto; padding: 2px; scrollbar-width: none; flex: 1; min-width: 0; }
 .chip {
   flex: none; border: 2px solid var(--dots); background: var(--card); color: var(--text);
   border-radius: 999px; padding: 6px 14px; font: inherit; white-space: nowrap;
@@ -113,8 +120,7 @@ h1 {
 .leaflet-container { font: inherit; }
 
 /* ---------- sort menu above the grid: a native select, dressed as a chip ---------- */
-#sortbar { display: flex; justify-content: center; margin: -2px 2px 8px; font-size: .85rem; color: var(--muted); }
-#sortbar label { display: inline-flex; align-items: center; gap: 6px; } /* label and selector together, centred */
+#sortbar { flex: none; display: inline-flex; align-items: center; gap: 4px; padding-left: 4px; font-size: .85rem; }
 #sort { font: inherit; color: var(--text); background: var(--card); border: 2px solid var(--dots); border-radius: 999px; padding: 4px 10px; }
 
 /* ---------- list ---------- */

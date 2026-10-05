@@ -1130,6 +1130,11 @@ addEventListener('deviceorientation', e => {
 // ---------- start ----------
 
 $('#version').textContent = `v${self.VERSION}`;
+// The sticky header slides up until only the tabs and the filter row show (the title scrolls away).
+const pinHeader = () => { $('header').style.top = `${-($('#tabs').offsetTop - 8)}px`; };
+pinHeader();
+document.fonts?.ready.then(pinHeader);
+addEventListener('resize', pinHeader);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }); // else GitHub Pages' 10 min HTTP cache delays updates
 let seen = false;
 try { seen = localStorage.getItem('bday-seen') === '1'; } catch {}
