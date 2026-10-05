@@ -248,7 +248,8 @@ lookups one at a time for records that have `location` but no `place`.
   Each letter has a `why` ("Tu primer shiny", "Sant Jordi 2027"; `noteWhy`), shown on the envelope and in the list.
 - **Card layout (v0.19.1):** the front is photo-first: photo, name, species, number · rarity, and date · place on one
   line. The back has gender, traits, then friendship · sightings on one line ("🥉 Bronce, 2 más para plata · 👀 3 veces")
-  and a saved card's buttons (¡Otra vez!, Foto, Liberar) on one line (they shrink on narrow phones, never wrap).
+  , the last sighting ("Última vez: 5 oct 2026, 13:40 · Sitges, Garraf") and a saved card's buttons (¡Otra vez!, Foto,
+  Liberar) on one line. "¡Otra vez!" redraws the card on the back (it lives there), never jumping to the front (they shrink on narrow phones, never wrap).
   A new catch keeps its buttons on the front. Exactly 3 traits, editable, no add / remove (v0.19.4), so the back
   never scrolls (`overflow: hidden`; scrolling inside it fought with the swipes). Checked down to 320 px wide.
 - **Friendship** (`friendshipOf`): 3 sightings bronce 🥉, 5 plata 🥈, 10 oro 🥇. A metal ring inside the card

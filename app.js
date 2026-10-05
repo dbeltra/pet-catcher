@@ -322,6 +322,9 @@ function renderCard(a, actions, save = () => {}, close = null) {
   if (a.visits.length) bond.push(`👀 ${timesSeen(a)} veces`);
   q('.bond').textContent = bond.join(' · ');
   q('.bond').hidden = !bond.length;
+  const last = a.visits.reduce((x, y) => (!x || y.at > x.at ? y : x), null);
+  q('.last-seen').hidden = !last;
+  if (last) q('.last-seen').textContent = `Última vez: ${fmtWhen(last.at)}` + (last.place ? ` · ${last.place}` : '');
   const fav = q('.fav');
   const paintFav = () => { fav.replaceChildren(icon('heart', !a.fav)); fav.classList.toggle('on', a.fav); };
   paintFav();
@@ -819,7 +822,10 @@ async function seenAgain(a) {
   a.visits.push(visit);
   await put(a);
   friendToast(a, before) || toast(`👀 ¡${a.name}, visto ${timesSeen(a)} veces!`);
+  // Redraw on the same side: the button is on the back, so the card must not jump to the front.
+  const wasBack = $('#view .card')?.classList.contains('show-back');
   detailCard(a);
+  if (wasBack) $('#view .card').classList.add('show-back');
   checkAchievements();
 }
 

@@ -382,6 +382,7 @@ html.tilt .shiny > .foil::before { animation: shiny-pulse 1.6s ease-in-out infin
 .card .when-where { font-size: .9rem; }
 .where::before { content: ' · 📍 '; }
 .card .bond { margin: 12px 0 0; font-size: .9rem; font-weight: 600; }
+.card .last-seen { margin: 2px 0 0; font-size: .82rem; }
 /* The 3 buttons of a saved card always on one line: they shrink on narrow phones instead of wrapping */
 .actions.back-actions { margin-top: 10px; flex-wrap: nowrap; gap: 6px; width: 100%; } /* .actions.back-actions: beats the general .actions wrap */
 .actions.back-actions button { flex: 0 1 auto; min-width: 0; white-space: nowrap; padding: 6px clamp(6px, 2.4vw, 10px); font-size: clamp(.72rem, 3.6vw, .9rem); }
@@ -627,3 +628,12 @@ html[data-vt]::view-transition-group(content) { animation: none; }
 #letters-list strong { font-size: .85rem; color: var(--accent-deep); }
 #letter .note-why { margin: -8px 0 0; color: var(--accent-deep); font-weight: 600; font-size: .95rem; }
 #letters-list small { color: var(--muted); }
+
+/* Very narrow phones (≤ 340 px): a tighter back, so it fits without scrolling */
+@media (max-width: 340px) {
+  .back { padding-top: 8px; }
+  .back h3 { font-size: 1.2rem; margin-bottom: 8px; }
+  .traits { gap: 5px; }
+  .traits li { padding-top: 3px; padding-bottom: 3px; }
+  .card .bond { margin-top: 8px; }
+}
