@@ -212,7 +212,7 @@ lookups one at a time for records that have `location` but no `place`.
   closes the detail past 110 px (never on a new catch). The detail is a history entry (`pushState`), so the
   phone's Back gesture closes it as well; everything that closes a detail goes through `history.back()`.
 - **Trading-card shape** (v0.17.3): tiles and the big card are 5:7 (63 × 88 mm, `aspect-ratio: 5 / 7`); the big card
-  is no taller than the screen. The text keeps its size and the photo area (`.sticker-wrap`, `flex: 1`) takes what
+  is no taller than the screen and sits in its middle (`#card { margin-block: auto }`). The text keeps its size and the photo area (`.sticker-wrap`, `flex: 1`) takes what
   is left, so a card with more lines has a smaller photo. A long back (many traits) scrolls inside the card. Same
   shape on both faces, so no height syncing is needed. Tile names are one line (ellipsis).
 - **Without swipes:** the ↔️ and ⬇️ in the hint are buttons (flip / close), and the keyboard's ← → ↓ do the same

@@ -245,7 +245,11 @@ html.tilt .shiny > .foil { animation: shiny-twinkle 1.6s ease-in-out infinite; b
   position: fixed; inset: 0; z-index: 50; overflow-y: auto; overscroll-behavior: contain;
   padding: calc(4px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
   background: var(--bg) radial-gradient(var(--dots) 2px, transparent 2.5px) 0 0 / 22px 22px;
+  display: flex; flex-direction: column;
 }
+/* The card sits in the middle of the screen; auto margins (not justify-content) fall back to the top when it
+   doesn't fit, so nothing is cut off */
+#card { margin-block: auto; }
 #status { text-align: center; font-size: 1.05rem; margin: 18px 0; }
 #stage { position: relative; overflow: hidden; border-radius: 22px; } /* clips the box's dimming shadow */
 .area-box { position: absolute; border: 3px dashed #fff; border-radius: 10px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .35); pointer-events: none; }
