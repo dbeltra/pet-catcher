@@ -247,7 +247,7 @@ lookups one at a time for records that have `location` but no `place`.
   `checkNotes()` shows the next due letter as an envelope (`#letter`), **only on the list screen** (never over a
   card, a catch, the birthday or a dialog); opened ones go to meta `notes-opened` and Ajustes → "💌 Cartas".
   Each letter has a `why` ("Tu primer shiny", "Sant Jordi 2027"; `noteWhy`), shown on the envelope and in the list.
-- **Sorting** (v0.19.8; `SORTS`, `sortAnimals` in `lib.mjs`): "↕️ Ordenar por" menu above the grid (native `<select>`,
+- **Sorting** (v0.19.8; `SORTS`, `sortAnimals` in `lib.mjs`): "Ordenar por" menu (David's funnel icon, `assets/icons/filter.png`) above the grid (native `<select>`,
   shown in Colección with 3+ cards): Recientes, Número, Nombre (A–Z, accents ignored), Rareza (legendario first, shiny
   before non-shiny), Amistad (most seen first). Kurko and Kiffy stay first in every order. Combines with the filters;
   remembered in `localStorage` `sort` (cleared by the reset).

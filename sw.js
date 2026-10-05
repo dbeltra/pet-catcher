@@ -5,7 +5,7 @@ const SHELL_CACHE = `shell-${self.VERSION}`;
 const CDN_CACHE = 'cdn-v1';
 const CDN_HOSTS = ['cdn.jsdelivr.net', 'storage.googleapis.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 const SHELL = ['./', 'index.html', 'version.js', 'style.css', 'app.js', 'lib.mjs', 'manifest.webmanifest', 'favicon.ico?v=8', 'apple-touch-icon.png?v=8', 'icon-192.png?v=8', 'icon-512.png?v=8', 'icon-192-maskable.png?v=8', 'icon-512-maskable.png?v=8', 'seed/kurko.png', 'seed/kiffy.png',
-  ...['book', 'cake', 'camera', 'folder', 'gallery', 'heart', 'magnifier', 'map', 'shine', 'star', 'male', 'female', 'question-mark'].map(n => `assets/icons/${n}.png`)];
+  ...['book', 'cake', 'camera', 'folder', 'gallery', 'heart', 'magnifier', 'map', 'shine', 'star', 'male', 'female', 'question-mark', 'filter'].map(n => `assets/icons/${n}.png`)];
 
 self.addEventListener('install', e => e.waitUntil(
   // cache: 'reload' skips the HTTP cache: GitHub Pages sends max-age=600, so a plain addAll right after a
