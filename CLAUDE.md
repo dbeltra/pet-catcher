@@ -251,7 +251,8 @@ lookups one at a time for records that have `location` but no `place`.
   chips + ⚙️ settings button) stay pinned. During tab and filter transitions only, the header has its own
   view-transition-name above the sliding content (on card open/close it must not, or it faded out by itself)
   (v0.20: cards slid over it). A tab switch scrolls back to the top of the new tab, keeping the header pinned.
-  The chip row fades at the edge where more chips are hidden (`fadeChips`). `pinHeader()` sets `header.style.top` from where the tabs start (again after fonts load / resize).
+  Filters: chips when they all fit in the row, otherwise one dropdown (`#filter-select`) with the same choices;
+  `fitFilters()` measures on every render and resize, so it follows the screen width and her number of species. `pinHeader()` sets `header.style.top` from where the tabs start (again after fonts load / resize).
 - **Speed with many catches (v0.20):** each record has `thumb` (≤ 320 px WebP, `makeThumb`), used by tiles, map pins and
   album slots; the full `sticker` only for the open card. `ensureThumbs()` fills old/restored records in the background;
   backups leave thumbs out. Tile images are `loading="lazy"`; closing a card only decodes the target tile's image

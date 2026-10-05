@@ -54,7 +54,8 @@ h1 {
 /* ---------- filters ---------- */
 #album-jump { display: flex; gap: 8px; flex: 1; justify-content: center; }
 #controls { display: flex; align-items: center; gap: 8px; padding: 10px 0 6px; }
-#filters { display: flex; gap: 8px; overflow-x: auto; padding: 2px; scrollbar-width: none; flex: 1; min-width: 0; }
+#filters { display: flex; gap: 8px; overflow: hidden; padding: 2px; flex: 1; min-width: 0; } /* never scrolls: the dropdown takes over */
+#filter-select { flex: 1; min-width: 0; max-width: 260px; font: inherit; font-size: .9rem; color: var(--text); background: var(--selected); border: 2px solid var(--selected); border-radius: 999px; padding: 6px 12px; }
 .chip {
   flex: none; border: 2px solid var(--dots); background: var(--card); color: var(--text);
   border-radius: 999px; padding: 6px 14px; font: inherit; white-space: nowrap;
@@ -164,10 +165,6 @@ h1 {
 
 #footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 28px; color: var(--muted); font-size: .85rem; }
 #open-settings.gear { flex: none; margin-left: auto; width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--dots); background: var(--card); font-size: 1.1rem; text-decoration: none; padding: 0; }
-/* Fades on the chip row where more chips are hidden (set by fadeChips) */
-#filters.more-right { -webkit-mask: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
-#filters.more-left { -webkit-mask: linear-gradient(90deg, transparent, #000 36px); mask: linear-gradient(90deg, transparent, #000 36px); }
-#filters.more-left.more-right { -webkit-mask: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
 #progress { height: 8px; margin: 0 auto 12px; width: min(260px, 80%); border-radius: 999px; background: var(--dots); overflow: hidden; }
 #progress span { display: block; height: 100%; background: var(--accent-deep); transform-origin: left; transform: scaleX(0); transition: transform .2s; }
 #open-settings { font: inherit; color: inherit; background: none; border: 0; padding: 4px; text-decoration: underline dotted; cursor: pointer; }

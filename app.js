@@ -706,7 +706,7 @@ async function renderList() {
 
   $('#count').textContent = all.length ? `${all.length} ${all.length === 1 ? 'atrapado' : 'atrapados'}` : '';
   $('#empty').hidden = all.length > 0;
-  $('#filters').hidden = tab === 'album' || (counts.length < 2 && !favs);
+  const showFilters = tab !== 'album' && (counts.length >= 2 || favs > 0);
   $('#sortbar').hidden = tab !== 'grid' || all.length < 3; // order only matters in the grid
   $('#album-jump').hidden = tab !== 'album';
   const chip = (label, value, ico) => {
@@ -717,7 +717,13 @@ async function renderList() {
   $('#filters').replaceChildren(chip(`Todos ${all.length}`, null, 'shine'),
     ...(favs ? [chip(`Favoritos ${favs}`, FAV, 'heart')] : []),
     ...counts.map(([s, n]) => chip(`${emojiFor(s)} ${s} ${n}`, s)));
-  requestAnimationFrame(fadeChips);
+  // The same choices as a dropdown, used when the chips don't fit the row (fitFilters)
+  $('#filter-select').replaceChildren(new Option(`✨ Todos (${all.length})`, ''),
+    ...(favs ? [new Option(`❤️ Favoritos (${favs})`, FAV)] : []),
+    ...counts.map(([s, n]) => new Option(`${emojiFor(s)} ${s} (${n})`, s)));
+  $('#filter-select').value = filter ?? '';
+  filtersOn = showFilters;
+  fitFilters();
 
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === tab);
   placePill();
@@ -754,6 +760,17 @@ async function renderList() {
     }
   })();
 }
+
+// Filters: chips when they all fit in the row, else one dropdown with the same choices (measured, so it follows
+// both the screen width and how many species she has).
+let filtersOn = false;
+function fitFilters() {
+  const chips = $('#filters'), select = $('#filter-select');
+  chips.hidden = !filtersOn;
+  select.hidden = true;
+  if (filtersOn && chips.scrollWidth > chips.clientWidth + 1) { chips.hidden = true; select.hidden = false; }
+}
+$('#filter-select').onchange = e => transition(() => { filter = e.target.value || null; return renderList(); }, 'filter');
 
 // Album: two chips in the pinned row jump to "Especies" or "Logros".
 for (const b of document.querySelectorAll('#album-jump button')) b.onclick = () => {
@@ -1236,14 +1253,7 @@ addEventListener('deviceorientation', e => {
 // ---------- start ----------
 
 $('#version').textContent = `v${self.VERSION}`;
-// The chip row scrolls sideways: fade the edge(s) where more chips are hidden.
-const fadeChips = () => {
-  const f = $('#filters');
-  f.classList.toggle('more-left', f.scrollLeft > 2);
-  f.classList.toggle('more-right', f.scrollLeft + f.clientWidth < f.scrollWidth - 2);
-};
-$('#filters').addEventListener('scroll', fadeChips, { passive: true });
-addEventListener('resize', fadeChips);
+addEventListener('resize', fitFilters);
 // The pill under the selected tab (it slides by CSS transition; first placement without it).
 function placePill() {
   const b = $('#tabs button.on'), pill = $('#tabs .pill');
