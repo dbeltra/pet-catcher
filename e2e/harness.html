@@ -52,6 +52,7 @@ f.onload = async () => {
     const input = d.querySelector('#file'); input.files = dt.files; input.dispatchEvent(new Event('change'));
     const keep = await wait('preview', () => btn(d, '¡Me lo quedo!') || (d.querySelector('#status').textContent.startsWith('Algo') && d.querySelector('#status')));
     if (!keep.onclick) throw new Error(keep.textContent);
+    await wait('reveal', () => !d.querySelector('#card .cover'), 6000); // the booster-pack reveal
     w.Math.random = realRandom;
     const shinyToast = await wait('shiny toast', () => d.querySelector('#toast').textContent.includes('SHINY') && 'yes', 5000);
     const shinyCard = d.querySelector('.card').classList.contains('shiny');
@@ -73,6 +74,22 @@ f.onload = async () => {
     await wait('gallery', () => d.querySelectorAll('.tile').length === 3, 10000);
     const firstBadge = await wait('first badge toast', () => d.querySelector('#toast').textContent.includes('Primera captura') && d.querySelector('#toast').textContent.includes('shiny') && 'yes', 8000);
     const shinyTile = !!d.querySelector('.tile.shiny');
+    // David's letters: first catch, shiny and favourite are all due now; open each one.
+    const letters = [];
+    for (;;) {
+      const open = await wait('letter', () => d.querySelector('#letter').open, 4000).catch(() => null);
+      if (!open) break;
+      d.querySelector('#letter .envelope').click();
+      await sleep(200);
+      letters.push(d.querySelector('#letter .note-text').textContent.slice(0, 16));
+      d.querySelector('#letter .close').click();
+      await sleep(900);
+    }
+    d.querySelector('#open-letters').click();
+    await sleep(300);
+    const kept = d.querySelectorAll('#letters-list li').length;
+    d.querySelector('#letters .close').click();
+    await sleep(300);
 
     // Seen again from the card (no photo).
     [...d.querySelectorAll('.tile')].find(t => !t.classList.contains('memory')).click();
@@ -88,6 +105,7 @@ f.onload = async () => {
     const dt2 = new DataTransfer(); dt2.items.add(new File([blob], 'cat2.jpg', { type: 'image/jpeg' })); // a FileList can be assigned only once
     input.files = dt2.files; input.dispatchEvent(new Event('change'));
     await wait('preview 2', () => btn(d, '🔁 Ya lo tenía'));
+    await wait('reveal 2', () => !d.querySelector('#card .cover'), 6000);
     btn(d, '🔁 Ya lo tenía').click();
     await wait('picker', () => d.querySelector('.pick .tile'));
     d.querySelector('.pick .tile').click();
@@ -160,6 +178,7 @@ f.onload = async () => {
     const dt3 = new DataTransfer(); dt3.items.add(new File([blob], 'gallery.jpg', { type: 'image/jpeg' }));
     const gal = d.querySelector('#gallery-file'); gal.files = dt3.files; gal.dispatchEvent(new Event('change'));
     await wait('gallery preview', () => btn(d, '¡Me lo quedo!'));
+    await wait('reveal 3', () => !d.querySelector('#card .cover'), 6000);
     const galleryWhen = d.querySelector('.card .when').textContent;
     const hintGone = !d.querySelector('#card .swipe-hint'); // she has flipped and closed with swipes by now
     const noPlace = d.querySelector('.card .where').textContent;
@@ -204,7 +223,7 @@ f.onload = async () => {
     // In a browser tab (not the installed app) the greeting stays hidden, and it was not marked as seen.
     const reset = `${names(d2).join('+')},greetingInTab=${!d2.querySelector('#bday').hidden},seenFlag=${f.contentWindow.localStorage.getItem('bday-seen')},otherApp=${f.contentWindow.localStorage.getItem('sitges26:other-app')}`;
 
-    log(`OK gender[${nameBefore} → ${nameAfter} femTitle=${femTitle} noMarkOnTile=${noMarkOnTile} traits=${traitsNow}] reset=${reset} ${summary} shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    log(`OK letters=[${letters.join(' | ')}] kept=${kept} gender[${nameBefore} → ${nameAfter} femTitle=${femTitle} noMarkOnTile=${noMarkOnTile} traits=${traitsNow}] reset=${reset} ${summary} shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}->${traits} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };

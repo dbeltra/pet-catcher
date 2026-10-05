@@ -575,3 +575,67 @@ html[data-vt]::view-transition-group(content) { animation: none; }
   96% { transform: rotate(-2deg); }
 }
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; } }
+
+/* ---------- friendship (v0.19): a metal ring inside the card + a line on the big card ---------- */
+.card .friend { font-size: .85rem; }
+:is(.tile, .card)[data-friend] { outline: 3px solid var(--friend); outline-offset: -9px; }
+[data-friend="bronce"] { --friend: rgba(205, 140, 80, .8); }
+[data-friend="plata"] { --friend: rgba(170, 180, 196, .9); }
+[data-friend="oro"] { --friend: rgba(236, 184, 60, .95); }
+
+/* ---------- petting: hearts floating up from the photo ---------- */
+.pet-heart { position: absolute; bottom: 30%; width: 28px; height: 28px; z-index: 5; pointer-events: none; }
+.sticker { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+
+/* ---------- booster-pack reveal: the card back, then a flash in the rarity colour ---------- */
+.card .cover {
+  position: absolute; inset: 0; z-index: 10; border-radius: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26'%3E%3Cpath fill='%23fff' fill-opacity='.45' d='M13 20s-6-3.7-6-7.6a3.3 3.3 0 0 1 6-1.8 3.3 3.3 0 0 1 6 1.8c0 3.9-6 7.6-6 7.6z'/%3E%3C/svg%3E") 0 0 / 26px 26px,
+    linear-gradient(135deg, #f7d98b, #f2b9a0 55%, #c9b6f2);
+  box-shadow: inset 0 0 0 6px rgba(255, 255, 255, .7);
+}
+.cover-logo { font-size: 2.2rem; font-weight: 600; color: #5a4632; background: rgba(255, 255, 255, .75); padding: 4px 18px; border-radius: 999px; }
+.cover-flower { font-size: 2.6rem; color: #fff; }
+.card .flash { position: absolute; inset: 0; z-index: 9; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(circle, var(--flash) 0%, transparent 65%); }
+.flash[data-kind="común"] { --flash: rgba(255, 255, 255, .95); }
+.flash[data-kind="raro"] { --flash: rgba(140, 200, 255, .95); }
+.flash[data-kind="épico"] { --flash: rgba(255, 210, 80, .95); }
+.flash[data-kind="legendario"] { --flash: rgba(255, 140, 210, .95); }
+.flash[data-kind="shiny"] { background: conic-gradient(#ff8fc8, #ffd36e, #8ff0b5, #8fd0ff, #c69bff, #ff8fc8); -webkit-mask: radial-gradient(circle, #000 0%, transparent 65%); mask: radial-gradient(circle, #000 0%, transparent 65%); }
+
+/* ---------- David's letters: an envelope that opens ---------- */
+#letter, #letters {
+  border: 4px solid #fff; border-radius: 30px; padding: 22px 20px 18px; width: min(340px, calc(100vw - 32px));
+  background: var(--card); color: var(--text); text-align: center;
+  box-shadow: 0 8px 0 var(--accent-deep), 0 20px 50px rgba(90, 70, 50, .3);
+}
+:is(#letter, #letters)[open] { animation: vt-pop .5s cubic-bezier(.34, 1.56, .64, 1); }
+:is(#letter, #letters)::backdrop { background: rgba(90, 70, 50, .3); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+:is(#letter, #letters) h2 { margin: 0 0 14px; font-size: 1.3rem; }
+:is(#letter, #letters) .hint { margin: 10px 0 0; color: var(--muted); font-size: .85rem; }
+:is(#letter, #letters) .close { margin-top: 16px; font: inherit; width: 100%; padding: 10px 16px; border-radius: 999px; cursor: pointer;
+  background: var(--accent); border: 2px solid var(--accent); color: var(--on-accent); box-shadow: 0 4px 0 var(--accent-deep); }
+#letter:not(.open) .close { visibility: hidden; }
+#letter.open .hint { visibility: hidden; }
+
+.envelope { font: inherit; position: relative; display: block; width: 240px; height: 160px; margin: 120px auto 0; padding: 0; border: 0; cursor: pointer;
+  background: #f2c9a8; border-radius: 10px; box-shadow: 0 6px 14px rgba(90, 70, 50, .25); perspective: 700px; }
+.envelope .pocket { position: absolute; inset: 0; z-index: 2; border-radius: 10px; background: #f7d98b;
+  clip-path: polygon(0 0, 50% 55%, 100% 0, 100% 100%, 0 100%); }
+.envelope .flap { position: absolute; left: 0; right: 0; top: 0; height: 60%; z-index: 3; background: #f0b98e;
+  clip-path: polygon(0 0, 100% 0, 50% 100%); transform-origin: top; transition: transform .5s ease-in-out, z-index 0s .25s; }
+.envelope .seal { position: absolute; left: 50%; top: 50%; z-index: 4; transform: translate(-50%, -50%); font-size: 1.6rem; transition: opacity .2s; }
+.envelope .paper { position: absolute; left: 10px; right: 10px; top: 10px; bottom: 10px; z-index: 1; border-radius: 8px; padding: 16px 14px;
+  background: #fffdf5 repeating-linear-gradient(transparent 0 25px, rgba(90, 70, 50, .08) 25px 26px);
+  display: flex; align-items: center; justify-content: center; font-size: 1.05rem; line-height: 1.45; color: #5a4632;
+  transition: transform .6s cubic-bezier(.34, 1.4, .64, 1) .45s; }
+#letter.open .flap { transform: rotateX(180deg); z-index: 0; }
+#letter.open .seal { opacity: 0; }
+#letter.open .paper { transform: translateY(-112px) scale(1.12); z-index: 5; box-shadow: 0 8px 18px rgba(90, 70, 50, .25); }
+
+#letters-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 55dvh; overflow-y: auto; text-align: left; }
+#letters-list li { background: #fffdf5 repeating-linear-gradient(transparent 0 23px, rgba(90, 70, 50, .07) 23px 24px); border-radius: 14px; padding: 10px 14px; box-shadow: 0 2px 6px rgba(90, 70, 50, .12); }
+#letters-list p { margin: 0 0 4px; }
+#letters-list small { color: var(--muted); }

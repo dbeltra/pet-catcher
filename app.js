@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { friendshipOf, nextFriendship, dueNotes, noteText, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -194,7 +194,9 @@ async function resolvePlace(a) {
     const { lat, lon } = a.location;
     const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=es&lat=${lat}&lon=${lon}`,
       { signal: AbortSignal.timeout(8000) });
-    a.place = placeName(await r.json()) ?? 'Un lugar sin nombre';
+    const j = await r.json();
+    a.place = placeName(j) ?? 'Un lugar sin nombre';
+    a.country = j.address?.country_code ?? null; // for the Japan letter
     return true;
   } catch { return false; }
 }
@@ -274,6 +276,8 @@ function dress(el, a) {
   if (foil) el.dataset.foil = foil; else delete el.dataset.foil;
   if (time) el.dataset.time = time; else delete el.dataset.time;
   el.classList.toggle('milestone', isMilestone(a.no));
+  const fr = friendshipOf(a);
+  if (fr) el.dataset.friend = fr.key; else delete el.dataset.friend;
 }
 
 // Big card, used for the new-catch preview and for the detail view. `save` runs after each edit (detail only).
@@ -310,6 +314,10 @@ function renderCard(a, actions, save = () => {}, close = null) {
     q('.where').textContent = fmtWhere(a);
     save();
   };
+  const fr = friendshipOf(a), nx = nextFriendship(a);
+  q('.friend').hidden = !fr && !a.visits.length;
+  q('.friend').textContent = fr ? `${fr.medal} Amistad de ${fr.label.toLowerCase()}` + (nx ? ` · ${nx.left} más para ${nx.label.toLowerCase()}` : ' · ¡la máxima!')
+    : `🤝 ${nx.left} más para ser amigos`;
   q('.seen').hidden = !a.visits.length;
   if (a.visits.length) {
     const last = a.visits.reduce((x, y) => (y.at > x.at ? y : x));
@@ -358,7 +366,14 @@ function renderCard(a, actions, save = () => {}, close = null) {
   q('.note').onchange = () => { a.note = q('.note').value.trim(); save(); };
   q('.actions').append(...actions);
 
-  q('.sticker-wrap').onclick = () => flip(card, a, save); // tap = the same as a sideways swipe
+  // Tap the photo = flip (like a sideways swipe); press and hold it = pet the animal.
+  let petted = false, pressTimer, px, py;
+  const wrap = q('.sticker-wrap');
+  wrap.addEventListener('pointerdown', e => { petted = false; px = e.clientX; py = e.clientY; pressTimer = setTimeout(() => { petted = true; pet(wrap); }, 450); });
+  wrap.addEventListener('pointermove', e => { if (Math.hypot(e.clientX - px, e.clientY - py) > 10) clearTimeout(pressTimer); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) wrap.addEventListener(ev, () => clearTimeout(pressTimer));
+  wrap.oncontextmenu = e => e.preventDefault(); // no "save image" menu on a long press
+  wrap.onclick = () => { if (petted) { petted = false; return; } flip(card, a, save); };
   swipes(card, dir => { learned('flip'); flip(card, a, save, dir); }, close && (() => { learned('close'); close(); }));
   $('#card').replaceChildren(card);
   // The same actions without a swipe: the arrows in the hint are buttons, and ← → ↓ work on a keyboard.
@@ -390,6 +405,45 @@ addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); cardKeys.flip(e.key === 'ArrowLeft' ? -1 : 1); }
   else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && cardKeys.close) { e.preventDefault(); cardKeys.close(); }
 });
+
+// Petting: the animal wiggles happily and hearts float up (transform/opacity only), with a tiny buzz on Android.
+function pet(wrap) {
+  const img = wrap.querySelector('.sticker');
+  img.animate([{ transform: 'none' }, { transform: 'rotate(-7deg) scale(1.08)' }, { transform: 'rotate(6deg) scale(1.1)' },
+    { transform: 'rotate(-4deg) scale(1.05)' }, { transform: 'none' }], { duration: 700, easing: 'ease-in-out' });
+  navigator.vibrate?.(25);
+  for (let i = 0; i < 7; i++) {
+    const h = icon('heart');
+    h.className = 'pet-heart';
+    h.style.left = `${30 + Math.random() * 40}%`;
+    wrap.append(h);
+    h.animate([{ transform: 'translate(-50%, 0) scale(.4)', opacity: 0 }, { opacity: 1, offset: .15 },
+      { transform: `translate(${-50 + (Math.random() * 120 - 60)}%, -170px) scale(${.9 + Math.random() * .6})`, opacity: 0 }],
+      { duration: 1100 + Math.random() * 400, delay: i * 90, easing: 'ease-out', fill: 'backwards' }).finished.then(() => h.remove());
+  }
+}
+
+// Booster-pack reveal for a new catch: the card arrives face down, wobbles, flips, and a flash in its rarity colour
+// bursts out (a rainbow one for a shiny). Skipped with reduced motion.
+async function reveal(card, a) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cover = Object.assign(document.createElement('div'), { className: 'cover' });
+  cover.append(Object.assign(document.createElement('span'), { className: 'cover-logo', textContent: 'Bichidex' }),
+    Object.assign(document.createElement('span'), { className: 'cover-flower', textContent: '✿' }));
+  card.append(cover);
+  await card.animate([{ transform: 'scale(.6) rotate(-6deg)', opacity: 0 }, { transform: 'scale(1.03) rotate(2deg)', opacity: 1, offset: .55 },
+    { transform: 'none' }], { duration: 500, easing: 'ease-out' }).finished;
+  await card.animate([{ transform: 'none' }, { transform: 'rotate(-3deg)' }, { transform: 'rotate(3deg)' }, { transform: 'rotate(-2deg)' },
+    { transform: 'none' }], { duration: 550, easing: 'ease-in-out' }).finished;
+  await card.animate([{ transform: 'perspective(900px) rotateY(0)' }, { transform: 'perspective(900px) rotateY(90deg)' }], { duration: 180, easing: 'ease-in' }).finished;
+  cover.remove();
+  const flash = Object.assign(document.createElement('div'), { className: 'flash' });
+  flash.dataset.kind = a.shiny ? 'shiny' : rarityFor(a);
+  card.append(flash);
+  flash.animate([{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(2.4)', opacity: 0 }], { duration: 800, easing: 'ease-out' }).finished.then(() => flash.remove());
+  await card.animate([{ transform: 'perspective(900px) rotateY(-90deg)' }, { transform: 'perspective(900px) rotateY(0)' }],
+    { duration: 320, easing: 'cubic-bezier(.34, 1.56, .64, 1)' }).finished;
+}
 
 // Touch gestures on the big card. Sideways: the card turns with the finger, past 60 px it flips.
 // Down or up (only if `onClose`, and only when the card layer can't scroll further that way): it follows the finger,
@@ -606,7 +660,7 @@ async function renderList() {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
     el.querySelector(STICKER).src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
-    el.querySelector('.no').textContent = a.no ? fmtNo(a.no) : '';
+    el.querySelector('.no').textContent = (a.no ? fmtNo(a.no) : '') + (friendshipOf(a) ? ` ${friendshipOf(a).medal}` : '');
     el.querySelector('.meta').textContent = `${emojiFor(a.species)} ${a.species}` + (a.shiny ? ' 🌈' : '') + (a.visits.length ? ` · 👀${timesSeen(a)}` : '');
     dress(el, a);
     el.querySelector('.heart').hidden = !a.fav;
@@ -623,7 +677,7 @@ async function renderList() {
     for (const a of all) {
       let changed = await resolvePlace(a);
       for (const v of a.visits) changed = (await resolvePlace(v)) || changed;
-      if (changed) await put(a);
+      if (changed) { await put(a); checkNotes(); } // a place resolved late can unlock a letter (Japan)
     }
   })();
 }
@@ -725,6 +779,7 @@ async function backToList(id) {
     await decoded(target);
   }, 'close');
   tag(target, false);
+  checkNotes(); // letters wait for the list screen
 }
 
 // The detail view is a history entry, so the phone's Back gesture closes it, like the swipe down.
@@ -756,14 +811,24 @@ function detailCard(a) {
   ], async () => { await put(a); checkAchievements(); }, closeDetail);
 }
 
+// A new friendship level: a toast (and confetti at gold). Returns false when the level did not change.
+function friendToast(a, before) {
+  const now = friendshipOf(a);
+  if (!now || now.key === before?.key) return false;
+  toast(`${now.medal} ¡${a.name} y tú ya sois amigos de ${now.label.toLowerCase()}!`);
+  if (now.key === 'oro') { confetti($('#burst'), 70); setTimeout(() => $('#burst').replaceChildren(), 4500); }
+  return true;
+}
+
 // Re-encounter without a photo: the visit is now and here.
 async function seenAgain(a) {
   toast('📍 Apuntando dónde lo has visto…');
   const visit = { at: Date.now(), location: await getLocation(), place: null };
   await resolvePlace(visit); // if it fails, renderList retries it
+  const before = friendshipOf(a);
   a.visits.push(visit);
   await put(a);
-  toast(`👀 ¡${a.name}, visto ${timesSeen(a)} veces!`);
+  friendToast(a, before) || toast(`👀 ¡${a.name}, visto ${timesSeen(a)} veces!`);
   detailCard(a);
   checkAchievements();
 }
@@ -782,9 +847,10 @@ async function pickExisting(caught, placed, back) {
     dress(el, a);
     el.onclick = async () => {
       await placed;
-      a.visits.push({ at: caught.takenAt, location: caught.location, place: caught.place });
+      const before = friendshipOf(a);
+      a.visits.push({ at: caught.takenAt, location: caught.location, place: caught.place, country: caught.country });
       await put(a);
-      toast(`👀 ¡${a.name}, visto ${timesSeen(a)} veces!`);
+      friendToast(a, before) || toast(`👀 ¡${a.name}, visto ${timesSeen(a)} veces!`);
       backToList(a.id);
       checkAchievements();
     };
@@ -869,6 +935,7 @@ async function onPhoto(file, fromGallery = false) {
       placed.then(ok => { f.where.textContent = ok || !a.location ? fmtWhere(a) : 'Sin conexión: le pondré nombre más tarde 📡'; });
     };
     showPreview();
+    await reveal($('#view .card'), a);
     if (a.shiny) {
       toast('✨🌈 ¡Increíble, es un bichito SHINY! 🌈✨');
       confetti($('#burst'), 80);
@@ -963,6 +1030,7 @@ $('#bday button').onclick = () => {
   globalThis.DeviceOrientationEvent?.requestPermission?.().catch(() => {});
   $('#bday').hidden = true;
   $('#confetti').replaceChildren();
+  setTimeout(checkNotes, 800);
 };
 $('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title, or "Ver la felicitación" in settings
 
@@ -991,11 +1059,50 @@ async function checkAchievements() {
   await setMeta('unlocked', now);
   if (!before) return;
   const fresh = ACHIEVEMENTS.filter(x => now.includes(x.id) && !before.includes(x.id));
-  if (!fresh.length) return;
-  toast(`🏅 ¡Logro desbloqueado! ${fresh.map(x => `${x.emoji} ${x.title}`).join(' · ')}`);
-  confetti($('#burst'), 60);
-  setTimeout(() => $('#burst').replaceChildren(), 4500);
+  if (fresh.length) {
+    toast(`🏅 ¡Logro desbloqueado! ${fresh.map(x => `${x.emoji} ${x.title}`).join(' · ')}`);
+    confetti($('#burst'), 60);
+    setTimeout(() => $('#burst').replaceChildren(), 4500);
+  }
+  checkNotes();
 }
+
+// ---------- David's letters ----------
+// A due letter shows as a sealed envelope; tapping it opens it. Opened ones are kept in meta `notes-opened`
+// ([{ id, at }]) and listed in Ajustes → Cartas. Checked again each time the list screen comes back (backToList).
+let noteBusy = false;
+async function checkNotes() {
+  // Only on the list screen: never over a card, a catch in progress, the birthday screen or another dialog.
+  if (noteBusy || !$('#bday').hidden || !$('#view').hidden || document.querySelector('dialog[open]')) return;
+  const opened = (await getMeta('notes-opened')) ?? [];
+  const [next] = dueNotes(await getAll(), Date.now(), opened.map(o => o.id));
+  if (!next) return;
+  noteBusy = true;
+  const d = $('#letter');
+  d.classList.remove('open');
+  d.querySelector('.note-text').textContent = next.text;
+  d.showModal();
+  d.querySelector('.envelope').onclick = () => d.classList.add('open');
+  d.onclose = async () => {
+    d.onclose = null;
+    await setMeta('notes-opened', [...opened, { id: next.id, at: Date.now() }]);
+    noteBusy = false;
+    setTimeout(checkNotes, 600); // the next one, if several were due
+  };
+}
+
+$('#open-letters').onclick = async () => {
+  const opened = (await getMeta('notes-opened')) ?? [];
+  $('#letters-list').replaceChildren(...[...opened].reverse().map(o => {
+    const li = document.createElement('li');
+    li.append(Object.assign(document.createElement('p'), { textContent: noteText(o.id) }),
+      Object.assign(document.createElement('small'), { textContent: new Date(o.at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) }));
+    return li;
+  }));
+  $('#letters-empty').hidden = opened.length > 0;
+  $('#settings').close();
+  $('#letters').showModal();
+};
 
 // ---------- holographic tilt ----------
 // Rare cards shine with a rainbow that follows the phone's tilt. Without sensor data it drifts by itself.

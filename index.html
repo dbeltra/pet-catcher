@@ -64,6 +64,7 @@
     <p class="hint">Tus bichitos solo viven en este móvil. Guarda una copia de vez en cuando 💛</p>
     <button id="backup">💾 Guardar copia</button>
     <label class="restore">📂 Restaurar una copia<input id="restore" type="file" accept="application/json,.json" hidden></label>
+    <button id="open-letters">💌 Cartas</button>
     <button id="replay-bday">🎂 Ver la felicitación</button>
     <button id="reset">🗑️ Restablecer la app</button>
     <p id="settings-version" class="hint"></p>
@@ -88,6 +89,25 @@
     <label class="fab-mini" aria-label="Desde la galería"><img class="ico" src="assets/icons/gallery.png" alt=""><input id="gallery-file" type="file" accept="image/*" hidden></label>
     <label class="fab"><img class="ico" src="assets/icons/camera.png" alt=""> ¡Atrapar!<input id="file" type="file" accept="image/*" capture="environment" hidden></label>
   </div>
+
+  <dialog id="letter">
+    <h2>💌 Tienes una carta</h2>
+    <button class="envelope" aria-label="Abrir la carta">
+      <span class="paper"><span class="note-text"></span></span>
+      <span class="pocket"></span>
+      <span class="flap"></span>
+      <span class="seal">❤️</span>
+    </button>
+    <p class="hint">Toca el sobre para abrirlo</p>
+    <form method="dialog"><button class="close">Guardar en mis cartas</button></form>
+  </dialog>
+
+  <dialog id="letters">
+    <h2>💌 Mis cartas</h2>
+    <p id="letters-empty" class="hint">Todavía no hay cartas. Llegarán solas… 💛</p>
+    <ul id="letters-list"></ul>
+    <form method="dialog"><button class="close">Cerrar</button></form>
+  </dialog>
 
   <dialog id="ask">
     <img class="ask-pic" alt="" hidden>
@@ -136,6 +156,7 @@
       <p class="rarity"></p>
       <p class="when"></p>
       <p class="where"></p>
+      <p class="friend"></p>
       <p class="seen"></p>
       <div class="actions"></div>
       <div class="back">

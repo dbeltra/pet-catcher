@@ -239,6 +239,19 @@ lookups one at a time for records that have `location` but no `place`.
   memory glow fade on their own layers. Animating `background-position`, `box-shadow` or `filter` in a loop dropped
   the list to 29 fps on a 6×-throttled phone (60 fps after). Album slots keep a still foil.
 
+- **David's letters** (`NOTES`, `DATE_NOTES`, `dueNotes` in `lib.mjs`; texts are David's, word for word): moments
+  (1st / 10th / 50th catch, 1st shiny, 1st legendario, a sighting 23:00–6:00, a sighting 6:00–7:00, 1st gold
+  friendship, 1st favourite, 1st catch in Japan via `country` from the place lookup) and dates every year (Sant
+  Jordi 23/4, aniversario 18/4, Navidad, Año nuevo, cumpleaños 15/10 except 2026). Her Recuerdos never count.
+  `checkNotes()` shows the next due letter as an envelope (`#letter`), **only on the list screen** (never over a
+  card, a catch, the birthday or a dialog); opened ones go to meta `notes-opened` and Ajustes → "💌 Cartas".
+- **Friendship** (`friendshipOf`): 3 sightings bronce 🥉, 5 plata 🥈, 10 oro 🥇. A metal ring inside the card
+  (`data-friend`), the medal after the number on the tile, a line on the card, a toast (confetti at gold).
+- **Pack reveal** (`reveal()`): a new catch arrives face down (`.cover`, the Bichidex card back), wobbles, flips, and
+  a flash in its rarity colour (rainbow for a shiny) bursts out. Skipped with reduced motion.
+- **Petting** (`pet()`): press and hold the photo → the animal wiggles, 7 hearts float up, a short vibration.
+  A long press never flips the card (`petted` flag) and shows no "save image" menu.
+
 ## Data model
 
 IndexedDB database `pet-catcher`, **version 2**: object store `animals` (keyPath `id`) and `meta`
@@ -258,7 +271,8 @@ Every record goes through `normalize()` on read, which fills fields added later.
   memory: false,                     // true for her past pets (SEEDS)
   seedPhoto: 2, customPhoto: false,  // memories only: which seed photo it shows / photo changed by hand
   traits: [{ name: 'Dormilón', stars: 1..3 }],
-  visits: [{ at, location, place }], // re-encounters
+  country: 'es' | null,              // from the place lookup (for the Japan letter); also on each visit
+  visits: [{ at, location, place, country }], // re-encounters
 }
 ```
 

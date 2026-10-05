@@ -303,3 +303,51 @@ export function timeOfDay(t) {
 
 // Milestone numbers get a gold stamp: #010, #025, #050, #100, then every hundred.
 export const isMilestone = no => [10, 25, 50].includes(no) || (no >= 100 && no % 100 === 0);
+
+// ---------- friendship (v0.19): seeing the same animal again makes you closer ----------
+export const FRIEND_LEVELS = [
+  { key: 'oro', at: 10, medal: '🥇', label: 'Oro' },
+  { key: 'plata', at: 5, medal: '🥈', label: 'Plata' },
+  { key: 'bronce', at: 3, medal: '🥉', label: 'Bronce' },
+];
+export const friendshipOf = a => FRIEND_LEVELS.find(l => timesSeen(a) >= l.at) ?? null;
+// The next level and how many more sightings it needs, or null at gold.
+export function nextFriendship(a) {
+  const next = [...FRIEND_LEVELS].reverse().find(l => timesSeen(a) < l.at);
+  return next ? { ...next, left: next.at - timesSeen(a) } : null;
+}
+
+// ---------- David's letters (v0.19): unlocked by a moment or a date, opened as an envelope ----------
+// Texts are David's, word for word. Moments never count her Recuerdos.
+const inJapan = all => catches(all).some(a => a.country === 'jp' || a.visits.some(v => v.country === 'jp'));
+export const NOTES = [
+  { id: 'first', text: 'Tu primer bichito! Espero que te entretengas mucho con esta app 🙌🏻', test: all => catches(all).length >= 1 },
+  { id: 'ten', text: '10 ya! Aún sigues usando la app?', test: all => catches(all).length >= 10 },
+  { id: 'fifty', text: 'A este paso tienes mas fotos de bichitos que mías 🤔', test: all => catches(all).length >= 50 },
+  { id: 'shiny', text: 'A quien no le gusta un poco de brilli brilli? ✨', test: all => catches(all).some(a => a.shiny) },
+  { id: 'legend', text: 'Legendario. Será que hoy es tu dia de suerte?', test: all => catches(all).some(a => rarityOf(a.species) === 'legendario') },
+  { id: 'night', text: 'Que haces fotografiando bichos a estas horas? A la camaaaa', test: all => sightings(all).some(t => hour(t) >= 23 || hour(t) < 6) },
+  { id: 'early', text: 'Despierta a estas horas seguro que no eres Mari, devuélvele el telefono!', test: all => sightings(all).some(t => hour(t) === 6) },
+  { id: 'friend', text: 'Vas a ser más amiga de éste bichito que de mi? 😱', test: all => catches(all).some(a => friendshipOf(a)?.key === 'oro') },
+  { id: 'fav', text: 'Tu también eres mi favorita', test: all => catches(all).some(a => a.fav) },
+  { id: 'japan', text: 'Quien te iba a decir que volveriamos? 🇯🇵', test: inJapan },
+];
+// Every year on these days (month 1-12). `skip`: years without it (2026: her birthday greeting already says it).
+export const DATE_NOTES = [
+  { key: 'santjordi', month: 4, day: 23, text: 'Feliç Sant Jordi! Te quiero ❤️' },
+  { key: 'navidad', month: 12, day: 25, text: 'Feliz Navidad! 🎄' },
+  { key: 'anonuevo', month: 1, day: 1, text: 'Feliz año nuevo! Por muchos mas a tu lado!' },
+  { key: 'cumple', month: 10, day: 15, text: 'Feliz cumpleaños! 🎁', skip: [2026] },
+  { key: 'aniversario', month: 4, day: 18, text: 'Feliz aniversario! ❤️' },
+];
+// Letters that are due now and not opened yet: [{ id, text }]. Date letters get the year in their id.
+export function dueNotes(all, now, opened) {
+  const d = new Date(now), y = d.getFullYear();
+  return [
+    ...NOTES.filter(n => n.test(all)).map(n => ({ id: n.id, text: n.text })),
+    ...DATE_NOTES.filter(n => n.month === d.getMonth() + 1 && n.day === d.getDate() && !n.skip?.includes(y))
+      .map(n => ({ id: `${n.key}-${y}`, text: n.text })),
+  ].filter(n => !opened.includes(n.id));
+}
+// The text of an opened letter, by id (for the "Cartas" list).
+export const noteText = id => (NOTES.find(n => n.id === id) ?? DATE_NOTES.find(n => id.startsWith(`${n.key}-`)))?.text ?? '';

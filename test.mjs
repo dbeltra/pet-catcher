@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Galleta');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -163,6 +163,40 @@ assert.equal(alpha(6, 5), 0);
   assert.deepEqual([6, 11, 12, 18, 19, 21, 22, 3].map(h => timeOfDay(at(h))), ['mañana', 'mañana', 'tarde', 'tarde', 'atardecer', 'atardecer', 'noche', 'noche']);
   assert.equal(timeOfDay(null), null);
   assert.deepEqual([9, 10, 25, 50, 99, 100, 150, 200].map(isMilestone), [false, true, true, true, false, true, false, true]);
+}
+
+{
+  const seen = n => normalize({ id: 'f', species: 'gato', takenAt: 1, visits: Array.from({ length: n - 1 }, (_, i) => ({ at: i + 2 })) });
+  assert.deepEqual([1, 2, 3, 4, 5, 9, 10, 15].map(n => friendshipOf(seen(n))?.key ?? null), [null, null, 'bronce', 'bronce', 'plata', 'plata', 'oro', 'oro']);
+  assert.deepEqual(nextFriendship(seen(4)), { ...FRIEND_LEVELS[1], left: 1 });
+  assert.equal(nextFriendship(seen(10)), null);
+
+  const at = (m, d, h = 12, y = 2026) => new Date(y, m - 1, d, h).getTime();
+  const c = (o = {}) => normalize({ id: Math.random().toString(), species: 'gato', takenAt: at(10, 20), ...o });
+  const ids = (all, now = at(10, 20), opened = []) => dueNotes(all, now, opened).map(n => n.id);
+  assert.deepEqual(ids([normalize({ id: 'seed-kurko', species: 'perro', memory: true, fav: true })]), []); // memories don't count
+  assert.deepEqual(ids([c()]), ['first']);
+  assert.deepEqual(ids([c()], at(10, 20), ['first']), []); // opened: never again
+  assert.ok(ids([c({ fav: true })]).includes('fav'));
+  assert.ok(ids([c({ shiny: true })]).includes('shiny'));
+  assert.ok(ids([c({ species: 'jirafa' })]).includes('legend'));
+  assert.ok(ids([c({ takenAt: at(10, 20, 23) })]).includes('night'));
+  assert.ok(ids([c({ takenAt: at(10, 20, 2) })]).includes('night'));
+  assert.ok(!ids([c({ takenAt: at(10, 20, 22) })]).includes('night'));
+  assert.ok(ids([c({ visits: [{ at: at(10, 21, 6) }] })]).includes('early'));
+  assert.ok(!ids([c({ takenAt: at(10, 20, 7) })]).includes('early'));
+  assert.ok(ids([c({ country: 'jp' })]).includes('japan'));
+  assert.ok(ids([c({ visits: [{ at: 5, country: 'jp' }] })]).includes('japan'));
+  assert.ok(ids(Array.from({ length: 10 }, () => c())).includes('ten'));
+  assert.ok(ids([seen(10)]).includes('friend'));
+  // dates: every year, the birthday skips 2026
+  assert.deepEqual(ids([], at(4, 23, 9, 2027)), ['santjordi-2027']);
+  assert.deepEqual(ids([], at(10, 15, 9, 2026)), []);
+  assert.deepEqual(ids([], at(10, 15, 9, 2027)), ['cumple-2027']);
+  assert.deepEqual(ids([], at(4, 18, 9, 2027), ['aniversario-2027']), []);
+  assert.equal(noteText('cumple-2027'), 'Feliz cumpleaños! 🎁');
+  assert.equal(noteText('first'), NOTES[0].text);
+  assert.equal(DATE_NOTES.length, 5);
 }
 
 console.log('ok');
