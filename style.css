@@ -113,8 +113,9 @@ h1 {
 .leaflet-container { font: inherit; }
 
 /* ---------- sort menu above the grid: a native select, dressed as a chip ---------- */
-#sortbar { display: flex; justify-content: flex-end; margin: -2px 2px 8px; font-size: .85rem; color: var(--muted); }
-#sort { font: inherit; color: var(--text); background: var(--card); border: 2px solid var(--dots); border-radius: 999px; padding: 4px 10px; margin-left: 4px; }
+#sortbar { display: flex; justify-content: center; margin: -2px 2px 8px; font-size: .85rem; color: var(--muted); }
+#sortbar label { display: inline-flex; align-items: center; gap: 6px; } /* label and selector together, centred */
+#sort { font: inherit; color: var(--text); background: var(--card); border: 2px solid var(--dots); border-radius: 999px; padding: 4px 10px; }
 
 /* ---------- list ---------- */
 #empty { text-align: center; margin-top: 22vh; color: var(--muted); }

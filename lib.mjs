@@ -120,7 +120,7 @@ export const lastSeen = a => Math.max(a.takenAt ?? 0, ...a.visits.map(v => v.at)
 
 // Achievements (feminine forms: they are for Mari). Her Recuerdos never count as catches.
 const hour = t => new Date(t).getHours();
-const catches = all => all.filter(a => !a.memory);
+const catches = all => all.filter(a => !a.memory && !String(a.id).startsWith('seed-')); // her Recuerdos never count, also if a record lost its flag
 const sightings = all => catches(all).flatMap(a => [a.takenAt, ...a.visits.map(v => v.at)]).filter(Boolean);
 const places = all => new Set(catches(all).flatMap(a => [a.place, ...a.visits.map(v => v.place)]).filter(Boolean));
 const speciesCount = all => new Set(catches(all).map(a => a.species).filter(s => s !== UNKNOWN)).size;

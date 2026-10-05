@@ -184,6 +184,7 @@ assert.equal(alpha(6, 5), 0);
   const c = (o = {}) => normalize({ id: Math.random().toString(), species: 'gato', takenAt: at(10, 20), ...o });
   const ids = (all, now = at(10, 20), opened = []) => dueNotes(all, now, opened).map(n => n.id);
   assert.deepEqual(ids([normalize({ id: 'seed-kurko', species: 'perro', memory: true, fav: true })]), []); // memories don't count
+  assert.deepEqual(ids([normalize({ id: 'seed-kiffy', species: 'gato', fav: true, takenAt: at(10, 20, 23) })]), []); // nor a seed that lost its flag
   assert.deepEqual(ids([c()]), ['first']);
   assert.deepEqual(ids([c()], at(10, 20), ['first']), []); // opened: never again
   assert.ok(ids([c({ fav: true })]).includes('fav'));
