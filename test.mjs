@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Churro');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -210,6 +210,25 @@ assert.equal(alpha(6, 5), 0);
   assert.equal(noteWhy('santjordi-2027'), 'Sant Jordi 2027');
   assert.equal(dueNotes([], at(4, 23, 9, 2027), [])[0].why, 'Sant Jordi 2027');
   assert.ok([...NOTES, ...DATE_NOTES].every(n => n.why));
+}
+
+{
+  const mk = (id, o) => normalize({ id, species: 'gato', takenAt: 0, ...o });
+  const list = [
+    mk('kiffy', { memory: true, no: 2, name: 'Kiffy' }), mk('kurko', { memory: true, no: 1, name: 'Kurko', species: 'perro' }),
+    mk('a', { no: 3, name: 'Zeta', takenAt: 30 }),
+    mk('b', { no: 5, name: 'ángel', takenAt: 10, species: 'jirafa', visits: [{ at: 1 }] }),
+    mk('c', { no: 4, name: 'Beta', takenAt: 20, species: 'zorro', shiny: true, visits: [{ at: 1 }, { at: 2 }, { at: 3 }] }),
+    mk('d', { no: 6, name: 'beta', takenAt: 5, species: 'zorro' }),
+  ];
+  const ids = k => sortAnimals(list, k).map(a => a.id).join(',');
+  assert.equal(ids('recent'), 'kurko,kiffy,a,c,b,d');
+  assert.equal(ids('no'), 'kurko,kiffy,a,c,b,d');
+  assert.equal(ids('name'), 'kurko,kiffy,b,c,d,a'); // accents and case ignored; ties: newest first
+  assert.equal(ids('rarity'), 'kurko,kiffy,b,c,d,a'); // legendario, épico shiny, épico, común
+  assert.equal(ids('friend'), 'kurko,kiffy,c,b,a,d');
+  assert.equal(ids('nonsense'), ids('recent'));
+  assert.deepEqual(Object.keys(SORTS), ['recent', 'no', 'name', 'rarity', 'friend']);
 }
 
 console.log('ok');

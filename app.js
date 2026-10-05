@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { SORTS, sortAnimals, friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -539,6 +539,16 @@ function renderTraits(card, a, save) {
   card.querySelector('.back h3').onclick = () => flip(card, a, save);
 }
 
+// Collection order: a small menu above the grid, remembered on this phone.
+let sortKey = 'recent';
+try { sortKey = localStorage.getItem('sort') in SORTS ? localStorage.getItem('sort') : 'recent'; } catch {}
+$('#sort').replaceChildren(...Object.entries(SORTS).map(([k, label]) => new Option(label, k, false, k === sortKey)));
+$('#sort').onchange = () => {
+  sortKey = $('#sort').value;
+  try { localStorage.setItem('sort', sortKey); } catch {}
+  transition(() => renderList(), 'filter');
+};
+
 const FAV = 'fav'; // filter value for favourites; species are stored lowercase Spanish, so no clash with a real one
 let filter = null; // species (or FAV) shown in the list and the map, null = all
 const TABS = ['grid', 'album', 'map'];
@@ -632,6 +642,7 @@ async function renderList() {
   $('#count').textContent = all.length ? `${all.length} ${all.length === 1 ? 'atrapado' : 'atrapados'}` : '';
   $('#empty').hidden = all.length > 0;
   $('#filters').hidden = tab === 'album' || (counts.length < 2 && !favs);
+  $('#sortbar').hidden = tab !== 'grid' || all.length < 3; // order only matters in the grid
   const chip = (label, value, ico) => {
     const b = button(label, () => transition(() => { filter = value; return renderList(); }, 'filter'), `chip${filter === value ? ' on' : ''}`);
     if (ico) b.prepend(icon(ico), ' ');
@@ -649,7 +660,7 @@ async function renderList() {
   const shown = all.filter(a => !filter || (filter === FAV ? a.fav : a.species === filter));
   if (tab === 'map') await renderMap(shown); // awaited so a transition snapshots the pins
 
-  $('#grid').replaceChildren(...shown.map((a, i) => {
+  $('#grid').replaceChildren(...sortAnimals(shown, sortKey).map((a, i) => {
     const el = $('#tile-tpl').content.firstElementChild.cloneNode(true);
     el.querySelector(STICKER).src = blobUrl(a.sticker);
     el.querySelector('.name').textContent = a.name;
@@ -1043,7 +1054,7 @@ $('#reset').onclick = async () => {
   (await db).close();
   await new Promise(res => { const r = indexedDB.deleteDatabase('pet-catcher'); r.onsuccess = r.onerror = r.onblocked = res; });
   // Only Bichidex's own keys: dbeltra.github.io is one origin shared with David's other apps (their data lives here too).
-  try { for (const k of ['bday-seen', 'gestures-learned', 'used-flip', 'used-close']) localStorage.removeItem(k); } catch {}
+  try { for (const k of ['bday-seen', 'gestures-learned', 'used-flip', 'used-close', 'sort']) localStorage.removeItem(k); } catch {}
   location.replace(location.pathname);
 };
 

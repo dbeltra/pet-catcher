@@ -247,6 +247,10 @@ lookups one at a time for records that have `location` but no `place`.
   `checkNotes()` shows the next due letter as an envelope (`#letter`), **only on the list screen** (never over a
   card, a catch, the birthday or a dialog); opened ones go to meta `notes-opened` and Ajustes → "💌 Cartas".
   Each letter has a `why` ("Tu primer shiny", "Sant Jordi 2027"; `noteWhy`), shown on the envelope and in the list.
+- **Sorting** (v0.19.8; `SORTS`, `sortAnimals` in `lib.mjs`): "↕️ Ordenar por" menu above the grid (native `<select>`,
+  shown in Colección with 3+ cards): Recientes, Número, Nombre (A–Z, accents ignored), Rareza (legendario first, shiny
+  before non-shiny), Amistad (most seen first). Kurko and Kiffy stay first in every order. Combines with the filters;
+  remembered in `localStorage` `sort` (cleared by the reset).
 - **Card layout (v0.19.1):** the front is photo-first: photo, name, species, number · rarity, and date · place on one
   line. The back has gender, traits, then friendship · sightings on one line ("🥉 Bronce, 2 más para plata · 👀 3 veces")
   , the last sighting ("Última vez: 5 oct 2026, 13:40 · Sitges, Garraf") and a saved card's buttons (¡Otra vez!, Foto,

@@ -364,3 +364,17 @@ export function noteWhy(id) {
   const d = DATE_NOTES.find(x => id.startsWith(`${x.key}-`));
   return d ? `${d.why} ${id.slice(d.key.length + 1)}` : '';
 }
+
+// ---------- sorting the collection (v0.19.8). Her Recuerdos stay first in every order (Kurko, Kiffy). ----------
+export const SORTS = { recent: 'Recientes', no: 'Número', name: 'Nombre', rarity: 'Rareza', friend: 'Amistad' };
+const ORDER = {
+  recent: (a, b) => (b.takenAt ?? 0) - (a.takenAt ?? 0),
+  no: (a, b) => (a.no ?? 1e9) - (b.no ?? 1e9),
+  name: (a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }),
+  rarity: (a, b) => RARITIES.indexOf(rarityFor(b)) - RARITIES.indexOf(rarityFor(a)) || b.shiny - a.shiny,
+  friend: (a, b) => timesSeen(b) - timesSeen(a),
+};
+export function sortAnimals(list, key = 'recent') {
+  const by = ORDER[key] ?? ORDER.recent;
+  return [...list].sort((a, b) => (b.memory - a.memory) || (a.memory ? (a.no ?? 0) - (b.no ?? 0) : by(a, b) || ORDER.recent(a, b)));
+}

@@ -215,6 +215,17 @@ f.onload = async () => {
 
     const summary = `gallery[${gallery}] order="${order}" restoredNo=${[...d.querySelectorAll('.tile')].find(t => t.querySelector('.name').textContent.startsWith('Restaurado')).querySelector('.no').textContent}`;
 
+    // Sorting: "Nombre" puts the catches (after Kurko and Kiffy) in A–Z order.
+    d.querySelector('#tabs [data-tab=grid]').click();
+    await sleep(800);
+    const sel = d.querySelector('#sort'); sel.value = 'name'; sel.dispatchEvent(new Event('change'));
+    await sleep(900);
+    const sorted = names(d);
+    const rest = sorted.slice(2), az = [...rest].sort((x, y) => x.localeCompare(y, 'es', { sensitivity: 'base' }));
+    const sortOk = sorted[0] === 'Kurko' && sorted[1] === 'Kiffy' && rest.join() === az.join() && !d.querySelector('#sortbar').hidden;
+    sel.value = 'recent'; sel.dispatchEvent(new Event('change'));
+    await sleep(600);
+
     // Reset: everything goes, the app starts like the first day (birthday, only Kurko and Kiffy).
     w.localStorage.setItem('sitges26:other-app', 'keep me'); // another app on the same origin
     const reloaded = new Promise(r => f.addEventListener('load', r, { once: true }));
@@ -228,7 +239,7 @@ f.onload = async () => {
     // In a browser tab (not the installed app) the greeting stays hidden, and it was not marked as seen.
     const reset = `${names(d2).join('+')},greetingInTab=${!d2.querySelector('#bday').hidden},seenFlag=${f.contentWindow.localStorage.getItem('bday-seen')},otherApp=${f.contentWindow.localStorage.getItem('sitges26:other-app')}`;
 
-    log(`OK stayedOnBack=${stayedOnBack} lastSeen="${lastSeen}" letters=[${letters.join(' | ')}] kept=${kept} gender[${nameBefore} → ${nameAfter} femTitle=${femTitle} noMarkOnTile=${noMarkOnTile} traits=${traitsNow}] reset=${reset} ${summary} shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}=${traits} oneRow=${oneRow} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    log(`OK sortByName=${sortOk} stayedOnBack=${stayedOnBack} lastSeen="${lastSeen}" letters=[${letters.join(' | ')}] kept=${kept} gender[${nameBefore} → ${nameAfter} femTitle=${femTitle} noMarkOnTile=${noMarkOnTile} traits=${traitsNow}] reset=${reset} ${summary} shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}=${traits} oneRow=${oneRow} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };
