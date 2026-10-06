@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { innerPoint, clipMask, seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -124,14 +124,21 @@ async function toCanvas(file) {
 }
 
 // Cut out the object under the normalized point. Resolves to a PNG blob, or null if nothing was found.
-function cutout(segmenter, img, point) {
+// lasso (normalized points): only what is inside her loop is kept; if the AI finds nothing there, the loop itself is
+// the cutout.
+function cutout(segmenter, img, point, lasso = null) {
   let mask, w, h;
   segmenter.segment(img, { keypoint: point }, r => {
     mask = r.categoryMask.getAsUint8Array().slice(); // copy: the mask is freed after the callback
     w = r.categoryMask.width;
     h = r.categoryMask.height;
   });
-  if (maskBBox(mask, w, h, maskValueAt(mask, w, h, point)) === null) return Promise.resolve(null); // the point hit the background
+  const hitObject = maskBBox(mask, w, h, maskValueAt(mask, w, h, point)) !== null;
+  if (lasso) {
+    const inside = lassoMask(lasso, w, h);
+    mask = hitObject ? clipMask(mask, maskValueAt(mask, w, h, point), inside) : inside;
+    if (maskValueAt(mask, w, h, point) !== 1 || maskBBox(mask, w, h, 1, 1) === null) mask = inside;
+  } else if (!hitObject) return Promise.resolve(null); // the point hit the background
   mask = keepComponent(mask, w, h, point); // drop the isolated bits that are not part of the pet
   const fg = 1;
   const box = maskBBox(mask, w, h, fg);
@@ -162,54 +169,56 @@ const boxCenter = (b, img) => ({ x: (b.originX + b.width / 2) / img.width, y: (b
 function askSpot(img, text) {
   status(text);
   const stage = $('#stage');
-  const box = Object.assign(document.createElement('div'), { className: 'area-box', hidden: true });
-  stage.replaceChildren(img, box);
+  // The loop is drawn on an SVG over the photo (viewBox 0..1, so it scales with the photo)
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'lasso');
+  svg.setAttribute('viewBox', '0 0 1 1');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  const line = document.createElementNS(svg.namespaceURI, 'polyline');
+  svg.append(line);
+  const wrap = Object.assign(document.createElement('div'), { className: 'lasso-wrap' });
+  wrap.append(img, svg);
+  stage.replaceChildren(wrap);
   return new Promise(res => {
-    let start = null;
-    const at = e => { const r = img.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height, r }; };
-    const rect = (a, b) => ({ x: Math.max(0, Math.min(a.x, b.x)), y: Math.max(0, Math.min(a.y, b.y)),
-      w: Math.min(1, Math.max(a.x, b.x)) - Math.max(0, Math.min(a.x, b.x)), h: Math.min(1, Math.max(a.y, b.y)) - Math.max(0, Math.min(a.y, b.y)) });
-    img.onpointerdown = e => { start = at(e); try { img.setPointerCapture(e.pointerId); } catch {} };
-    img.onpointermove = e => {
-      if (!start) return;
-      const p = at(e), q = rect(start, p);
-      if (Math.hypot((p.x - start.x) * p.r.width, (p.y - start.y) * p.r.height) < 12) return;
-      Object.assign(box.style, { left: `${img.offsetLeft + q.x * p.r.width}px`, top: `${img.offsetTop + q.y * p.r.height}px`,
-        width: `${q.w * p.r.width}px`, height: `${q.h * p.r.height}px` });
-      box.hidden = false;
-    };
+    let pts = null;
+    const at = e => { const r = img.getBoundingClientRect(); return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)), r }; };
+    const draw = () => line.setAttribute('points', pts.map(p => `${p.x},${p.y}`).join(' '));
+    img.onpointerdown = e => { pts = [at(e)]; draw(); try { img.setPointerCapture(e.pointerId); } catch {} };
+    img.onpointermove = e => { if (!pts) return; pts.push(at(e)); draw(); };
     img.onpointerup = e => {
-      if (!start) return;
-      const p = at(e), q = rect(start, p);
-      const dragged = q.w * p.r.width > 30 && q.h * p.r.height > 30;
-      start = null;
-      if (!dragged && box.hidden === false) { box.hidden = true; return; } // a tiny box: try again
+      if (!pts) return;
+      const p = at(e), r = p.r, loop = pts;
+      pts = null;
+      const xs = loop.map(q => q.x * r.width), ys = loop.map(q => q.y * r.height);
+      const big = Math.max(...xs) - Math.min(...xs) > 30 && Math.max(...ys) - Math.min(...ys) > 30;
+      if (loop.length > 5 && !big) { line.setAttribute('points', ''); return; } // a tiny scribble: try again
       stage.replaceChildren();
-      res(dragged ? { area: q } : { point: { x: p.x, y: p.y } });
+      res(big ? { lasso: loop.map(({ x, y }) => ({ x, y })) } : { point: { x: p.x, y: p.y } });
     };
   });
 }
 
-const cropCanvas = (src, a) => {
-  const c = document.createElement('canvas');
-  c.width = Math.max(1, Math.round(a.w * src.width)); c.height = Math.max(1, Math.round(a.h * src.height));
-  c.getContext('2d').drawImage(src, a.x * src.width, a.y * src.height, c.width, c.height, 0, 0, c.width, c.height);
-  c.className = 'photo';
-  return c;
-};
+// The loop as a 1/0 mask of w × h.
+function lassoMask(lasso, w, h) {
+  const c = Object.assign(document.createElement('canvas'), { width: w, height: h });
+  const x = c.getContext('2d');
+  x.beginPath();
+  lasso.forEach((p, i) => x[i ? 'lineTo' : 'moveTo'](p.x * w, p.y * h));
+  x.closePath();
+  x.fill();
+  const a = x.getImageData(0, 0, w, h).data;
+  return Uint8Array.from({ length: w * h }, (_, i) => (a[i * 4 + 3] > 127 ? 1 : 0));
+}
 
-// Manual cutout: tap the animal, or first draw a box around it (zooms into that area: the cutout can never
-// reach outside it) and then tap it inside.
+// Manual cutout: tap the animal, or draw a loop around it with a finger (nothing outside the loop is kept).
 async function pickAndCut(segmenter, img, text) {
-  let src = img;
   for (;;) {
-    const spot = await askSpot(src, text);
-    if (spot.area) { src = cropCanvas(src, spot.area); text = 'Ahora toca al animal dentro del recuadro 👆'; continue; }
+    const spot = await askSpot(img, text);
     status('Recortando con cuidado… ✂️', true);
-    const sticker = await cutout(segmenter, src, spot.point);
+    const sticker = spot.lasso ? await cutout(segmenter, img, innerPoint(spot.lasso), spot.lasso) : await cutout(segmenter, img, spot.point);
     status('');
     if (sticker) return sticker;
-    text = 'Ups, no he podido recortarlo. Toca al animal, o rodéalo con un recuadro.';
+    text = 'Ups, no he podido recortarlo. Toca al animal, o rodéalo con el dedo.';
   }
 }
 
@@ -997,10 +1006,10 @@ async function stickerFrom(file) {
     status('Recortando con cuidado… ✂️', true);
     sticker = await cutout(segmenter, img, boxCenter(hit.box, img));
   }
-  sticker ??= await pickAndCut(segmenter, img, hit ? 'Ups, no he podido recortarlo. Toca al animal, o rodéalo con un recuadro.'
-    : 'No lo encuentro (｡•́︿•̀｡) Toca al animal, o rodéalo con un recuadro.');
+  sticker ??= await pickAndCut(segmenter, img, hit ? 'Ups, no he podido recortarlo. Toca al animal, o rodéalo con el dedo.'
+    : 'No lo encuentro (｡•́︿•̀｡) Toca al animal, o rodéalo con el dedo.');
   status('');
-  const recut = () => pickAndCut(segmenter, img, 'Toca al animal, o arrastra un recuadro a su alrededor para recortar solo esa zona.');
+  const recut = () => pickAndCut(segmenter, img, 'Toca al animal, o rodéalo con el dedo: solo se quedará lo de dentro ✏️');
   return { sticker, species: hit ? COCO_ES[hit.name] : UNKNOWN, recut };
 }
 

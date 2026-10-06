@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { pointInPolygon, innerPoint, clipMask, seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Churro');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -251,6 +251,17 @@ assert.equal(alpha(6, 5), 0);
   const g = clusterPoints([{ x: 0, y: 0, id: 'a' }, { x: 10, y: 5, id: 'b' }, { x: 200, y: 0, id: 'c' }, { x: 5, y: 30, id: 'd' }]);
   assert.deepEqual(g.map(x => x.items.map(i => i.id).join('')), ['abd', 'c']);
   assert.ok(Math.abs(g[0].x - 5) < 1e-9 && Math.abs(g[0].y - 35 / 3) < 1e-9);
+}
+
+{
+  const sq = [{ x: .2, y: .2 }, { x: .8, y: .2 }, { x: .8, y: .8 }, { x: .2, y: .8 }];
+  assert.ok(pointInPolygon({ x: .5, y: .5 }, sq));
+  assert.ok(!pointInPolygon({ x: .9, y: .5 }, sq));
+  assert.deepEqual(innerPoint(sq), { x: .5, y: .5 });
+  // a C shape: the vertex average falls in the gap, the inner point must not
+  const c = [{ x: .1, y: .1 }, { x: .9, y: .1 }, { x: .9, y: .3 }, { x: .3, y: .3 }, { x: .3, y: .7 }, { x: .9, y: .7 }, { x: .9, y: .9 }, { x: .1, y: .9 }];
+  assert.ok(pointInPolygon(innerPoint(c), c));
+  assert.deepEqual([...clipMask(Uint8Array.from([7, 7, 0, 7]), 7, [1, 0, 1, 1])], [1, 0, 0, 1]);
 }
 
 console.log('ok');

@@ -83,8 +83,9 @@ title (v0.3) was hard to read.
 6. The preview card shows the sticker, a random name, the species (both editable), date/time and place.
    The place lookup (`resolvePlace`) starts as soon as the position is known.
    Buttons: Descartar, ✂️ Recortar otra vez, ¡Me lo quedo! Re-cut (`pickAndCut` / `askSpot`): a tap picks the
-   animal; a drag draws a box, the photo is cropped to it (`cropCanvas`) and she taps the animal inside, so the
-   cutout can never reach outside the box. The same picker is used when nothing is detected.
+   animal; a finger loop around it (v0.21, drawn as a dashed SVG over the photo) cuts the AI mask to the inside of the
+   loop (`lassoMask` + `clipMask`, keypoint `innerPoint`); if the AI finds nothing inside, the loop itself is the
+   cutout. The same picker is used when nothing is detected.
 7. "¡Me lo quedo!" saves the record to IndexedDB and asks for persistent storage (`navigator.storage.persist`).
 
 List: two tabs, `🗂️ Colección` (grid) and `🗺️ Mapa` (`renderMap`, Leaflet is imported the first time

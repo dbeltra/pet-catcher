@@ -196,20 +196,22 @@ f.onload = async () => {
     d.querySelector('#loc-ok').click();
     await wait('picked place', () => d.querySelector('.card .where').textContent.includes('Martos'), 15000);
     let gallery = `hintGone=${hintGone} when="${galleryWhen}" before="${noPlace}" after="${d.querySelector('.card .where').textContent}"`;
-    // Re-cut with a box: drag a box around the cat, then tap it inside the zoomed area.
+    // Re-cut with a loop: draw around the top half of the cat only; the new sticker must be cut to that part.
     const stickerBefore = d.querySelector('.card .sticker').src;
+    const sizeOf = async src => { const i = new Image(); i.src = src; await i.decode(); return [i.naturalWidth, i.naturalHeight]; };
+    const [, hBefore] = await sizeOf(stickerBefore);
     btn(d, '✂️ Recortar otra vez').click();
     await wait('recut photo', () => d.querySelector('#stage .photo'), 5000);
     const pointer = (el, type, fx, fy) => { const r = el.getBoundingClientRect();
       el.dispatchEvent(new w.PointerEvent(type, { bubbles: true, pointerId: 7, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy })); };
-    let ph = d.querySelector('#stage .photo');
-    pointer(ph, 'pointerdown', 0.12, 0.08); pointer(ph, 'pointermove', 0.5, 0.5); pointer(ph, 'pointermove', 0.92, 0.95); pointer(ph, 'pointerup', 0.92, 0.95);
-    await wait('zoomed', () => d.querySelector('#stage .photo') && d.querySelector('#stage .photo') !== ph, 5000);
-    ph = d.querySelector('#stage .photo');
-    const zoomed = `${ph.width}x${ph.height}`;
-    pointer(ph, 'pointerdown', 0.5, 0.45); pointer(ph, 'pointerup', 0.5, 0.45);
+    const ph = d.querySelector('#stage .photo');
+    const loop = [[.05, .05], [.95, .05], [.95, .5], [.05, .5], [.05, .05]];
+    pointer(ph, 'pointerdown', ...loop[0]);
+    for (let k = 1; k < loop.length; k++) for (let t = 1; t <= 6; t++) pointer(ph, 'pointermove', loop[k - 1][0] + (loop[k][0] - loop[k - 1][0]) * t / 6, loop[k - 1][1] + (loop[k][1] - loop[k - 1][1]) * t / 6);
+    pointer(ph, 'pointerup', ...loop[0]);
     await wait('recut preview', () => btn(d, '¡Me lo quedo!') && d.querySelector('.card .sticker').src !== stickerBefore, 20000);
-    gallery += ` recutZoomed=${zoomed}`;
+    const [, hAfter] = await sizeOf(d.querySelector('.card .sticker').src);
+    gallery += ` lassoCut=${hAfter < hBefore * .8}(${hBefore}→${hAfter})`;
     btn(d, 'Descartar').click();
     await wait('discarded', () => !d.querySelector('#list').hidden, 5000);
     await sleep(500);

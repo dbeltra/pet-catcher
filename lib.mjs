@@ -405,3 +405,29 @@ export function clusterPoints(points, radius = 44) {
   }
   return groups;
 }
+
+// ---------- lasso re-cut (v0.21): she draws a loop around the animal; points are normalized { x, y } ----------
+export function pointInPolygon(p, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+// A point inside the loop, as central as possible (the vertex average can fall outside a curved loop).
+export function innerPoint(poly) {
+  const c = { x: poly.reduce((n, p) => n + p.x, 0) / poly.length, y: poly.reduce((n, p) => n + p.y, 0) / poly.length };
+  if (pointInPolygon(c, poly)) return c;
+  const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  let best = null, bestD = Infinity;
+  for (let i = 1; i < 20; i++) for (let j = 1; j < 20; j++) {
+    const p = { x: x0 + (x1 - x0) * i / 20, y: y0 + (y1 - y0) * j / 20 };
+    const d = Math.hypot(p.x - c.x, p.y - c.y);
+    if (d < bestD && pointInPolygon(p, poly)) { best = p; bestD = d; }
+  }
+  return best ?? c;
+}
+// Keeps the mask pixels equal to fg that are inside the loop (inside: 1/0 per mask pixel); returns 1/0.
+export const clipMask = (mask, fg, inside) => Uint8Array.from(mask, (v, i) => (v === fg && inside[i] ? 1 : 0));
