@@ -1468,6 +1468,13 @@ addEventListener('deviceorientation', e => {
 
 $('#version').textContent = `v${self.VERSION}`;
 addEventListener('resize', fitFilters);
+// Pause the card shine while scrolling (see html.scrolling in style.css); it resumes 200 ms after the scroll stops.
+let scrollIdle;
+addEventListener('scroll', () => {
+  document.documentElement.classList.add('scrolling');
+  clearTimeout(scrollIdle);
+  scrollIdle = setTimeout(() => document.documentElement.classList.remove('scrolling'), 200);
+}, { passive: true });
 // The pill under the selected tab (it slides by CSS transition; first placement without it).
 function placePill() {
   const b = $('#tabs button.on'), pill = $('#tabs .pill');

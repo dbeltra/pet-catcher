@@ -244,6 +244,9 @@ lookups one at a time for records that have `location` but no `place`.
   does those without repainting). The foil shine is an oversized `.foil::before` that slides; sparkles and the
   memory glow fade on their own layers. Animating `background-position`, `box-shadow` or `filter` in a loop dropped
   the list to 29 fps on a 6×-throttled phone (60 fps after). Album slots keep a still foil.
+  Even GPU-only, the running foil animations made the browser recalculate styles every frame while scrolling, so they
+  pause during a scroll (`html.scrolling`, set by a scroll listener, cleared 200 ms after; `!important`, or the more
+  specific foil rules reset it): scroll work at 6× CPU 1.98 → 0.98 s.
 
 - **David's letters** (`NOTES`, `DATE_NOTES`, `dueNotes` in `lib.mjs`; texts are David's, word for word): moments
   (1st / 10th / 50th catch, 1st shiny, 1st legendario, a sighting 23:00–6:00, a sighting 6:00–7:00, 1st gold

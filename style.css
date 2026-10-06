@@ -212,6 +212,9 @@ h1 {
   animation: foil-drift 5s ease-in-out infinite alternate; animation-delay: var(--foil-delay, 0s); /* per tile: neighbours out of sync */
   will-change: transform;
 }
+/* While the list scrolls the shine and sparkles pause (the class is set by app.js): running, they made the browser
+   recalculate styles every frame (scroll test at 6× CPU: style 0.70 → 0.13 s, total work halved). */
+html.scrolling .foil::before, html.scrolling .foil::after, html.scrolling .tile::before { animation-play-state: paused !important; } /* !important: the more specific foil rules reset it via the animation shorthand */
 @keyframes foil-drift { to { transform: translate(-61.5%, -61.5%); } } /* = background-position 0% → 100% */
 :is(.tile, .card)[data-rarity="épico"]:not(.shiny) > .foil { opacity: .55; }
 html.tilt .foil::before { animation: none; transform: translate(calc(var(--hx) * -.615), calc(var(--hy) * -.615)); }
