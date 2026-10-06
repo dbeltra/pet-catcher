@@ -72,6 +72,9 @@ assert.ok(unlockedIds([cat({ species: 'ciervo' })]).includes('epic'));
 assert.ok(unlockedIds([cat({ shiny: true })]).includes('shiny'));
 assert.ok(!unlockedIds([cat({ shiny: true, memory: true })]).includes('shiny'));
 assert.ok(unlockedIds(['a', 'b', 'c'].map(p => cat({ place: p }))).includes('travel'));
+assert.ok(!unlockedIds(['a', 'b', 'c'].map(p => cat({ place: p, placeManual: true }))).includes('travel')); // hand-set places
+assert.ok(!unlockedIds(['a', 'b', 'c'].map(p => cat({ place: p, live: false }))).includes('travel')); // gallery photos
+assert.ok(!unlockedIds([cat({ takenAt: at(23), live: false })]).includes('night'));
 assert.ok(unlockedIds([cat({ visits: [{ at: 1 }, { at: 2 }] })]).includes('loyal'));
 assert.ok(unlockedIds(Array.from({ length: 5 }, () => cat())).includes('cats'));
 assert.equal(new Set(ACHIEVEMENTS.map(x => x.id)).size, ACHIEVEMENTS.length);
@@ -199,6 +202,11 @@ assert.equal(alpha(6, 5), 0);
   assert.ok(ids([c({ visits: [{ at: at(10, 21, 6) }] })]).includes('early'));
   assert.ok(!ids([c({ takenAt: at(10, 20, 7) })]).includes('early'));
   assert.ok(ids([c({ country: 'jp' })]).includes('japan'));
+  assert.ok(!ids([c({ country: 'jp', live: false })]).includes('japan')); // an old gallery photo from Japan
+  assert.ok(!ids([c({ country: 'jp', placeManual: true })]).includes('japan')); // pinned in Japan by hand
+  assert.ok(!ids([c({ visits: [{ at: 5, country: 'jp', live: false }] })]).includes('japan')); // "Ya lo tenía" with a gallery photo
+  assert.ok(!ids([c({ takenAt: at(10, 20, 23), live: false })]).includes('night')); // an old night photo from the gallery
+  assert.ok(ids([c({ takenAt: at(10, 20, 23), placeManual: true })]).includes('night')); // time is fine with a hand-set place
   assert.ok(ids([c({ visits: [{ at: 5, country: 'jp' }] })]).includes('japan'));
   assert.ok(ids(Array.from({ length: 10 }, () => c())).includes('ten'));
   assert.ok(ids([seen(10)]).includes('friend'));

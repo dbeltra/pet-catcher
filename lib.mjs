@@ -123,8 +123,15 @@ export const lastSeen = a => Math.max(a.takenAt ?? 0, ...a.visits.map(v => v.at)
 // Achievements (feminine forms: they are for Mari). Her Recuerdos never count as catches.
 const hour = t => new Date(t).getHours();
 const catches = all => all.filter(a => !a.memory && !String(a.id).startsWith('seed-')); // her Recuerdos never count, also if a record lost its flag
-const sightings = all => catches(all).flatMap(a => [a.takenAt, ...a.visits.map(v => v.at)]).filter(Boolean);
-const places = all => new Set(catches(all).flatMap(a => [a.place, ...a.visits.map(v => v.place)]).filter(Boolean));
+// Every sighting (the catch + its visits) with what it may count for. `live`: taken now (camera, or "¡Otra vez!"),
+// not a gallery photo; `placeLive`: also with the phone's GPS, not a pin set by hand. Records from before v0.23.4
+// have no flags and count as live. Time rules (night, early) need live; place rules (Japan, places) need placeLive.
+const allSightings = all => catches(all).flatMap(a => [{ ...a, at: a.takenAt }, ...a.visits].map(s => {
+  const live = s.live !== false;
+  return { at: s.at, place: s.place, country: s.country, live, placeLive: live && !s.placeManual };
+}));
+const sightings = all => allSightings(all).filter(s => s.live && s.at).map(s => s.at);
+const places = all => new Set(allSightings(all).filter(s => s.placeLive && s.place).map(s => s.place));
 const speciesCount = all => new Set(catches(all).map(a => a.species).filter(s => s !== UNKNOWN)).size;
 const ofSpecies = (all, s) => catches(all).filter(a => a.species === s).length;
 export const ACHIEVEMENTS = [
@@ -327,7 +334,7 @@ export function nextFriendship(a) {
 
 // ---------- David's letters (v0.19): unlocked by a moment or a date, opened as an envelope ----------
 // Texts are David's, word for word. Moments never count her Recuerdos.
-const inJapan = all => catches(all).some(a => a.country === 'jp' || a.visits.some(v => v.country === 'jp'));
+const inJapan = all => allSightings(all).some(s => s.placeLive && s.country === 'jp'); // a new catch there, not an old photo pinned there
 export const NOTES = [
   { id: 'first', why: 'Tu primera captura', text: 'Tu primer bichito! Espero que te entretengas mucho con esta app 🙌🏻', test: all => catches(all).length >= 1 },
   { id: 'ten', why: '10 capturas', text: '10 ya! Aún sigues usando la app?', test: all => catches(all).length >= 10 },

@@ -475,7 +475,7 @@ function renderCard(a, actions, save = () => {}, close = null) {
   q('.where').onclick = async () => {
     const ll = await pickLocation(a.location);
     if (!ll) return;
-    Object.assign(a, { location: ll, place: null });
+    Object.assign(a, { location: ll, place: null, placeManual: true }); // a hand-set place never counts for place letters / achievements
     q('.where').textContent = fmtWhere(a);
     await resolvePlace(a); // if it fails, renderList retries it
     q('.where').textContent = fmtWhere(a);
@@ -1119,7 +1119,7 @@ function friendToast(a, before) {
 // Re-encounter without a photo: the visit is now and here.
 async function seenAgain(a) {
   toast('📍 Apuntando dónde lo has visto…');
-  const visit = { at: Date.now(), location: await getLocation(), place: null };
+  const visit = { at: Date.now(), location: await getLocation(), place: null, live: true };
   await resolvePlace(visit); // if it fails, renderList retries it
   const before = friendshipOf(a);
   a.visits.push(visit);
@@ -1148,7 +1148,7 @@ async function pickExisting(caught, placed, back) {
     el.onclick = async () => {
       await placed;
       const before = friendshipOf(a);
-      a.visits.push({ at: caught.takenAt, location: caught.location, place: caught.place, country: caught.country });
+      a.visits.push({ at: caught.takenAt, location: caught.location, place: caught.place, country: caught.country, live: caught.live, placeManual: caught.placeManual });
       await put(a);
       friendToast(a, before) || toast(`👀 ¡${a.name}, visto ${timesSeen(a)} veces!`);
       backToList(a.id);
@@ -1223,7 +1223,7 @@ async function onPhoto(file, fromGallery = false) {
   const takenAt = fromGallery ? exif.takenAt ?? file.lastModified ?? Date.now() : Date.now();
   try {
     const cut = await stickerFrom(file);
-    const a = normalize({ id: crypto.randomUUID(), name: randomName('x'), nameAuto: true, gender: 'x', species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits(), shiny: FORCE_SHINY || rollShiny() });
+    const a = normalize({ id: crypto.randomUUID(), live: !fromGallery, name: randomName('x'), nameAuto: true, gender: 'x', species: cut.species, sticker: cut.sticker, takenAt, place: null, location: await where, traits: randomTraits(), shiny: FORCE_SHINY || rollShiny() });
     const placed = resolvePlace(a);
     const showPreview = () => {
       const f = renderCard(a, [

@@ -287,6 +287,10 @@ lookups one at a time for records that have `location` but no `place`.
   Liberar) on one line. "¡Otra vez!" redraws the card on the back (it lives there), never jumping to the front (they shrink on narrow phones, never wrap).
   A new catch keeps its buttons on the front. Exactly 3 traits, editable, no add / remove (v0.19.4), so the back
   never scrolls (`overflow: hidden`; scrolling inside it fought with the swipes). Checked down to 320 px wide.
+- **Live vs. imported (v0.23.4):** each catch and visit can carry `live: false` (a gallery photo, or "Ya lo tenía" with
+  one) and `placeManual: true` (place pinned by hand). Time rules (night / early letters and achievements) count only
+  live sightings; place rules (Japan letter, Viajera, Trotamundos) only live sightings with a GPS place. Counts,
+  shiny, rarity and favourites count everything. No flag = live (older records).
 - **Friendship** (`friendshipOf`): 3 sightings bronce 🥉, 5 plata 🥈, 10 oro 🥇. A metal ring inside the card
   (`data-friend`), the medal after the number on the tile, a line on the card, a toast (confetti at gold).
 - **Diary** (v0.23, `openDiary`): tapping the friendship line on the back (it has "›" once seen again) opens a pop-up:
@@ -320,7 +324,8 @@ Every record goes through `normalize()` on read, which fills fields added later.
   seedPhoto: 2, customPhoto: false,  // memories only: which seed photo it shows / photo changed by hand
   traits: [{ name: 'Dormilón', stars: 1..3 }],
   country: 'es' | null,              // from the place lookup (for the Japan letter); also on each visit
-  visits: [{ at, location, place, country }], // re-encounters
+  live: true, placeManual: false,     // camera catch / place from GPS (see "Live vs. imported")
+  visits: [{ at, location, place, country, live, placeManual }], // re-encounters
 }
 ```
 
