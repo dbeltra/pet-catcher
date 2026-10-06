@@ -112,9 +112,9 @@ async function numberRecords() {
 
 // ---------- image work ----------
 
-async function toCanvas(file) {
+async function toCanvas(file, maxSide = MAX_SIDE) {
   const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  const k = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+  const k = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
   const c = document.createElement('canvas');
   c.width = Math.round(bmp.width * k);
   c.height = Math.round(bmp.height * k);
@@ -208,6 +208,129 @@ function lassoMask(lasso, w, h) {
   x.fill();
   const a = x.getImageData(0, 0, w, h).data;
   return Uint8Array.from({ length: w * h }, (_, i) => (a[i * 4 + 3] > 127 ? 1 : 0));
+}
+
+// ---------- hand cutout: her outline IS the cut (the last resort after auto and the loop) ----------
+// Full-screen editor over the photo: one finger draws the outline (it can stop and go on: the sections join),
+// two fingers (or the mouse wheel) zoom up to 8× and move; a magnifier shows what is under the finger.
+// Resolves to a PNG blob, or null when cancelled.
+function handCut(src) {
+  return new Promise(resolve => {
+    const ed = $('#hand-tpl').content.firstElementChild.cloneNode(true);
+    document.body.append(ed);
+    const cv = ed.querySelector('.hand-canvas'), cx = cv.getContext('2d');
+    const loupe = ed.querySelector('.loupe'), lx = loupe.getContext('2d');
+    const dpr = devicePixelRatio || 1;
+    let W, H, fit, s, ox, oy; // view: image px → screen px = p * s + o
+    const strokes = [];
+    const resize = () => {
+      W = cv.clientWidth; H = cv.clientHeight;
+      cv.width = W * dpr; cv.height = H * dpr;
+      fit = Math.min(W / src.width, H / src.height) * .92;
+      if (!s) { s = fit; ox = (W - src.width * s) / 2; oy = (H - src.height * s) / 2; }
+      draw();
+    };
+    const toImg = (x, y) => ({ x: (x - ox) / s, y: (y - oy) / s });
+    const outline = () => strokes.flat();
+    function draw() {
+      cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx.clearRect(0, 0, W, H);
+      cx.drawImage(src, ox, oy, src.width * s, src.height * s);
+      const pts = outline();
+      if (pts.length > 1) {
+        cx.beginPath();
+        pts.forEach((p, i) => cx[i ? 'lineTo' : 'moveTo'](p.x * s + ox, p.y * s + oy));
+        cx.fillStyle = 'rgba(255, 255, 255, .18)'; cx.fill();
+        cx.lineWidth = 3; cx.strokeStyle = '#fff'; cx.setLineDash([8, 6]); cx.lineJoin = 'round';
+        cx.shadowColor = 'rgba(0, 0, 0, .6)'; cx.shadowBlur = 3; cx.stroke(); cx.shadowBlur = 0; cx.setLineDash([]);
+      }
+      ed.querySelector('.done').disabled = pts.length < 3;
+      ed.querySelector('.undo').disabled = !strokes.length;
+    }
+    function showLoupe(x, y) { // 2.5× of what is under the finger, above it (below it near the top)
+      const R = 60, z = 2.5;
+      loupe.hidden = false;
+      loupe.width = loupe.height = 2 * R * dpr;
+      Object.assign(loupe.style, { left: `${x - R}px`, top: `${y > 170 ? y - 2 * R - 40 : y + 40}px` });
+      lx.setTransform(dpr * z, 0, 0, dpr * z, R * dpr - x * dpr * z, R * dpr - y * dpr * z);
+      lx.drawImage(cv, 0, 0, W * dpr, H * dpr, 0, 0, W, H);
+      lx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      lx.strokeStyle = '#ff4f8b'; lx.lineWidth = 2;
+      lx.beginPath(); lx.arc(R, R, 4, 0, 2 * Math.PI); lx.stroke(); // the exact point
+    }
+    const zoomAt = (mx, my, ns) => {
+      ns = Math.max(fit, Math.min(fit * 8, ns));
+      const p = toImg(mx, my);
+      s = ns; ox = mx - p.x * s; oy = my - p.y * s;
+    };
+
+    const ptrs = new Map();
+    let mode = null, pinch = null;
+    const pos = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    cv.addEventListener('pointerdown', e => {
+      try { cv.setPointerCapture(e.pointerId); } catch {}
+      ptrs.set(e.pointerId, pos(e));
+      if (ptrs.size === 1) {
+        mode = 'draw';
+        strokes.push([toImg(ptrs.get(e.pointerId).x, ptrs.get(e.pointerId).y)]);
+      } else if (ptrs.size === 2) {
+        if (mode === 'draw' && strokes.at(-1).length < 6) strokes.pop(); // the 2nd finger landed: not a stroke
+        mode = 'pinch';
+        loupe.hidden = true;
+        const [a, b] = [...ptrs.values()];
+        pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), m: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, s, ox, oy };
+      }
+      draw();
+    });
+    cv.addEventListener('pointermove', e => {
+      if (!ptrs.has(e.pointerId)) return;
+      const p = pos(e);
+      ptrs.set(e.pointerId, p);
+      if (mode === 'draw') {
+        strokes.at(-1).push(toImg(p.x, p.y));
+        draw();
+        showLoupe(p.x, p.y);
+      } else if (mode === 'pinch' && ptrs.size === 2) {
+        const [a, b] = [...ptrs.values()];
+        const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        const ip = { x: (pinch.m.x - pinch.ox) / pinch.s, y: (pinch.m.y - pinch.oy) / pinch.s }; // stays under the fingers
+        s = Math.max(fit, Math.min(fit * 8, pinch.s * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d));
+        ox = m.x - ip.x * s; oy = m.y - ip.y * s;
+        ed.dataset.zoom = (s / fit).toFixed(2);
+        draw();
+      }
+    });
+    const up = e => {
+      ptrs.delete(e.pointerId);
+      if (!ptrs.size) { mode = null; loupe.hidden = true; }
+    };
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', up);
+    cv.addEventListener('wheel', e => { e.preventDefault(); const p = pos(e); zoomAt(p.x, p.y, s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)); ed.dataset.zoom = (s / fit).toFixed(2); draw(); }, { passive: false });
+
+    const finish = blob => { removeEventListener('resize', resize); ed.remove(); resolve(blob); };
+    ed.querySelector('.undo').onclick = () => { strokes.pop(); draw(); };
+    ed.querySelector('.cancel').onclick = () => finish(null);
+    ed.querySelector('.done').onclick = () => {
+      const pts = outline();
+      const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+      const x0 = Math.max(0, Math.floor(Math.min(...xs))), y0 = Math.max(0, Math.floor(Math.min(...ys)));
+      const x1 = Math.min(src.width, Math.ceil(Math.max(...xs))), y1 = Math.min(src.height, Math.ceil(Math.max(...ys)));
+      const out = Object.assign(document.createElement('canvas'), { width: x1 - x0 + 2 * PAD, height: y1 - y0 + 2 * PAD });
+      const o = out.getContext('2d');
+      o.translate(PAD - x0, PAD - y0);
+      o.drawImage(src, 0, 0);
+      o.globalCompositeOperation = 'destination-in'; // keep the photo only inside her outline
+      o.filter = 'blur(1px)'; // a soft 1 px edge instead of cut paper
+      o.beginPath();
+      pts.forEach((p, i) => o[i ? 'lineTo' : 'moveTo'](p.x, p.y));
+      o.closePath();
+      o.fill();
+      out.toBlob(finish, 'image/png');
+    };
+    addEventListener('resize', resize);
+    requestAnimationFrame(resize);
+  });
 }
 
 // Manual cutout: tap the animal, or draw a loop around it with a finger (nothing outside the loop is kept).
@@ -1010,7 +1133,8 @@ async function stickerFrom(file) {
     : 'No lo encuentro (｡•́︿•̀｡) Toca al animal, o rodéalo con el dedo.');
   status('');
   const recut = () => pickAndCut(segmenter, img, 'Toca al animal, o rodéalo con el dedo: solo se quedará lo de dentro ✏️');
-  return { sticker, species: hit ? COCO_ES[hit.name] : UNKNOWN, recut };
+  const byHand = async () => handCut(await toCanvas(file, 2048)); // last resort: her outline is the cut, at 2× detail
+  return { sticker, species: hit ? COCO_ES[hit.name] : UNKNOWN, recut, byHand };
 }
 
 function failed(e) {
@@ -1040,6 +1164,11 @@ async function onPhoto(file, fromGallery = false) {
         button('✂️ Recortar otra vez', async () => {
           $('#card').replaceChildren();
           a.sticker = await cut.recut();
+          showPreview();
+        }),
+        button('✍️ A mano', async () => {
+          $('#card').replaceChildren();
+          a.sticker = (await cut.byHand()) ?? a.sticker; // null = cancelled
           showPreview();
         }),
         button('¡Me lo quedo!', async () => {

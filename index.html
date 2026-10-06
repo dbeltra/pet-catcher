@@ -145,6 +145,19 @@
     <button class="tile"><span class="foil"></span><span class="ribbon">Recuerdo</span><img class="heart ico" src="assets/icons/heart.png" alt="" hidden><span class="pic"><img alt=""></span><span class="no"></span><span class="name"></span><span class="meta"></span></button>
   </template>
 
+  <template id="hand-tpl">
+    <div class="hand">
+      <p class="hand-hint">✍️ Dibuja el borde del bichito con un dedo · con dos dedos haces zoom y lo mueves</p>
+      <canvas class="hand-canvas"></canvas>
+      <canvas class="loupe" hidden></canvas>
+      <div class="hand-bar">
+        <button class="undo">↶ Deshacer</button>
+        <button class="cancel">Cancelar</button>
+        <button class="done primary">✅ Listo</button>
+      </div>
+    </div>
+  </template>
+
   <template id="badge-tpl">
     <div class="badge"><span class="emoji"></span><span class="title"></span><span class="desc"></span></div>
   </template>

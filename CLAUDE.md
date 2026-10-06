@@ -86,6 +86,10 @@ title (v0.3) was hard to read.
    animal; a finger loop around it (v0.21, drawn as a dashed SVG over the photo) cuts the AI mask to the inside of the
    loop (`lassoMask` + `clipMask`, keypoint `innerPoint`); if the AI finds nothing inside, the loop itself is the
    cutout. The same picker is used when nothing is detected.
+   "✍️ A mano" (v0.22, the last resort, `handCut`): a full-screen editor on the photo at 2048 px; one finger draws the
+   outline (sections join, "Deshacer" removes the last), two fingers / mouse wheel zoom to 8× and move, a magnifier
+   (`.loupe`, 2.5×) sits above the finger. "Listo" cuts the photo to the outline with a 1 px blurred edge
+   (canvas `destination-in`), cropped to it plus `PAD`. Cutout order: auto → loop refinement → by hand.
 7. "¡Me lo quedo!" saves the record to IndexedDB and asks for persistent storage (`navigator.storage.persist`).
 
 List: two tabs, `🗂️ Colección` (grid) and `🗺️ Mapa` (`renderMap`, Leaflet is imported the first time

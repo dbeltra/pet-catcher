@@ -212,6 +212,27 @@ f.onload = async () => {
     await wait('recut preview', () => btn(d, '¡Me lo quedo!') && d.querySelector('.card .sticker').src !== stickerBefore, 20000);
     const [, hAfter] = await sizeOf(d.querySelector('.card .sticker').src);
     gallery += ` lassoCut=${hAfter < hBefore * .8}(${hBefore}→${hAfter})`;
+
+    // Hand cutout (last resort): pinch to zoom, draw an outline in two sections, undo a stray one, Listo.
+    await sleep(500);
+    btn(d, '✍️ A mano').click();
+    await wait('hand editor', () => d.querySelector('.hand .hand-canvas')?.clientWidth, 5000);
+    await sleep(300);
+    const cv = d.querySelector('.hand-canvas'), cr = cv.getBoundingClientRect();
+    const pe = (type, id, fx, fy) => cv.dispatchEvent(new w.PointerEvent(type, { bubbles: true, pointerId: id, clientX: cr.left + cr.width * fx, clientY: cr.top + cr.height * fy }));
+    pe('pointerdown', 1, .4, .5); pe('pointerdown', 2, .6, .5); pe('pointermove', 2, .8, .5); pe('pointermove', 1, .2, .5); pe('pointerup', 1, .2, .5); pe('pointerup', 2, .8, .5);
+    const zoom = +d.querySelector('.hand').dataset.zoom;
+    const stroke = pts => { pe('pointerdown', 3, ...pts[0]); for (const p of pts.slice(1)) pe('pointermove', 3, ...p); pe('pointerup', 3, ...pts.at(-1)); };
+    stroke([[.3, .3], [.5, .25], [.7, .3], [.72, .5]]);            // section 1
+    stroke([[.1, .9], [.12, .92], [.11, .95], [.1, .97], [.12, .9], [.1, .91], [.13, .9]]); // a stray section…
+    d.querySelector('.hand .undo').click();                          // …undone
+    stroke([[.72, .5], [.7, .7], [.5, .75], [.3, .7], [.28, .5]]);  // section 2 continues the outline
+    const hBefore2 = hAfter;
+    d.querySelector('.hand .done').click();
+    await wait('hand result', () => !d.querySelector('.hand') && btn(d, '¡Me lo quedo!'), 10000);
+    await sleep(400);
+    const [wHand, hHand] = await sizeOf(d.querySelector('.card .sticker').src);
+    gallery += ` hand=zoom${zoom}x,${wHand}x${hHand}`;
     btn(d, 'Descartar').click();
     await wait('discarded', () => !d.querySelector('#list').hidden, 5000);
     await sleep(500);
