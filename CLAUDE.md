@@ -8,7 +8,7 @@ A PWA (installable web app) for the phone. You take a photo of an animal. The ap
 cuts it out like a sticker, puts it on a card and saves it. You browse your collection, see the
 date, time and place of each catch, and rename the animals (each one gets a random name first).
 
-Personal project of David (GitHub `dbeltra`). **It is a birthday gift for his girlfriend Mari, a pet lover.**
+**v1.0.0 (2026-10-06): finished.** Personal project of David (GitHub `dbeltra`). **It is a birthday gift for his girlfriend Mari, a pet lover.**
 Everything she sees should feel warm and personal; never ship something that can lose her data.
 
 **Always light:** no dark theme (`color-scheme: light`), also when the phone is in dark mode (David's choice, v0.13.1).
