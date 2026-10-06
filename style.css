@@ -564,7 +564,8 @@ html[data-vt]::view-transition-group(content) { animation: none; }
 /* ---------- birthday surprise ---------- */
 #bday {
   position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px;
-  background: rgba(255, 250, 234, .82); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  /* No backdrop-filter: on a phone the card inside a blurred layer stopped painting after its pop (v1.0.1). */
+  background: rgba(255, 250, 234, .93);
 }
 .bday-card {
   position: relative; z-index: 1; text-align: center; background: #fff; color: #5a4632;
