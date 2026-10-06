@@ -119,6 +119,9 @@ export function randomTraits(rnd = Math.random) {
 // Re-encounters: each visit is { at, location, place }. The catch itself counts as the first sighting.
 export const timesSeen = a => 1 + a.visits.length;
 export const lastSeen = a => Math.max(a.takenAt ?? 0, ...a.visits.map(v => v.at));
+// "¡Otra vez!" (no photo) counts at most once per animal every 30 min, so tapping it can't farm friendship.
+export const SEEN_AGAIN_GAP = 30 * 60e3;
+export const minutesToSeeAgain = (a, now) => Math.max(0, Math.ceil((lastSeen(a) + SEEN_AGAIN_GAP - now) / 60e3));
 
 // Achievements (feminine forms: they are for Mari). Her Recuerdos never count as catches.
 const hour = t => new Date(t).getHours();

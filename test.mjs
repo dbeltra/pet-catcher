@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { pointInPolygon, innerPoint, clipMask, seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { minutesToSeeAgain, pointInPolygon, innerPoint, clipMask, seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Churro');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -80,6 +80,13 @@ assert.ok(unlockedIds(Array.from({ length: 5 }, () => cat())).includes('cats'));
 assert.equal(new Set(ACHIEVEMENTS.map(x => x.id)).size, ACHIEVEMENTS.length);
 assert.equal(timesSeen(cat({ visits: [{ at: 1 }] })), 2);
 assert.equal(lastSeen(cat({ takenAt: 5, visits: [{ at: 9 }, { at: 7 }] })), 9);
+{
+  const M = 60e3, t = 1e12;
+  assert.equal(minutesToSeeAgain(cat({ takenAt: t }), t + 10 * M), 20); // caught 10 min ago: wait 20
+  assert.equal(minutesToSeeAgain(cat({ takenAt: t }), t + 30 * M), 0);
+  assert.equal(minutesToSeeAgain(cat({ takenAt: t, visits: [{ at: t + 40 * M }] }), t + 45 * M), 25); // the last visit counts
+  assert.equal(minutesToSeeAgain(cat({ takenAt: t }), t + 29.5 * M), 1); // rounds up
+}
 
 assert.equal(pastelFor('abc'), pastelFor('abc'));
 assert.ok(PASTELS.includes(pastelFor(crypto.randomUUID())));

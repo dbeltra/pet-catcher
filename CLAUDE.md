@@ -290,7 +290,10 @@ lookups one at a time for records that have `location` but no `place`.
 - **Live vs. imported (v0.23.4):** each catch and visit can carry `live: false` (a gallery photo, or "Ya lo tenía" with
   one) and `placeManual: true` (place pinned by hand). Time rules (night / early letters and achievements) count only
   live sightings; place rules (Japan letter, Viajera, Trotamundos) only live sightings with a GPS place. Counts,
-  shiny, rarity and favourites count everything. No flag = live (older records).
+  shiny, rarity and favourites count everything. No flag = live (older records). Typed species still set the rarity
+  (David's choice: changing it is part of the fun).
+- **"¡Otra vez!" limit (v0.23.5):** at most once per animal every 30 min after its last sighting or catch
+  (`minutesToSeeAgain`), with "Ya lo viste hace un rato 😉 Vuelve a probar en N min". "Ya lo tenía" (a new photo) has no limit.
 - **Friendship** (`friendshipOf`): 3 sightings bronce 🥉, 5 plata 🥈, 10 oro 🥇. A metal ring inside the card
   (`data-friend`), the medal after the number on the tile, a line on the card, a toast (confetti at gold).
 - **Diary** (v0.23, `openDiary`): tapping the friendship line on the back (it has "›" once seen again) opens a pop-up:

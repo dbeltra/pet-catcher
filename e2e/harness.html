@@ -97,8 +97,13 @@ f.onload = async () => {
     d.querySelector('.sticker-wrap').click(); // the button is on the back
     await wait('cat back', () => d.querySelector('.card.show-back'), 5000);
     await sleep(500);
+    btn(d, '👀').click(); // just caught: too soon (30-minute rule)
+    const tooSoon = await wait('too soon', () => d.querySelector('#toast').textContent.includes('Ya lo viste hace un rato') && 'yes', 3000).catch(() => 'no');
+    const realNow = w.Date.now.bind(w.Date);
+    w.Date.now = () => realNow() + 31 * 60e3; // 31 minutes later
     btn(d, '👀').click();
     await wait('seen again', () => !d.querySelector('.card .bond').hidden && d.querySelector('.card .bond').textContent.includes('2 veces'), 15000);
+    w.Date.now = realNow;
     const stayedOnBack = !!d.querySelector('.card.show-back'); // ¡Otra vez! is on the back: the card must stay there
     const lastSeen = d.querySelector('.card .last-seen').textContent.slice(0, 40);
     // Diary: tap the friendship line → 2 entries (the catch + this sighting) and a map.
@@ -270,7 +275,7 @@ f.onload = async () => {
     // In a browser tab (not the installed app) the greeting stays hidden, and it was not marked as seen.
     const reset = `${names(d2).join('+')},greetingInTab=${!d2.querySelector('#bday').hidden},seenFlag=${f.contentWindow.localStorage.getItem('bday-seen')},otherApp=${f.contentWindow.localStorage.getItem('sitges26:other-app')}`;
 
-    log(`OK diary=${diary} kurko=${kurkoTraits} sortByName=${sortOk} stayedOnBack=${stayedOnBack} lastSeen="${lastSeen}" letters=[${letters.join(' | ')}] kept=${kept} gender[${nameBefore} → ${nameAfter} femTitle=${femTitle} noMarkOnTile=${noMarkOnTile} traits=${traitsNow}] reset=${reset} ${summary} shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}=${traits} oneRow=${oneRow} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
+    log(`OK tooSoon=${tooSoon} diary=${diary} kurko=${kurkoTraits} sortByName=${sortOk} stayedOnBack=${stayedOnBack} lastSeen="${lastSeen}" letters=[${letters.join(' | ')}] kept=${kept} gender[${nameBefore} → ${nameAfter} femTitle=${femTitle} noMarkOnTile=${noMarkOnTile} traits=${traitsNow}] reset=${reset} ${summary} shiny=${shinyToast}/${shinyCard}/${shinyTile} closeFromBack=ok swipes=ok swipeFromInput=ok sameHeight=${sameHeight} firstBadge=${firstBadge} loyal=${loyal} badges="${badges}" album="${album}" rarity=${rarity} traits=${before}=${traits} oneRow=${oneRow} stars=${stars} bday="${bday}" ${info} memories=${names(d).filter(n => n === 'Kurko' || n === 'Kiffy').length} memoryRelease=${memoryRelease} hearts=${hearts} pins=${pins} backup=${JSON.parse(saved).animals.length} tiles=${d.querySelectorAll('.tile').length}`);
     document.title = 'done';
   } catch (e) { log('FAIL ' + e.message); }
 };
