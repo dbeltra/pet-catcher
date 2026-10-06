@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { minutesToSeeAgain, pointInPolygon, innerPoint, clipMask, seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { recapPeriod, recapYearAt, dueRecap, recapStats, minutesToSeeAgain, pointInPolygon, innerPoint, clipMask, seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, FRIEND_LEVELS, friendshipOf, nextFriendship, NOTES, DATE_NOTES, dueNotes, noteText, noteWhy, PATTERNS, patternFor, FOILS, foilFor, timeOfDay, isMilestone, keepComponent, readExif, numberAll, fmtNo, SEEDS, SHINY_CHANCE, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITIES, rarityOf, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, normalize, byNewest, parseBackup, PASTELS, pastelFor, randomName, pickAnimal, placeName, speciesCounts, cleanSpecies, emojiFor, UNKNOWN, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 assert.equal(randomName('m', () => 0), 'Don Churro');
 assert.equal(randomName('f', () => 0), 'Doña Galleta');
@@ -277,6 +277,42 @@ assert.equal(alpha(6, 5), 0);
   const c = [{ x: .1, y: .1 }, { x: .9, y: .1 }, { x: .9, y: .3 }, { x: .3, y: .3 }, { x: .3, y: .7 }, { x: .9, y: .7 }, { x: .9, y: .9 }, { x: .1, y: .9 }];
   assert.ok(pointInPolygon(innerPoint(c), c));
   assert.deepEqual([...clipMask(Uint8Array.from([7, 7, 0, 7]), 7, [1, 0, 1, 1])], [1, 0, 0, 1]);
+}
+
+{
+  const d = (y, m, day, h = 12) => new Date(y, m - 1, day, h).getTime();
+  assert.deepEqual(recapPeriod(2027), { start: d(2026, 10, 15, 0), end: d(2027, 10, 15, 0) });
+  assert.equal(recapYearAt(d(2027, 10, 14)), 2026);
+  assert.equal(recapYearAt(d(2027, 10, 15)), 2027);
+  assert.equal(dueRecap(d(2026, 12, 1), []), null); // the first recap is 2027
+  assert.equal(dueRecap(d(2027, 10, 15), []), 2027);
+  assert.equal(dueRecap(d(2027, 11, 3), [2027]), null); // already seen
+  assert.equal(dueRecap(d(2028, 10, 20), [2027]), 2028);
+
+  const { start, end } = recapPeriod(2027);
+  const mk = (id, o) => normalize({ id, species: 'gato', takenAt: d(2027, 3, 6, 12), ...o });
+  const all = [
+    normalize({ id: 'seed-kurko', memory: true, species: 'perro', takenAt: null }),
+    mk('old', { takenAt: d(2026, 5, 1), species: 'perro' }),                 // before the period
+    mk('a', { place: 'Sitges', visits: [{ at: d(2027, 3, 7, 23), place: 'Sitges' }, { at: d(2027, 3, 8, 23), place: 'Sitges' }] }),
+    mk('b', { takenAt: d(2027, 3, 6, 23), place: 'Sitges' }),
+    mk('c', { species: 'zorro', takenAt: d(2027, 6, 1, 2), place: 'Martos' }),
+    mk('d', { species: 'perro', takenAt: d(2027, 7, 1, 23), shiny: true }),
+    mk('e', { species: 'jirafa', takenAt: d(2027, 8, 1) }),
+    mk('late', { takenAt: d(2027, 10, 20) }),                               // after the period
+  ];
+  const r = recapStats(all, start, end, [{ id: 'first', at: d(2027, 3, 6) }, { id: 'x', at: d(2026, 1, 1) }]);
+  assert.equal(r.total, 5);
+  assert.equal(r.speciesCount, 4);
+  assert.equal(r.newSpecies, 3); // perro was caught before
+  assert.deepEqual(r.topSpecies[0], ['gato', 2]);
+  assert.equal(r.bestFriend.a.id, 'a'); assert.equal(r.bestFriend.times, 3);
+  assert.equal(r.rarest.id, 'd'); // a shiny beats a legendario
+  assert.deepEqual(r.topPlace, ['Sitges', 4]);
+  assert.equal(r.personality.key, 'night');
+  assert.equal(r.bestDay.n, 2); // a and b on 6 March
+  assert.equal(r.letters, 1);
+  assert.equal(recapStats(all.slice(0, 4), start, end), null); // < 5 catches: no recap
 }
 
 console.log('ok');

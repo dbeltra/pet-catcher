@@ -441,3 +441,53 @@ export function innerPoint(poly) {
 }
 // Keeps the mask pixels equal to fg that are inside the loop (inside: 1/0 per mask pixel); returns 1/0.
 export const clipMask = (mask, fg, inside) => Uint8Array.from(mask, (v, i) => (v === fg && inside[i] ? 1 : 0));
+
+// ---------- "Tu año en Bichidex" (v0.24): a yearly recap, birthday to birthday ----------
+// Recap Y covers 15 Oct (Y-1) → 14 Oct Y and is shown from her birthday Y on (first one: 2027). Kurko and Kiffy are out.
+export const BIRTHDAY = { month: 10, day: 15 };
+export const RECAP_FIRST = 2027, RECAP_MIN = 5;
+export const recapPeriod = y => ({ start: new Date(y - 1, BIRTHDAY.month - 1, BIRTHDAY.day).getTime(), end: new Date(y, BIRTHDAY.month - 1, BIRTHDAY.day).getTime() });
+// The newest finished recap year at `now` (its birthday has come).
+export const recapYearAt = now => { const d = new Date(now), y = d.getFullYear(); return now >= recapPeriod(y).end ? y : y - 1; };
+export const dueRecap = (now, seen) => { const y = recapYearAt(now); return y >= RECAP_FIRST && !seen.includes(y) ? y : null; };
+
+// Everything the recap shows, for catches and sightings in [start, end). null when there is too little to show.
+export function recapStats(all, start, end, notesOpened = []) {
+  const mine = catches(all);
+  const inP = t => t >= start && t < end;
+  const caught = mine.filter(a => a.takenAt && inP(a.takenAt));
+  if (caught.length < RECAP_MIN) return null;
+  const sights = mine.flatMap(a => [{ a, at: a.takenAt, place: a.place, live: a.live !== false },
+    ...a.visits.map(v => ({ a, at: v.at, place: v.place, live: v.live !== false }))]).filter(s => s.at && inP(s.at));
+  const tally = (list, key) => { const m = new Map(); for (const x of list) { const k = key(x); if (k) m.set(k, (m.get(k) ?? 0) + 1); } return [...m].sort((p, q) => q[1] - p[1]); };
+  const species = tally(caught, a => (a.species === UNKNOWN ? null : a.species));
+  const before = new Set(mine.filter(a => a.takenAt && a.takenAt < start).map(a => a.species));
+  const friends = tally(sights, s => s.a.id).filter(([, n]) => n >= 2);
+  const rank = a => RARITIES.indexOf(rarityOf(a.species)) + (a.shiny ? 10 : 0);
+  const rarest = [...caught].sort((p, q) => rank(q) - rank(p) || p.takenAt - q.takenAt)[0];
+  const places = tally(sights, s => s.place);
+  const live = sights.filter(s => s.live), h = s => new Date(s.at).getHours();
+  const night = live.filter(s => h(s) >= 22 || h(s) < 6).length, early = live.filter(s => h(s) >= 6 && h(s) < 8).length;
+  const weekend = caught.filter(a => [0, 6].includes(new Date(a.takenAt).getDay())).length;
+  const personality = night >= 3 && night / live.length >= .15 ? { key: 'night', n: night }
+    : early >= 3 ? { key: 'early', n: early }
+    : weekend / caught.length >= .5 ? { key: 'weekend', n: weekend }
+    : { key: 'day', n: live.filter(s => h(s) >= 8 && h(s) < 22).length };
+  const dayKey = t => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+  const days = tally(caught, a => dayKey(a.takenAt));
+  const bestDayList = days.length ? caught.filter(a => dayKey(a.takenAt) === days[0][0]) : [];
+  return {
+    total: caught.length,
+    speciesCount: species.length,
+    newSpecies: species.filter(([s]) => !before.has(s)).length,
+    topSpecies: species.slice(0, 3),
+    bestFriend: friends.length ? { a: mine.find(a => a.id === friends[0][0]), times: friends[0][1] } : null,
+    rarest,
+    places: places.length, topPlace: places[0] ?? null, topPlaces: places.slice(0, 3),
+    personality,
+    bestDay: days.length && days[0][1] >= 2 ? { at: bestDayList[0].takenAt, n: days[0][1], list: bestDayList } : null,
+    shinies: caught.filter(a => a.shiny).length,
+    letters: notesOpened.filter(o => inP(o.at)).length,
+    favourites: [...caught].sort((p, q) => q.fav - p.fav || rank(q) - rank(p)).slice(0, 3),
+  };
+}

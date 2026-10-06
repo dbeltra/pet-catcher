@@ -1,5 +1,5 @@
 import { FilesetResolver, ObjectDetector, InteractiveSegmenter } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs';
-import { minutesToSeeAgain, innerPoint, clipMask, seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
+import { recapPeriod, recapYearAt, dueRecap, recapStats, BIRTHDAY, RECAP_FIRST, minutesToSeeAgain, innerPoint, clipMask, seedTraits, needsBackupReminder, catchCount, clusterPoints, SORTS, sortAnimals, friendshipOf, nextFriendship, dueNotes, noteText, noteWhy, patternFor, foilFor, timeOfDay, isMilestone, keepComponent, readExif, COCO_ES, EMOJI, UNKNOWN, SEEDS, numberAll, fmtNo, rollShiny, ACHIEVEMENTS, unlockedIds, timesSeen, lastSeen, RARITY_LABEL, rarityFor, albumSlots, TRAITS, randomTraits, traitLabel, traitKey, GENDERS, GENDER_ICONS, emojiFor, pastelFor, cleanSpecies, normalize, byNewest, parseBackup, randomName, pickAnimal, placeName, speciesCounts, maskValueAt, maskBBox, applyMask } from './lib.mjs';
 
 // Pinned to 0.10.x: 1.0 replaced the keypoint API of InteractiveSegmenter with strokes.
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
@@ -1407,7 +1407,7 @@ async function checkNotes() {
   if (noteBusy || !$('#bday').hidden || !$('#view').hidden || document.querySelector('dialog[open]')) return;
   const opened = (await getMeta('notes-opened')) ?? [];
   const [next] = dueNotes(await getAll(), Date.now(), opened.map(o => o.id));
-  if (!next) return checkBackup(); // no letter waiting: maybe time for a backup reminder
+  if (!next) return checkRecap(); // no letter waiting: maybe her yearly recap, then a backup reminder
   noteBusy = true;
   const d = $('#letter');
   d.classList.remove('open');
@@ -1450,6 +1450,185 @@ $('#open-letters').onclick = async () => {
   $('#letters-empty').hidden = opened.length > 0;
   $('#settings').close();
   $('#letters').showModal();
+};
+
+// ---------- "Tu año en Bichidex": the yearly recap as story slides (v0.24) ----------
+const DAVID_MESSAGE = 'Gracias por otro año atrapando bichitos conmigo ❤️';
+const PERSONALITY = {
+  night: { emoji: '🌙', label: 'Atrapadora nocturna', text: n => `${n} capturas con la luna fuera` },
+  early: { emoji: '🌅', label: 'Madrugadora', text: n => `${n} capturas antes de las 8` },
+  weekend: { emoji: '🧺', label: 'Atrapadora de finde', text: n => `${n} capturas en fin de semana` },
+  day: { emoji: '☀️', label: 'Atrapadora de día', text: n => `${n} capturas a plena luz` },
+};
+const fmtDay = t => new Date(t).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+const fmtPeriod = ({ start, end }) => `${new Date(start).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })} – ${new Date(end - 1).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+
+let recapSkip = false; // "Luego": not again until the app is reopened
+async function checkRecap() {
+  if (recapSkip || noteBusy || !$('#bday').hidden || !$('#view').hidden || document.querySelector('dialog[open], .recap')) return checkBackup();
+  const y = dueRecap(Date.now(), (await getMeta('recaps-seen')) ?? []);
+  const p = y && recapPeriod(y);
+  const stats = p && recapStats(await getAll(), p.start, p.end, (await getMeta('notes-opened')) ?? []);
+  if (!stats) return checkBackup();
+  noteBusy = true;
+  const yes = await ask({ title: '🎁 Tu año en Bichidex está listo', text: 'Un pequeño resumen de tus capturas del último año.', yes: 'Verlo ✨', no: 'Luego' });
+  noteBusy = false;
+  if (yes) openRecap(y); else recapSkip = true;
+}
+
+// Finished years with enough catches, for Ajustes → "Mis años".
+async function recapYears() {
+  const all = await getAll(), years = [];
+  for (let y = recapYearAt(Date.now()); y >= RECAP_FIRST; y--) { const p = recapPeriod(y); if (recapStats(all, p.start, p.end)) years.push(y); }
+  return years;
+}
+
+// year: a finished recap year; 'now' (only with ?recap, for testing): from the last birthday until today.
+async function openRecap(year) {
+  const all = await getAll();
+  const p = year === 'now' ? { start: recapPeriod(recapYearAt(Date.now()) + 1).start, end: Date.now() + 1 } : recapPeriod(year);
+  const st = recapStats(all, p.start, p.end, (await getMeta('notes-opened')) ?? []);
+  if (!st) return toast('Todavía no hay bastantes capturas para un resumen (mínimo 5) 🐾');
+  if (year !== 'now') await setMeta('recaps-seen', [...new Set([...((await getMeta('recaps-seen')) ?? []), year])]);
+  const url = a => blobUrl(a.thumb ?? a.sticker);
+  const el = (tag, cls, text) => Object.assign(document.createElement(tag), cls ? { className: cls } : {}, text != null ? { textContent: text } : {});
+  const img = (a, cls = 'r-sticker') => Object.assign(el('img', cls), { src: url(a), alt: '' });
+  const count = n => { const c = el('div', 'r-big count', '0'); c.dataset.to = n; return c; };
+  const caughtList = all.filter(a => !a.memory && a.takenAt >= p.start && a.takenAt < p.end);
+  const unlocked = unlockedIds(all).length;
+
+  // Each slide: [background, ...children]. Slides without data are left out.
+  const slides = [
+    ['sunrise', el('p', 'r-kicker', fmtPeriod(p)), el('div', 'r-cardback', 'Bichidex ✿'), el('h2', 'r-title', 'Mari, este es tu año en Bichidex'), el('p', 'r-text', 'Toca para seguir →')],
+    ['butter', el('p', 'r-kicker', 'Este año has atrapado'), count(st.total), el('p', 'r-text', st.total === 1 ? 'bichito' : 'bichitos'), el('div', 'r-rain')],
+    ['mint', el('p', 'r-kicker', 'De'), count(st.speciesCount), el('p', 'r-text', 'especies distintas'),
+      ...(st.newSpecies ? [el('p', 'r-pill', `+${st.newSpecies} nuevas en tu álbum 📖`)] : []),
+      el('p', 'r-emojis', [...new Set(caughtList.map(a => emojiFor(a.species)))].join(' '))],
+    ...(st.topSpecies.length ? [['sky', el('p', 'r-kicker', 'Tu bichito del año'),
+      el('h2', 'r-title', `${emojiFor(st.topSpecies[0][0])} el ${st.topSpecies[0][0]}`),
+      Object.assign(el('div', 'r-podium'), {})]] : []),
+    ...(st.bestFriend ? [['peach', el('p', 'r-kicker', 'Tu mejor amigo'), img(st.bestFriend.a, 'r-sticker big'), el('h2', 'r-title', st.bestFriend.a.name),
+      el('p', 'r-text', `Le viste ${st.bestFriend.times} veces ${friendshipOf(st.bestFriend.a)?.medal ?? '🤝'}`)]] : []),
+    ['lilac', el('p', 'r-kicker', 'Tu carta más rara'), Object.assign(el('div', 'r-mini'), {}),
+      el('p', 'r-text', `${RARITY_LABEL[rarityFor(st.rarest)]}${st.rarest.shiny ? ' · 🌈 Shiny' : ''}`)],
+    ...(st.places ? [['pistachio', el('p', 'r-kicker', 'Has atrapado en'), count(st.places), el('p', 'r-text', st.places === 1 ? 'lugar' : 'lugares'),
+      Object.assign(el('ol', 'r-places'), {})]] : []),
+    ['night', el('p', 'r-kicker', 'Tu forma de atrapar'), el('div', 'r-emoji', PERSONALITY[st.personality.key].emoji),
+      el('h2', 'r-title', PERSONALITY[st.personality.key].label), el('p', 'r-text', PERSONALITY[st.personality.key].text(st.personality.n))],
+    ...(st.bestDay ? [['butter', el('p', 'r-kicker', 'Tu día más bichero'), el('h2', 'r-title', fmtDay(st.bestDay.at)),
+      el('p', 'r-text', `${st.bestDay.n} capturas en un día`), Object.assign(el('div', 'r-row'), {})]] : []),
+    ['mint', el('p', 'r-kicker', 'Por el camino'), el('p', 'r-stat', `🏅 ${unlocked} logros`), ...(st.letters ? [el('p', 'r-stat', `💌 ${st.letters} ${st.letters === 1 ? 'carta' : 'cartas'}`)] : []),
+      ...(st.shinies ? [el('p', 'r-stat', `🌈 ${st.shinies} ${st.shinies === 1 ? 'shiny' : 'shinies'}`)] : [])],
+    ['sunset', el('div', 'r-emoji', '💛'), el('p', 'r-message', DAVID_MESSAGE), el('p', 'r-text', '— David')],
+    ['butter', el('p', 'r-kicker', `Mi año en Bichidex`), Object.assign(el('div', 'r-summary'), {}),
+      Object.assign(el('button', 'r-share', '💾 Guardar imagen'), {}), Object.assign(el('button', 'r-done', 'Cerrar'), {})],
+  ];
+  // fill the pieces that need more than one line
+  const fill = (s, sel, fn) => { const x = s.find(c => c instanceof Element && c.matches?.(sel)); if (x) fn(x); };
+  for (const s of slides) {
+    fill(s, '.r-rain', x => x.append(...caughtList.slice(0, 14).map((a, i) => { const m = img(a, 'r-drop'); m.style.setProperty('--x', `${(i * 37) % 90}%`); m.style.setProperty('--d', `${(i % 5) * .35}s`); return m; })));
+    fill(s, '.r-podium', x => x.append(...st.topSpecies.map(([sp, n], i) => { const c = el('div', `r-step s${i + 1}`); c.append(el('span', 'e', emojiFor(sp)), el('span', 'n', `${n}`), el('span', 's', sp)); return c; })));
+    fill(s, '.r-mini', x => { x.dataset.rarity = rarityFor(st.rarest); x.classList.toggle('shiny', st.rarest.shiny); x.append(el('span', 'foil'), img(st.rarest, 'r-sticker'), el('b', '', st.rarest.name)); });
+    fill(s, '.r-places', x => x.append(...st.topPlaces.map(([pl, n]) => el('li', '', `📍 ${pl} · ${n}`))));
+    fill(s, '.r-row', x => x.append(...st.bestDay.list.slice(0, 5).map(a => img(a, 'r-sticker small'))));
+    fill(s, '.r-summary', x => {
+      x.append(...st.favourites.map(a => img(a, 'r-sticker small')),
+        el('p', 'r-stat', `🐾 ${st.total} bichitos · 📖 ${st.speciesCount} especies`),
+        ...(st.bestFriend ? [el('p', 'r-stat', `🤝 Mejor amigo: ${st.bestFriend.a.name}`)] : []),
+        el('p', 'r-stat', `${PERSONALITY[st.personality.key].emoji} ${PERSONALITY[st.personality.key].label}`));
+    });
+  }
+
+  const root = $('#recap-tpl').content.firstElementChild.cloneNode(true);
+  document.body.append(root);
+  const bars = root.querySelector('.recap-bars'), stage = root.querySelector('.recap-slide');
+  bars.replaceChildren(...slides.map(() => el('span', '', '')));
+  let i = -1, timer, startAt, left, paused = false;
+  const DUR = 5200;
+  const close = () => { clearTimeout(timer); root.remove(); checkNotes(); };
+  const go = n => {
+    if (n < 0) n = 0;
+    if (n >= slides.length) return close();
+    i = n;
+    const [bg, ...kids] = slides[i];
+    stage.dataset.bg = bg;
+    stage.replaceChildren(...kids);
+    stage.classList.remove('in'); void stage.offsetWidth; stage.classList.add('in');
+    [...bars.children].forEach((b, k) => { b.className = k < i ? 'done' : k === i ? 'now' : ''; });
+    bars.style.setProperty('--dur', `${DUR}ms`);
+    for (const c of stage.querySelectorAll('.count')) countUp(c, +c.dataset.to);
+    sfx(i === 0 ? 'reveal' : 'pop');
+    clearTimeout(timer);
+    left = DUR; startAt = Date.now();
+    if (i < slides.length - 1) timer = setTimeout(() => go(i + 1), left);
+  };
+  const pause = on => {
+    if (on === paused || i === slides.length - 1) return;
+    paused = on;
+    root.classList.toggle('paused', on);
+    if (on) { clearTimeout(timer); left -= Date.now() - startAt; }
+    else { startAt = Date.now(); timer = setTimeout(() => go(i + 1), left); }
+  };
+  // tap right / left half = next / previous; press and hold = pause
+  let downAt = 0;
+  root.querySelector('.recap-tap').addEventListener('pointerdown', () => { downAt = Date.now(); pause(true); });
+  root.querySelector('.recap-tap').addEventListener('pointerup', e => {
+    pause(false);
+    if (Date.now() - downAt > 350) return; // it was a hold
+    const r = root.getBoundingClientRect();
+    go(e.clientX - r.left > r.width / 3 ? i + 1 : i - 1);
+  });
+  root.querySelector('.recap-close').onclick = close;
+  stage.addEventListener('click', e => {
+    if (e.target.closest('.r-done')) close();
+    if (e.target.closest('.r-share')) shareRecap(st, p, year === 'now' ? recapYearAt(Date.now()) + 1 : year);
+  });
+  go(0);
+}
+
+function countUp(node, to) {
+  const t0 = performance.now(), D = 900;
+  const step = now => { const k = Math.min(1, (now - t0) / D); node.textContent = Math.round(to * (1 - (1 - k) ** 3)); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+
+// The share image: 1080×1920 (story size), drawn on a canvas.
+async function shareRecap(st, p, year) {
+  await document.fonts?.load('600 80px Fredoka').catch(() => {});
+  const c = Object.assign(document.createElement('canvas'), { width: 1080, height: 1920 }), x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, 1920); g.addColorStop(0, '#fffdf5'); g.addColorStop(1, '#f7d98b'); x.fillStyle = g; x.fillRect(0, 0, 1080, 1920);
+  x.fillStyle = '#fbe6ad'; for (let yy = 30; yy < 1920; yy += 60) for (let xx = 30; xx < 1080; xx += 60) { x.beginPath(); x.arc(xx, yy, 5, 0, 7); x.fill(); }
+  x.textAlign = 'center'; x.fillStyle = '#5a4632';
+  x.font = '600 96px Fredoka, sans-serif'; x.fillText('Mi año en Bichidex', 540, 230);
+  x.font = '500 44px Fredoka, sans-serif'; x.fillStyle = '#a08a6e'; x.fillText(fmtPeriod(p), 540, 310);
+  const favs = await Promise.all(st.favourites.map(a => createImageBitmap(a.thumb ?? a.sticker)));
+  favs.forEach((b, k) => {
+    const size = k === 0 ? 420 : 300, cx = [540, 250, 830][k], cy = k === 0 ? 640 : 760, sc = size / Math.max(b.width, b.height);
+    x.save(); x.shadowColor = 'rgba(90, 70, 50, .3)'; x.shadowBlur = 24; x.shadowOffsetY = 10;
+    x.drawImage(b, cx - b.width * sc / 2, cy - b.height * sc / 2, b.width * sc, b.height * sc); x.restore();
+  });
+  const lines = [[`${st.total}`, 'bichitos atrapados'], [`${st.speciesCount}`, 'especies distintas'],
+    ...(st.bestFriend ? [[st.bestFriend.a.name, 'mi mejor amigo']] : []), [`${PERSONALITY[st.personality.key].emoji} ${PERSONALITY[st.personality.key].label}`, 'mi forma de atrapar']];
+  lines.forEach(([big, small], k) => {
+    const yy = 1080 + k * 190;
+    x.fillStyle = 'rgba(255, 255, 255, .75)'; x.beginPath(); x.roundRect(140, yy - 100, 800, 160, 80); x.fill();
+    x.fillStyle = '#5a4632'; x.font = '600 70px Fredoka, sans-serif'; x.fillText(big, 540, yy - 10);
+    x.fillStyle = '#a08a6e'; x.font = '500 38px Fredoka, sans-serif'; x.fillText(small, 540, yy + 42);
+  });
+  x.fillStyle = '#5a4632'; x.font = '500 40px Fredoka, sans-serif'; x.fillText('Bichidex ✿', 540, 1860);
+  const file = new File([await new Promise(r => c.toBlob(r, 'image/png'))], `bichidex-${year}.png`, { type: 'image/png' });
+  if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: 'Mi año en Bichidex' }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: file.name });
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+$('#open-years').onclick = async () => {
+  const years = await recapYears();
+  $('#settings').close();
+  if (!years.length) return toast(`Tu primer resumen llegará el ${BIRTHDAY.day} de octubre de ${Math.max(RECAP_FIRST, recapYearAt(Date.now()) + 1)} 🎁`);
+  if (years.length === 1) return openRecap(years[0]);
+  const pick = await ask({ title: '📅 Mis años', text: `Tienes ${years.length} resúmenes. ¿Ver el último (${years[0]})?`, yes: `Ver ${years[0]}`, no: `Ver ${years[1]}` });
+  openRecap(pick ? years[0] : years[1]);
 };
 
 // ---------- holographic tilt ----------
@@ -1500,7 +1679,10 @@ try { seen = localStorage.getItem('bday-seen') === '1'; } catch {}
 // seeing it, and the first time she opens it from the home screen it is there. ?cumple forces it anywhere.
 const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 if ((installed && !seen) || new URLSearchParams(location.search).has('cumple')) showBirthday();
-ensureMemories().then(numberRecords).catch(console.error).finally(() => { renderList(); checkAchievements(); ensureThumbs().catch(console.error); });
+ensureMemories().then(numberRecords).catch(console.error).finally(() => {
+  renderList(); checkAchievements(); ensureThumbs().catch(console.error);
+  if (new URLSearchParams(location.search).has('recap')) setTimeout(() => openRecap('now'), 600); // testing: the year so far
+});
 // Get the detector ready in the background, so the first catch is instant (never on mobile data or data saver).
 setTimeout(() => {
   const c = navigator.connection;

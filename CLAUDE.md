@@ -405,20 +405,20 @@ The icon is a notebook with an orange cat, made by David with an icon generator 
 Files at the root: `favicon.ico`, `apple-touch-icon.png` (iPhone), `icon-192/512.png`, `icon-192/512-maskable.png`
 (Android shapes). To change it, replace those files and bump `?v=N` in the manifest, the `<link>`s and the SW `SHELL`.
 
-## Planned: "Tu año en Bichidex" (yearly recap, not built yet)
+## "Tu año en Bichidex" (yearly recap, v0.24)
 
-Decided with David (2026-10-06):
-- **Period: birthday to birthday** (15 October → 14 October). It appears on her birthday from 2027 on, as an
-  invitation on the list ("Tu año en Bichidex está listo 🎁"), only if she caught ≥ 5 animals that year; past years
-  stay in Ajustes → "📅 Mis años".
-- **Format:** full-screen story slides (tap right/left, hold to pause, progress bar), kawaii style, her real stickers.
-- **Slides** (skip any with no data): intro (pack reveal) · total catches · species (+ new ones) · top species (podium) ·
-  best friend (most sightings) · rarest card (legendario / shiny, with foil) · places (mini map + favourite spot) ·
-  personality (night / early / weekend catcher) · best day · achievements and letters unlocked (no texts) ·
-  David's message · closing card with a "💾 Guardar imagen" share image (1080×1920).
-- **David's message, the same every year:** "Gracias por otro año atrapando bichitos conmigo ❤️"
-- **Kurko and Kiffy are out** of the recap (they are not catches).
-- Uses only data the app already stores. Effort: medium–large (slide player, animations, share image).
+Decided with David (2026-10-06): **birthday to birthday** (recap Y = 15 Oct Y-1 → 14 Oct Y, `recapPeriod`), first one
+in **2027**, only with ≥ 5 catches; **Kurko and Kiffy are out**; his message on the last slide, the same every year:
+"Gracias por otro año atrapando bichitos conmigo ❤️" (`DAVID_MESSAGE`).
+- `recapStats()` (lib, tested) computes everything: total, species (+ new), top 3 species, best friend (most sightings,
+  ≥ 2), rarest card (shiny first, then rarity), places (top 3), personality (night / early / weekend / day), best day,
+  letters opened in the period, shinies, 3 favourites for the summary.
+- Invitation: after the letters, `checkRecap()` asks "🎁 Tu año en Bichidex está listo" once due (`dueRecap`, meta
+  `recaps-seen`); "Luego" waits until the app is reopened. Ajustes → "📅 Mis años" reopens past years.
+- `openRecap(year)`: story slides (`#recap-tpl`): tap the right 2/3 = next, left 1/3 = back, hold = pause, ✕ closes;
+  5.2 s per slide; numbers count up; slides without data are skipped. The last slide: "💾 Guardar imagen" →
+  `shareRecap()` draws a 1080×1920 PNG and shares it.
+- **Testing before 2027:** open the app with `?recap` to see the year so far (last birthday → today).
 
 ## Known limits and ideas for next iterations
 

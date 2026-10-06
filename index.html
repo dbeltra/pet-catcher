@@ -74,6 +74,7 @@
     <button id="backup">💾 Guardar copia</button>
     <label class="restore">📂 Restaurar una copia<input id="restore" type="file" accept="application/json,.json" hidden></label>
     <button id="open-letters">💌 Cartas</button>
+    <button id="open-years">📅 Mis años</button>
     <button id="sound"></button>
     <button id="replay-bday">🎂 Ver la felicitación</button>
     <button id="reset">🗑️ Restablecer la app</button>
@@ -153,6 +154,15 @@
 
   <template id="tile-tpl">
     <button class="tile"><span class="foil"></span><span class="ribbon">Recuerdo</span><img class="heart ico" src="assets/icons/heart.png" alt="" hidden><span class="pic"><img alt=""></span><span class="no"></span><span class="name"></span><span class="meta"></span></button>
+  </template>
+
+  <template id="recap-tpl">
+    <div class="recap">
+      <div class="recap-bars"></div>
+      <button class="recap-close" aria-label="Cerrar">✕</button>
+      <div class="recap-slide"></div>
+      <div class="recap-tap"></div>
+    </div>
   </template>
 
   <template id="hand-tpl">
