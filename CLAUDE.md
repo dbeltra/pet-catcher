@@ -150,7 +150,7 @@ lookups one at a time for records that have `location` but no `place`.
 - **Birthday surprise:** `#bday` overlay ("¡Feliz cumpleaños Mari! Te quiero ❤️", CSS confetti) shows on the
   first open **of the installed app** (`display-mode: standalone` / `navigator.standalone`), never in a browser
   tab, so David can install it on her phone without seeing it. It is marked seen (`localStorage` `bday-seen`)
-  only when its button is tapped: closing the app without tapping keeps it for next time. Replay: tap the ✿ next to the title, or open with `?cumple`. (`?shiny` makes every catch shiny, for testing.)
+  only when its button is tapped: closing the app without tapping keeps it for next time. Replay: tap the ✿ next to the title, or open with `?cumple` (no button in Ajustes since v0.24.4). (`?shiny` makes every catch shiny, for testing.)
   Its button also asks for `DeviceOrientationEvent.requestPermission()` (iOS needs a tap for the holo tilt).
 - **Recuerdos (her past pets):** `SEEDS` in `lib.mjs` (Kurko 🐶 perro, Kiffy 🐱 gato) with fixed ids
   `seed-kurko` / `seed-kiffy`. `ensureMemories()` re-adds any that is missing on **every** start, so they can
@@ -177,7 +177,7 @@ lookups one at a time for records that have `location` but no `place`.
   "clear site data" are shared with them. Never `localStorage.clear()`; remove only Bichidex's keys.
 - **Reset** ("🗑️ Restablecer la app" in settings, two confirms): deletes the IndexedDB and Bichidex's localStorage keys and
   reloads, so the app starts like the first day. The cached models stay.
-- **Settings** ("⚙️ Ajustes" link next to the version at the bottom of the list; a native `<dialog>`; David
+- **Settings** (⚙️ button next to the version at the bottom of the list; a native `<dialog>`; David
   did not want it in a primary spot): backup, restore, "🎂 Ver la felicitación", version.
 - **Backup / restore** (in settings): "💾 Guardar copia" writes all animals (stickers as data URLs) plus the `meta`
   store to `pet-catcher-YYYY-MM-DD.json`, through the share sheet when possible (iOS standalone downloads are

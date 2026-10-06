@@ -1366,7 +1366,6 @@ $('#sound').onclick = () => {
   paintSound();
   sfx('pop'); // a sample when it is switched on
 };
-$('#replay-bday').onclick = () => { $('#settings').close(); showBirthday(); };
 
 // Reset ("Restablecer"): deletes everything of hers on this phone and starts like the first day (birthday screen,
 // Kurko and Kiffy back). Two confirmations; the downloaded models stay cached (they are not her data).
