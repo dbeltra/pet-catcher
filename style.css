@@ -181,6 +181,7 @@ h1 {
   font: inherit; color: var(--text); background: var(--bg); border: 2px solid var(--dots);
   border-radius: 999px; padding: 10px 16px; cursor: pointer;
 }
+#settings .credits a { color: var(--accent-deep); }
 #settings #reset { color: var(--danger); border-color: var(--danger); background: none; font-size: .9rem; }
 #settings .close { background: var(--accent); border-color: var(--accent); color: var(--on-accent); box-shadow: 0 4px 0 var(--accent-deep); width: 100%; }
 
@@ -398,7 +399,7 @@ html.tilt .shiny > .foil::before { animation: shiny-pulse 1.6s ease-in-out infin
 /* Closing: the text and buttons go at once (no pause), so the shrinking card is just colour, sticker and foil */
 .card.leaving > :not(.sticker-wrap, .foil) { opacity: 0; }
 .sticker-wrap::before, .sticker-wrap::after { position: absolute; font-size: 1.4rem; animation: twinkle 2.4s ease-in-out infinite; }
-.sticker-wrap::before, .sticker-wrap::after { content: ''; width: 24px; height: 24px; background: url(assets/icons/shine.png) center / contain no-repeat; }
+.sticker-wrap::before, .sticker-wrap::after { content: ''; width: 36px; height: 36px; filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 1px #fff); /* bigger, with a glow: they vanished on gold cards (v0.23) */ background: url(assets/icons/shine.png) center / contain no-repeat; }
 .sticker-wrap::before { top: 10px; left: 14px; }
 .sticker-wrap::after { bottom: 12px; right: 14px; animation-delay: 1.2s; }
 .sticker { display: block; margin: 0 auto; max-width: 100%; max-height: 100%; animation: bob 3s ease-in-out infinite; }
@@ -639,16 +640,16 @@ html[data-vt]::view-transition-group(content) { animation: none; }
 .flash[data-kind="shiny"] { background: conic-gradient(#ff8fc8, #ffd36e, #8ff0b5, #8fd0ff, #c69bff, #ff8fc8); -webkit-mask: radial-gradient(circle, #000 0%, transparent 65%); mask: radial-gradient(circle, #000 0%, transparent 65%); }
 
 /* ---------- David's letters: an envelope that opens ---------- */
-#letter, #letters {
+#letter, #letters, #diary {
   border: 4px solid #fff; border-radius: 30px; padding: 22px 20px 18px; width: min(340px, calc(100vw - 32px));
   background: var(--card); color: var(--text); text-align: center;
   box-shadow: 0 8px 0 var(--accent-deep), 0 20px 50px rgba(90, 70, 50, .3);
 }
-:is(#letter, #letters)[open] { animation: vt-pop .5s cubic-bezier(.34, 1.56, .64, 1); }
-:is(#letter, #letters)::backdrop { background: rgba(90, 70, 50, .3); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
-:is(#letter, #letters) h2 { margin: 0 0 14px; font-size: 1.3rem; }
+:is(#letter, #letters, #diary)[open] { animation: vt-pop .5s cubic-bezier(.34, 1.56, .64, 1); }
+:is(#letter, #letters, #diary)::backdrop { background: rgba(90, 70, 50, .3); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+:is(#letter, #letters, #diary) h2 { margin: 0 0 14px; font-size: 1.3rem; }
 :is(#letter, #letters) .hint { margin: 10px 0 0; color: var(--muted); font-size: .85rem; }
-:is(#letter, #letters) .close { margin-top: 16px; font: inherit; width: 100%; padding: 10px 16px; border-radius: 999px; cursor: pointer;
+:is(#letter, #letters, #diary) .close { margin-top: 16px; font: inherit; width: 100%; padding: 10px 16px; border-radius: 999px; cursor: pointer;
   background: var(--accent); border: 2px solid var(--accent); color: var(--on-accent); box-shadow: 0 4px 0 var(--accent-deep); }
 #letter:not(.open) .close { visibility: hidden; }
 #letter.open .hint { visibility: hidden; }
@@ -668,6 +669,11 @@ html[data-vt]::view-transition-group(content) { animation: none; }
 #letter.open .seal { opacity: 0; }
 #letter.open .paper { transform: translateY(-112px) scale(1.12); z-index: 5; box-shadow: 0 8px 18px rgba(90, 70, 50, .25); }
 
+#diary-map { height: 150px; border-radius: 18px; border: 3px solid #fff; box-shadow: var(--shadow); margin-bottom: 12px; }
+#diary-list { list-style: none; margin: 0; padding: 0 2px; display: flex; flex-direction: column; gap: 8px; max-height: 40dvh; overflow-y: auto; text-align: left; }
+#diary-list li { display: flex; flex-direction: column; padding: 8px 12px; border-radius: 14px; background: var(--bg); font-size: .9rem; }
+#diary-list span { color: var(--muted); font-size: .85rem; }
+.card .bond.link { cursor: pointer; text-decoration: underline dotted rgba(90, 70, 50, .35); text-underline-offset: 3px; }
 #letters-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 55dvh; overflow-y: auto; text-align: left; }
 #letters-list li { background: #fffdf5 repeating-linear-gradient(transparent 0 23px, rgba(90, 70, 50, .07) 23px 24px); border-radius: 14px; padding: 10px 14px; box-shadow: 0 2px 6px rgba(90, 70, 50, .12); }
 #letters-list p { margin: 2px 0 4px; }

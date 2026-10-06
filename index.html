@@ -74,9 +74,12 @@
     <button id="backup">💾 Guardar copia</button>
     <label class="restore">📂 Restaurar una copia<input id="restore" type="file" accept="application/json,.json" hidden></label>
     <button id="open-letters">💌 Cartas</button>
+    <button id="sound"></button>
     <button id="replay-bday">🎂 Ver la felicitación</button>
     <button id="reset">🗑️ Restablecer la app</button>
     <p id="settings-version" class="hint"></p>
+    <p class="hint credits">Hecho con 💛 por <strong>David Beltrà</strong> · coautor: <strong>Claude</strong> (Anthropic)<br>
+      <a href="https://github.com/dbeltra/pet-catcher" target="_blank" rel="noopener">github.com/dbeltra/pet-catcher</a></p>
     <form method="dialog"><button class="close" autofocus>Cerrar</button></form>
   </dialog>
 
@@ -110,6 +113,13 @@
     </button>
     <p class="hint">Toca el sobre para abrirlo</p>
     <form method="dialog"><button class="close">Guardar en mis cartas</button></form>
+  </dialog>
+
+  <dialog id="diary">
+    <h2></h2>
+    <div id="diary-map"></div>
+    <ul id="diary-list"></ul>
+    <form method="dialog"><button class="close">Cerrar</button></form>
   </dialog>
 
   <dialog id="letters">

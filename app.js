@@ -487,8 +487,10 @@ function renderCard(a, actions, save = () => {}, close = null) {
   if (fr) bond.push(`${fr.medal} ${fr.label}` + (nx ? `, ${nx.left} más para ${nx.label.toLowerCase()}` : ', ¡la máxima!'));
   else if (a.visits.length) bond.push(`🤝 ${nx.left} más para ser amigos`);
   if (a.visits.length) bond.push(`👀 ${timesSeen(a)} veces`);
-  q('.bond').textContent = bond.join(' · ');
+  q('.bond').textContent = bond.join(' · ') + (a.visits.length ? ' ›' : '');
   q('.bond').hidden = !bond.length;
+  q('.bond').classList.toggle('link', a.visits.length > 0);
+  q('.bond').onclick = () => { if (a.visits.length) openDiary(a); };
   const last = a.visits.reduce((x, y) => (!x || y.at > x.at ? y : x), null);
   q('.last-seen').hidden = !last;
   if (last) q('.last-seen').textContent = `Última vez: ${fmtWhen(last.at)}` + (last.place ? ` · ${last.place}` : '');
@@ -573,8 +575,41 @@ addEventListener('keydown', e => {
   else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && cardKeys.close) { e.preventDefault(); cardKeys.close(); }
 });
 
+// ---------- sounds (v0.23): tiny synthesized blips with Web Audio, no files. "🔊 Sonidos" in Ajustes. ----------
+let audio;
+const soundOn = () => { try { return localStorage.getItem('sound') !== 'off'; } catch { return true; } };
+// notes: [[frequency Hz, start s, length s, type?, volume?]]
+function play(notes) {
+  if (!soundOn()) return;
+  try {
+    audio ??= new AudioContext();
+    if (audio.state === 'suspended') audio.resume();
+    const t0 = audio.currentTime + .01;
+    for (const [f, at, len, type = 'sine', vol = .12] of notes) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, t0 + at);
+      g.gain.setValueAtTime(0, t0 + at);
+      g.gain.linearRampToValueAtTime(vol, t0 + at + .01);
+      g.gain.exponentialRampToValueAtTime(.0001, t0 + at + len);
+      o.connect(g).connect(audio.destination);
+      o.start(t0 + at); o.stop(t0 + at + len + .02);
+    }
+  } catch {}
+}
+const SOUNDS = {
+  shutter: [[1400, 0, .04, 'square', .05], [900, .05, .06, 'square', .05]],
+  pop: [[520, 0, .07, 'sine', .14], [780, .03, .06, 'sine', .08]],
+  reveal: [[660, 0, .12], [880, .1, .14], [1320, .22, .25, 'triangle', .1]],
+  shiny: [[1568, 0, .2, 'triangle', .08], [2093, .08, .22, 'triangle', .08], [2637, .16, .3, 'triangle', .07], [3136, .26, .4, 'sine', .06]],
+  chime: [[784, 0, .5, 'sine', .1], [1175, .12, .6, 'sine', .08]],
+  boop: [[330, 0, .12, 'sine', .14], [440, .08, .14, 'sine', .1]],
+  levelup: [[523, 0, .12], [659, .1, .12], [784, .2, .25, 'triangle', .1]],
+};
+const sfx = name => play(SOUNDS[name]);
+
 // Petting: the animal wiggles happily and hearts float up (transform/opacity only), with a tiny buzz on Android.
 function pet(wrap) {
+  sfx('boop');
   const img = wrap.querySelector('.sticker');
   img.animate([{ transform: 'none' }, { transform: 'rotate(-7deg) scale(1.08)' }, { transform: 'rotate(6deg) scale(1.1)' },
     { transform: 'rotate(-4deg) scale(1.05)' }, { transform: 'none' }], { duration: 700, easing: 'ease-in-out' });
@@ -606,6 +641,7 @@ async function reveal(card, a) {
   cover.remove();
   const flash = Object.assign(document.createElement('div'), { className: 'flash' });
   flash.dataset.kind = a.shiny ? 'shiny' : rarityFor(a);
+  sfx(a.shiny ? 'shiny' : 'reveal');
   card.append(flash);
   flash.animate([{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(2.4)', opacity: 0 }], { duration: 800, easing: 'ease-out' }).finished.then(() => flash.remove());
   await card.animate([{ transform: 'perspective(900px) rotateY(-90deg)' }, { transform: 'perspective(900px) rotateY(0)' }],
@@ -656,6 +692,7 @@ function swipes(card, onFlip, onClose) {
 // Card flip: turn to 90°, swap faces, turn back from -90°. The back has the traits and the note, all editable.
 // dir: 1 or -1, the way the finger swiped. A swipe hands over the angle it already reached (--turn).
 async function flip(card, a, save, dir = 1) {
+  sfx('pop');
   const back = !card.classList.contains('show-back');
   const start = parseFloat(card.style.getPropertyValue('--turn')) || 0;
   card.style.transform = '';
@@ -1040,11 +1077,41 @@ function detailCard(a) {
   ], async () => { await put(a); checkAchievements(); }, closeDetail);
 }
 
+// Diary of an animal: every sighting, newest first (the catch marked), with a mini map. A pop-up from the back.
+let diaryMap, diaryPins;
+async function openDiary(a) {
+  const entries = [{ at: a.takenAt, place: a.place, location: a.location, first: true }, ...a.visits].sort((x, y) => y.at - x.at);
+  $('#diary h2').textContent = `📖 Diario de ${a.name}`;
+  $('#diary-list').replaceChildren(...entries.map(e => {
+    const li = document.createElement('li');
+    li.append(Object.assign(document.createElement('strong'), { textContent: fmtWhen(e.at) + (e.first ? ' · ⭐ atrapado' : '') }),
+      Object.assign(document.createElement('span'), { textContent: e.place ? `📍 ${e.place}` : '📍 Lugar desconocido' }));
+    return li;
+  }));
+  const spots = entries.filter(e => e.location);
+  $('#diary-map').hidden = !spots.length;
+  sfx('pop');
+  $('#diary').showModal();
+  if (!spots.length) return;
+  const L = await leaflet();
+  if (!diaryMap) {
+    diaryMap = L.map('diary-map', { zoomControl: false, attributionControl: false });
+    osmTiles(L).addTo(diaryMap);
+    diaryPins = L.layerGroup().addTo(diaryMap);
+  }
+  diaryMap.invalidateSize(); // the dialog just opened
+  diaryPins.clearLayers();
+  for (const e of spots) L.circleMarker([e.location.lat, e.location.lon], { radius: e.first ? 9 : 7, weight: 3, color: '#fff',
+    fillColor: e.first ? '#e8b84a' : '#8fc3f0', fillOpacity: 1 }).addTo(diaryPins);
+  diaryMap.fitBounds(spots.map(e => [e.location.lat, e.location.lon]), { padding: [28, 28], maxZoom: 16, animate: false });
+}
+
 // A new friendship level: a toast (and confetti at gold). Returns false when the level did not change.
 function friendToast(a, before) {
   const now = friendshipOf(a);
   if (!now || now.key === before?.key) return false;
   toast(`${now.medal} ¡${a.name} y tú ya sois amigos de ${now.label.toLowerCase()}!`);
+  sfx('levelup');
   if (now.key === 'oro') { confetti($('#burst'), 70); setTimeout(() => $('#burst').replaceChildren(), 4500); }
   return true;
 }
@@ -1149,6 +1216,7 @@ function failed(e) {
 const FORCE_SHINY = new URLSearchParams(location.search).has('shiny');
 
 async function onPhoto(file, fromGallery = false) {
+  if (!fromGallery) sfx('shutter');
   showView('view');
   const exif = fromGallery ? readExif(await file.arrayBuffer()) : null;
   const where = fromGallery ? Promise.resolve(exif.location) : getLocation(); // ask early, it runs while the models work
@@ -1289,6 +1357,13 @@ $('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title, 
 
 // ---------- settings ----------
 $('#open-settings').onclick = () => { $('#settings-version').textContent = `Bichidex v${self.VERSION}`; $('#settings').showModal(); };
+const paintSound = () => { $('#sound').textContent = soundOn() ? '🔊 Sonidos: sí' : '🔇 Sonidos: no'; };
+paintSound();
+$('#sound').onclick = () => {
+  try { localStorage.setItem('sound', soundOn() ? 'off' : 'on'); } catch {}
+  paintSound();
+  sfx('pop'); // a sample when it is switched on
+};
 $('#replay-bday').onclick = () => { $('#settings').close(); showBirthday(); };
 
 // Reset ("Restablecer"): deletes everything of hers on this phone and starts like the first day (birthday screen,
@@ -1300,7 +1375,7 @@ $('#reset').onclick = async () => {
   (await db).close();
   await new Promise(res => { const r = indexedDB.deleteDatabase('pet-catcher'); r.onsuccess = r.onerror = r.onblocked = res; });
   // Only Bichidex's own keys: dbeltra.github.io is one origin shared with David's other apps (their data lives here too).
-  try { for (const k of ['bday-seen', 'gestures-learned', 'used-flip', 'used-close', 'sort']) localStorage.removeItem(k); } catch {}
+  try { for (const k of ['bday-seen', 'gestures-learned', 'used-flip', 'used-close', 'sort', 'sound']) localStorage.removeItem(k); } catch {}
   location.replace(location.pathname);
 };
 
@@ -1314,6 +1389,7 @@ async function checkAchievements() {
   const fresh = ACHIEVEMENTS.filter(x => now.includes(x.id) && !before.includes(x.id));
   if (fresh.length) {
     toast(`🏅 ¡Logro desbloqueado! ${fresh.map(x => `${x.emoji} ${x.title}`).join(' · ')}`);
+    sfx('levelup');
     confetti($('#burst'), 60);
     setTimeout(() => $('#burst').replaceChildren(), 4500);
   }
@@ -1336,7 +1412,7 @@ async function checkNotes() {
   d.querySelector('.note-text').textContent = next.text;
   d.querySelector('.note-why').textContent = next.why;
   d.showModal();
-  d.querySelector('.envelope').onclick = () => d.classList.add('open');
+  d.querySelector('.envelope').onclick = () => { if (!d.classList.contains('open')) sfx('chime'); d.classList.add('open'); };
   d.onclose = async () => {
     d.onclose = null;
     await setMeta('notes-opened', [...opened, { id: next.id, at: Date.now() }]);

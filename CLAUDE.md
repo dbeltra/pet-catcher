@@ -286,6 +286,12 @@ lookups one at a time for records that have `location` but no `place`.
   never scrolls (`overflow: hidden`; scrolling inside it fought with the swipes). Checked down to 320 px wide.
 - **Friendship** (`friendshipOf`): 3 sightings bronce 🥉, 5 plata 🥈, 10 oro 🥇. A metal ring inside the card
   (`data-friend`), the medal after the number on the tile, a line on the card, a toast (confetti at gold).
+- **Diary** (v0.23, `openDiary`): tapping the friendship line on the back (it has "›" once seen again) opens a pop-up:
+  every sighting newest first (the catch marked "⭐ atrapado") with date, time and place, and a mini map (`#diary-map`).
+- **Sounds** (v0.23): tiny Web Audio blips, no files (`SOUNDS` / `sfx()`): shutter on a camera catch, pop on flip, reveal
+  (or sparkle for a shiny), chime when a letter opens, boop when petting, level-up for friendship and achievements.
+  "🔊 Sonidos" switch in Ajustes (localStorage `sound`).
+- **Credits** in Ajustes: David Beltrà, author · Claude (Anthropic), co-author · link to the GitHub repo.
 - **Pack reveal** (`reveal()`): a new catch arrives face down (`.cover`, the Bichidex card back), wobbles, flips, and
   a flash in its rarity colour (rainbow for a shiny) bursts out. Skipped with reduced motion.
 - **Petting** (`pet()`): press and hold the photo → the animal wiggles, 7 hearts float up, a short vibration.
