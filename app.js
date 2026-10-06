@@ -1355,7 +1355,7 @@ $('#bday button').onclick = () => {
   $('#confetti').replaceChildren();
   setTimeout(checkNotes, 800);
 };
-$('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title, or "Ver la felicitación" in settings
+$('.sparkle').onclick = showBirthday; // replay: tap the ✿ next to the title (or open with ?cumple)
 
 // ---------- settings ----------
 $('#open-settings').onclick = () => { $('#settings-version').textContent = `Bichidex v${self.VERSION}`; $('#settings').showModal(); };
