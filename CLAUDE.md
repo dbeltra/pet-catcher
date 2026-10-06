@@ -405,6 +405,21 @@ The icon is a notebook with an orange cat, made by David with an icon generator 
 Files at the root: `favicon.ico`, `apple-touch-icon.png` (iPhone), `icon-192/512.png`, `icon-192/512-maskable.png`
 (Android shapes). To change it, replace those files and bump `?v=N` in the manifest, the `<link>`s and the SW `SHELL`.
 
+## Planned: "Tu año en Bichidex" (yearly recap, not built yet)
+
+Decided with David (2026-10-06):
+- **Period: birthday to birthday** (15 October → 14 October). It appears on her birthday from 2027 on, as an
+  invitation on the list ("Tu año en Bichidex está listo 🎁"), only if she caught ≥ 5 animals that year; past years
+  stay in Ajustes → "📅 Mis años".
+- **Format:** full-screen story slides (tap right/left, hold to pause, progress bar), kawaii style, her real stickers.
+- **Slides** (skip any with no data): intro (pack reveal) · total catches · species (+ new ones) · top species (podium) ·
+  best friend (most sightings) · rarest card (legendario / shiny, with foil) · places (mini map + favourite spot) ·
+  personality (night / early / weekend catcher) · best day · achievements and letters unlocked (no texts) ·
+  David's message · closing card with a "💾 Guardar imagen" share image (1080×1920).
+- **David's message, the same every year:** "Gracias por otro año atrapando bichitos conmigo ❤️"
+- **Kurko and Kiffy are out** of the recap (they are not catches).
+- Uses only data the app already stores. Effort: medium–large (slide player, animations, share image).
+
 ## Known limits and ideas for next iterations
 
 - The detector knows only 10 animals. Anything else goes through the tap fallback.
