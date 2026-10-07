@@ -401,7 +401,7 @@ Install on the phone: Android Chrome → menu → "Install app". iPhone Safari �
 
 ## App icons
 
-The icon is a notebook with an orange cat, made by David with an icon generator (v0.17; `~/Downloads/app-icons/web`).
+The icon is a cream notebook with a yellow paw print (v1.0.3, from David's `~/Downloads/icon-512.png`; full-bleed, the paw sits inside the maskable safe zone, so the maskable files are the same image). Before: a notebook with an orange cat (v0.17).
 Files at the root: `favicon.ico`, `apple-touch-icon.png` (iPhone), `icon-192/512.png`, `icon-192/512-maskable.png`
 (Android shapes). To change it, replace those files and bump `?v=N` in the manifest, the `<link>`s and the SW `SHELL`.
 
